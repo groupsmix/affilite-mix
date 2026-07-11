@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { forwardRef } from "react"
-import type { Group } from "three"
+import { forwardRef } from "react";
+import type { Group } from "three";
 
 /**
  * Placeholder watch built from primitives:
@@ -33,7 +33,7 @@ export const WatchModel = forwardRef<Group>(function WatchModel(_props, ref) {
 
       {/* Hour markers */}
       {Array.from({ length: 12 }).map((_, i) => {
-        const angle = (i / 12) * Math.PI * 2
+        const angle = (i / 12) * Math.PI * 2;
         return (
           <mesh
             key={i}
@@ -43,7 +43,7 @@ export const WatchModel = forwardRef<Group>(function WatchModel(_props, ref) {
             <boxGeometry args={[0.05, 0.14, 0.02]} />
             <meshStandardMaterial color="#c9a227" metalness={0.9} roughness={0.3} />
           </mesh>
-        )
+        );
       })}
 
       {/* Hands */}
@@ -100,5 +100,5 @@ export const WatchModel = forwardRef<Group>(function WatchModel(_props, ref) {
         <meshStandardMaterial color="#b8b8bc" metalness={0.95} roughness={0.25} />
       </mesh>
     </group>
-  )
-})
+  );
+});

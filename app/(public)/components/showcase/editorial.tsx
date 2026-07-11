@@ -29,9 +29,7 @@ export function Editorial({ siteName, recentContent }: EditorialProps) {
             </ScrollReveal>
 
             <ScrollReveal delay={150}>
-              <p className="text-xs uppercase tracking-[0.4em] text-primary mb-4">
-                Why {siteName}
-              </p>
+              <p className="text-xs uppercase tracking-[0.4em] text-primary mb-4">Why {siteName}</p>
               <h2 className="showcase-serif text-4xl md:text-5xl text-foreground leading-tight text-balance">
                 We&apos;re the friend who <span className="italic">actually knows</span> watches
               </h2>

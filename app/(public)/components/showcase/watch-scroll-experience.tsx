@@ -91,7 +91,11 @@ export function WatchScrollExperience({
   useSectionFades(rootRef);
 
   return (
-    <div ref={rootRef} id="watch-scroll-container" className="relative bg-background text-foreground">
+    <div
+      ref={rootRef}
+      id="watch-scroll-container"
+      className="relative bg-background text-foreground"
+    >
       {/* Sticky 3D layer — pinned while the 3 sections scroll, then releases so the page continues to products */}
       <div className="pointer-events-none sticky top-0 z-0 h-screen w-full">
         <Canvas camera={{ position: [0, 0, 6.5], fov: 42 }} gl={{ antialias: true }}>

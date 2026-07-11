@@ -8,6 +8,11 @@
 #   `sharp` image-processing library. libvips itself is LGPL-3.0; we
 #   consume it dynamically (not statically linked into our distributable),
 #   which is permitted by LGPL-3.0 §4. Reviewed and accepted.
+# - gsap@3.15.0: GSAP's "Standard 'no charge' license". Not OSI-approved but
+#   explicitly free for all commercial use (Webflow made GSAP 100% free in
+#   2025, https://gsap.com/pricing/). No copyleft obligations. Reviewed and
+#   accepted for the showcase homepage hero animation.
+gsap@3.15.0
 @img/sharp-libvips-darwin-arm64@1.2.4
 @img/sharp-libvips-darwin-x64@1.2.4
 @img/sharp-libvips-linux-arm64@1.2.4

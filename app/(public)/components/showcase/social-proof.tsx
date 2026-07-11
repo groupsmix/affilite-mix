@@ -52,7 +52,8 @@ export function SocialProof({
     { value: "12k+", label: "Monthly readers" },
     {
       value: productCount > 0 ? `${productCount}` : "4.9/5",
-      label: productCount > 0 ? `Curated ${productLabelPlural.toLowerCase()}` : "Average pick rating",
+      label:
+        productCount > 0 ? `Curated ${productLabelPlural.toLowerCase()}` : "Average pick rating",
     },
     {
       value: reviewCount > 0 ? `${reviewCount}` : "1,400+",
@@ -117,13 +118,17 @@ export function SocialProof({
             As discussed in watch communities
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-            {["r/Watches", "Watchuseek Forums", "WatchCrunch", "Horology Weekly", "The Dial Digest"].map(
-              (name) => (
-                <span key={name} className="showcase-serif text-lg md:text-xl text-foreground/40">
-                  {name}
-                </span>
-              ),
-            )}
+            {[
+              "r/Watches",
+              "Watchuseek Forums",
+              "WatchCrunch",
+              "Horology Weekly",
+              "The Dial Digest",
+            ].map((name) => (
+              <span key={name} className="showcase-serif text-lg md:text-xl text-foreground/40">
+                {name}
+              </span>
+            ))}
           </div>
         </ScrollReveal>
       </div>
