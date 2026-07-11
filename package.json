@@ -51,7 +51,6 @@
     ]
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@sentry/browser": "^10.59.0",
     "@sentry/cloudflare": "^10.59.0",
