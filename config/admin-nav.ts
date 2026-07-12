@@ -44,6 +44,8 @@ export interface AdminNavItem {
   requiresActiveSite?: boolean;
   /** Nested pages rendered under this group in the expanded sidebar. */
   items?: AdminNavItem[];
+  /** Restrict this item to super admins only. */
+  requiresSuperAdmin?: boolean;
 }
 
 export const adminNavItems: AdminNavItem[] = [
@@ -172,6 +174,7 @@ export const adminNavItems: AdminNavItem[] = [
         iconKey: "users",
         icon: ShieldCheck,
         requiresActiveSite: true,
+        requiresSuperAdmin: true,
       },
       {
         href: adminRoute("/platform/integrations"),
@@ -179,6 +182,7 @@ export const adminNavItems: AdminNavItem[] = [
         iconKey: "sites",
         icon: Plug,
         requiresActiveSite: true,
+        requiresSuperAdmin: true,
       },
       {
         href: adminRoute("/audit-log"),

@@ -20,11 +20,9 @@ export function filterAdminNavItems(
   monetizationType: AdminMonetizationType,
   isSuperAdmin = false,
 ): AdminNavItem[] {
-  // Super admins manage the entire platform and always see every section,
-  // regardless of the active tenant's monetization model. The monetization
-  // filter below only declutters the nav for tenant-scoped (non-super) roles.
-  if (isSuperAdmin) return items;
   return items.reduce<AdminNavItem[]>((acc, item) => {
+    if (item.requiresSuperAdmin && !isSuperAdmin) return acc;
+
     if (item.items) {
       const visibleChildren = filterAdminNavItems(item.items, monetizationType, isSuperAdmin);
       if (visibleChildren.length === 0) return acc;
@@ -33,9 +31,16 @@ export function filterAdminNavItems(
       return [...acc, { ...item, href: visibleChildren[0]!.href, items: visibleChildren }];
     }
 
-    if (!monetizationType) return [...acc, item];
-    if (item.href === `${ADMIN_PATH}/ads` && monetizationType === "affiliate") return acc;
-    if (item.href === `${ADMIN_PATH}/affiliate-networks` && monetizationType === "ads") return acc;
+    // Super admins manage the entire platform and always see every section,
+    // regardless of the active tenant's monetization model. The monetization
+    // filter below only declutters the nav for tenant-scoped (non-super) roles.
+    if (!isSuperAdmin) {
+      if (!monetizationType) return [...acc, item];
+      if (item.href === `${ADMIN_PATH}/ads` && monetizationType === "affiliate") return acc;
+      if (item.href === `${ADMIN_PATH}/affiliate-networks` && monetizationType === "ads")
+        return acc;
+    }
+
     return [...acc, item];
   }, []);
 }
