@@ -8,6 +8,8 @@ import Underline from "@tiptap/extension-underline";
 import Youtube from "@tiptap/extension-youtube";
 import { useEffect, useState, useRef } from "react";
 import { isSafeUrl, sanitizeHtml } from "@/lib/sanitize-html";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 /**
  * Only http(s) URLs are permitted inside the editor for images and videos.
@@ -25,6 +27,15 @@ interface RichEditorProps {
   value: string;
   onChange: (html: string) => void;
 }
+
+type RewriteAction = "expand" | "rewrite" | "rephrase" | "summarize";
+
+const REWRITE_ACTIONS: { value: RewriteAction; label: string }[] = [
+  { value: "expand", label: "Expand" },
+  { value: "rewrite", label: "Rewrite" },
+  { value: "rephrase", label: "Rephrase" },
+  { value: "summarize", label: "Summarize" },
+];
 
 /** Inline popover for entering a URL (used for both links and images). */
 function UrlPopover({
@@ -83,10 +94,90 @@ function UrlPopover({
   );
 }
 
+function AiPopover({
+  editor,
+  open,
+  onClose,
+}: {
+  editor: Exclude<ReturnType<typeof useEditor>, null>;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  if (!open) return null;
+
+  const { from, to } = editor.state.selection;
+  const selected = editor.state.doc.textBetween(from, to, " ");
+  const empty = from === to;
+
+  async function handleAction(action: RewriteAction) {
+    if (empty) {
+      toast.error("Select some text first");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetchWithCsrf("/api/admin/ai/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: selected, action }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(data.error ?? "AI rewrite failed");
+        return;
+      }
+      const data = (await res.json()) as { text?: string };
+      if (!data.text) {
+        toast.error("AI returned empty text");
+        return;
+      }
+      editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, data.text).run();
+      onClose();
+    } catch {
+      toast.error("AI rewrite failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="absolute left-0 top-full z-50 mt-1 flex w-56 flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 shadow-lg">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+        {empty
+          ? "Select text in the editor"
+          : `Selected: ${selected.slice(0, 40)}${selected.length > 40 ? "…" : ""}`}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {REWRITE_ACTIONS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            disabled={loading || empty}
+            onClick={() => void handleAction(value)}
+            className="rounded bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {loading ? "…" : label}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   const [showLinkPopover, setShowLinkPopover] = useState(false);
   const [showImagePopover, setShowImagePopover] = useState(false);
   const [showVideoPopover, setShowVideoPopover] = useState(false);
+  const [showAiPopover, setShowAiPopover] = useState(false);
 
   if (!editor) return null;
 
@@ -292,6 +383,27 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             }}
             onCancel={() => setShowVideoPopover(false)}
           />
+        )}
+      </div>
+
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setShowAiPopover(!showAiPopover);
+            setShowLinkPopover(false);
+            setShowImagePopover(false);
+            setShowVideoPopover(false);
+          }}
+          className={btnClass(showAiPopover)}
+          title="AI rewrite / expand"
+        >
+          AI
+        </button>
+        {showAiPopover && (
+          <AiPopover editor={editor} open={showAiPopover} onClose={() => setShowAiPopover(false)} />
         )}
       </div>
     </div>
