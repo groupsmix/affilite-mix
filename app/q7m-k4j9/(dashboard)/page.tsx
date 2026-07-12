@@ -11,7 +11,11 @@ import { PageHeader } from "@/components/admin/page-header";
 import { requireAdminSession } from "./components/admin-guard";
 import { AdminDataError, safeAdminData } from "./components/admin-page-state";
 import { AutoRefresh } from "./components/auto-refresh";
-import { AlertsCard, type DashboardAlert } from "./components/dashboard/alerts-card";
+import {
+  NeedsAttentionCard,
+  type DashboardAttention,
+} from "./components/dashboard/needs-attention-card";
+import { QuickActions } from "./components/dashboard/quick-actions";
 import { CardErrorBoundary } from "./components/dashboard/card-error-boundary";
 import { KpiCard } from "./components/dashboard/kpi-card";
 import {
@@ -141,41 +145,45 @@ export default async function AdminDashboard() {
   if (publishedContent === 0) health -= 15;
   const platformHealth = Math.max(0, Math.min(100, health));
 
-  // Alerts / warnings — copy preserved verbatim from the previous dashboard
-  // so existing QA checklists still match.
-  const alerts: DashboardAlert[] = [];
+  // Work queue — items that need an admin review before they go live.
+  const attention: DashboardAttention[] = [];
   if (productsNoUrl > 0) {
-    alerts.push({
+    attention.push({
       type: "warning",
-      message: `${productsNoUrl} active product(s) missing affiliate URL`,
+      count: productsNoUrl,
+      message: "Active products missing affiliate URL",
       href: "/q7m-k4j9/products?missing_url=1",
     });
   }
   if (contentWithNoProducts > 0) {
-    alerts.push({
+    attention.push({
       type: "warning",
-      message: `${contentWithNoProducts} published content item(s) with no linked products`,
+      count: contentWithNoProducts,
+      message: "Published content with no linked products",
       href: "/q7m-k4j9/content",
     });
   }
   if (scheduledContent > 0) {
-    alerts.push({
+    attention.push({
       type: "info",
-      message: `${scheduledContent} content item(s) scheduled for future publishing`,
+      count: scheduledContent,
+      message: "Content scheduled for future publishing",
       href: "/q7m-k4j9/content?status=scheduled",
     });
   }
   if (draftContent > 0) {
-    alerts.push({
+    attention.push({
       type: "info",
-      message: `${draftContent} draft content item(s) waiting to be published`,
+      count: draftContent,
+      message: "Draft content waiting to be published",
       href: "/q7m-k4j9/content",
     });
   }
   if (draftProducts > 0) {
-    alerts.push({
+    attention.push({
       type: "info",
-      message: `${draftProducts} draft product(s) not yet active`,
+      count: draftProducts,
+      message: "Draft products not yet active",
       href: "/q7m-k4j9/products",
     });
   }
@@ -206,6 +214,8 @@ export default async function AdminDashboard() {
         }
         actions={<PowerReserveMeter value={platformHealth} />}
       />
+
+      <QuickActions />
 
       {/* Section 1 — KPI grid. 1 col on sm, 2 on md, 4 on xl. */}
       <div aria-live="polite" className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -266,12 +276,16 @@ export default async function AdminDashboard() {
         />
       </div>
 
-      {/* Section 2–4 — Trend, top products, scheduled content. Trend
-          spans 2 columns on xl so the chart gets room to breathe. */}
-      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* Section 2–3 — Trend and work queue. Trend spans 2 columns on xl. */}
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <TrendCard data={dailyClicks} totalClicks7d={clicks7d} />
         </div>
+        <NeedsAttentionCard items={attention} />
+      </div>
+
+      {/* Section 4 — Top products and scheduled content. */}
+      <div className="mb-6 grid gap-4 md:grid-cols-2">
         <TopProductsCard siteId={dbSiteId} sevenDaysAgo={sevenDaysAgo} />
         <ScheduledContentCard siteId={dbSiteId} />
       </div>
@@ -288,10 +302,6 @@ export default async function AdminDashboard() {
           </CardErrorBoundary>
         </div>
       )}
-
-      {/* Section 6 — Alerts. Kept near the bottom so KPIs load above the
-          fold; the existing list + copy is preserved inside `AlertsCard`. */}
-      <AlertsCard alerts={alerts} />
     </div>
   );
 }
