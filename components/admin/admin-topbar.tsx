@@ -22,6 +22,7 @@ import {
 import { findAdminNavItemByHref, type AdminMonetizationType } from "./admin-sidebar";
 import { CommandMenu } from "./command-menu";
 import { TenantBadgeSwitcher } from "./tenant-badge-switcher";
+import { ThemeToggle } from "./theme-toggle";
 
 interface Crumb {
   label: string;
@@ -167,6 +168,7 @@ export function AdminTopbar({
       <div className="flex items-center gap-2">
         <CommandMenu monetizationType={monetizationType} hasActiveSite={hasActiveSite} />
         <TenantBadgeSwitcher initialSiteName={siteName ?? null} isSuperAdmin={isSuperAdmin} />
+        <ThemeToggle />
         <UserMenu />
       </div>
     </header>
