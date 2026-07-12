@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { SearchIcon } from "lucide-react";
 
 import { adminNavItems } from "@/config/admin-nav";
-import { filterAdminNavItems, type AdminMonetizationType } from "./admin-sidebar";
+import {
+  filterAdminNavItems,
+  flattenAdminNavItems,
+  type AdminMonetizationType,
+} from "./admin-sidebar";
 import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
@@ -74,29 +78,31 @@ export function CommandMenu({
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Pages">
-            {filterAdminNavItems(adminNavItems, monetizationType).map((item) => {
-              const Icon = item.icon;
-              const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
-              return (
-                <CommandItem
-                  key={item.href}
-                  value={item.label}
-                  disabled={disabled}
-                  onSelect={() => {
-                    if (disabled) return;
-                    runCommand(() => router.push(item.href));
-                  }}
-                >
-                  {Icon && <Icon className="mr-2 size-4" />}
-                  <span>{item.label}</span>
-                  {disabled ? (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      Select a site first
-                    </span>
-                  ) : null}
-                </CommandItem>
-              );
-            })}
+            {flattenAdminNavItems(filterAdminNavItems(adminNavItems, monetizationType)).map(
+              (item) => {
+                const Icon = item.icon;
+                const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
+                return (
+                  <CommandItem
+                    key={item.href}
+                    value={item.label}
+                    disabled={disabled}
+                    onSelect={() => {
+                      if (disabled) return;
+                      runCommand(() => router.push(item.href));
+                    }}
+                  >
+                    {Icon && <Icon className="mr-2 size-4" />}
+                    <span>{item.label}</span>
+                    {disabled ? (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        Select a site first
+                      </span>
+                    ) : null}
+                  </CommandItem>
+                );
+              },
+            )}
           </CommandGroup>
         </CommandList>
       </CommandDialog>

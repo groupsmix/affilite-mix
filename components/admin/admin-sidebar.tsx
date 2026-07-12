@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PanelLeft, PanelRight } from "lucide-react";
 
-import { adminNavItems, adminNavSections, type AdminNavItem } from "@/config/admin-nav";
+import { adminNavItems, type AdminNavItem } from "@/config/admin-nav";
 import { ADMIN_PATH, ADMIN_SITES_PATH } from "@/lib/admin-paths";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,24 +24,46 @@ export function filterAdminNavItems(
   // regardless of the active tenant's monetization model. The monetization
   // filter below only declutters the nav for tenant-scoped (non-super) roles.
   if (isSuperAdmin) return items;
-  return items.filter((item) => {
-    if (!monetizationType) return true;
-    if (item.href === `${ADMIN_PATH}/ads` && monetizationType === "affiliate") return false;
-    if (item.href === `${ADMIN_PATH}/affiliate-networks` && monetizationType === "ads")
-      return false;
-    return true;
-  });
+  return items.reduce<AdminNavItem[]>((acc, item) => {
+    if (item.items) {
+      const visibleChildren = filterAdminNavItems(item.items, monetizationType, isSuperAdmin);
+      if (visibleChildren.length === 0) return acc;
+      // Parent collapses to the first visible child route so collapsed icon
+      // links and active-state checks work without a dedicated group route.
+      return [...acc, { ...item, href: visibleChildren[0]!.href, items: visibleChildren }];
+    }
+
+    if (!monetizationType) return [...acc, item];
+    if (item.href === `${ADMIN_PATH}/ads` && monetizationType === "affiliate") return acc;
+    if (item.href === `${ADMIN_PATH}/affiliate-networks` && monetizationType === "ads") return acc;
+    return [...acc, item];
+  }, []);
 }
 
-function isItemActive(href: string, pathname: string) {
-  return href === ADMIN_PATH ? pathname === ADMIN_PATH : pathname.startsWith(href);
+export function flattenAdminNavItems(items: AdminNavItem[]): AdminNavItem[] {
+  return items.flatMap((item) => (item.items ? flattenAdminNavItems(item.items) : [item]));
 }
 
-function humanizeSectionKey(key: string): string {
-  return key
-    .split("-")
-    .map((part) => part[0]!.toUpperCase() + part.slice(1))
-    .join(" ");
+export function findAdminNavItemByHref(
+  items: AdminNavItem[],
+  href: string,
+): AdminNavItem | undefined {
+  for (const item of items) {
+    if (item.href === href) return item;
+    if (item.items) {
+      const child = findAdminNavItemByHref(item.items, href);
+      if (child) return child;
+    }
+  }
+  return undefined;
+}
+
+function isItemActive(item: AdminNavItem, pathname: string): boolean {
+  const active =
+    item.href === ADMIN_PATH ? pathname === ADMIN_PATH : pathname.startsWith(item.href);
+  if (active) return true;
+  if (item.items) return item.items.some((child) => isItemActive(child, pathname));
+  return false;
 }
 
 /**
@@ -65,15 +87,15 @@ export function AdminSidebarNav({
   const pathname = usePathname();
   const items = filterAdminNavItems(adminNavItems, monetizationType, isSuperAdmin);
 
-  const renderLink = (item: AdminNavItem) => {
+  const renderLink = (item: AdminNavItem, indent = false) => {
     const Icon = item.icon;
     const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
     const href = disabled ? `${ADMIN_SITES_PATH}?needsSite=1` : item.href;
-    const active = !disabled && isItemActive(item.href, pathname);
+    const active = !disabled && isItemActive(item, pathname);
     const linkClass = cn(
       "relative flex items-center rounded-md text-sm font-medium outline-none transition-colors",
       "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-      collapsed ? "h-10 w-10 justify-center" : "h-9 gap-3 px-3",
+      collapsed ? "h-10 w-10 justify-center" : indent ? "h-9 gap-3 ml-3 pl-6" : "h-9 gap-3 px-3",
       disabled
         ? "cursor-not-allowed text-muted-foreground/45 hover:bg-transparent"
         : active
@@ -122,28 +144,45 @@ export function AdminSidebarNav({
     );
   };
 
+  const renderGroup = (item: AdminNavItem) => {
+    const Icon = item.icon;
+    const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
+    const active = isItemActive(item, pathname);
+
+    return (
+      <div key={item.href} className="flex flex-col gap-1">
+        <div
+          className={cn(
+            "relative flex items-center rounded-md h-9 gap-3 px-3 text-sm font-medium outline-none transition-colors",
+            disabled
+              ? "text-muted-foreground/45"
+              : active
+                ? "bg-accent text-accent-foreground"
+                : "text-foreground",
+          )}
+          aria-disabled={disabled}
+        >
+          {Icon ? (
+            <Icon
+              className={cn("size-4 shrink-0", active && "text-foreground")}
+              aria-hidden="true"
+            />
+          ) : null}
+          <span className="truncate">{item.label}</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          {item.items!.map((child) => renderLink(child, true))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <TooltipProvider delayDuration={300}>
       <nav aria-label="Admin navigation" className={cn("flex flex-col gap-1 px-2 py-3", className)}>
         {collapsed
           ? items.map((item) => renderLink(item))
-          : items.map((item, index) => {
-              const nodes: React.ReactNode[] = [];
-              const prevSection = items[index - 1]?.section;
-              if (item.section && item.section !== prevSection) {
-                const label = adminNavSections[item.section] ?? humanizeSectionKey(item.section);
-                nodes.push(
-                  <div
-                    key={`section-${item.section}`}
-                    className="mt-3 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70"
-                  >
-                    {label}
-                  </div>,
-                );
-              }
-              nodes.push(renderLink(item));
-              return nodes;
-            })}
+          : items.map((item) => (item.items ? renderGroup(item) : renderLink(item)))}
       </nav>
     </TooltipProvider>
   );
