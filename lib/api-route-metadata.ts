@@ -187,6 +187,17 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/audit-log/export",
+    methods: ["GET"],
+    requestSchema: "AuditLogQuery",
+    responseSchema: "CSV",
+    sensitiveFields: [],
+    notes:
+      "super_admin-only. Exports audit_log for the active site as CSV using the privileged client.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/categories",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "CategoryInput",

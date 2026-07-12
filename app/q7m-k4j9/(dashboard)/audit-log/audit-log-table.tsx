@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CalendarIcon, EyeIcon, XIcon } from "lucide-react";
+import { CalendarIcon, DownloadIcon, EyeIcon, XIcon } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
@@ -273,6 +273,23 @@ const columns: ColumnDef<AuditLogTableRow>[] = [
   },
 ];
 
+function ExportButton() {
+  const searchParams = useSearchParams();
+  const href = useMemo(
+    () => `/api/admin/audit-log/export?${searchParams.toString()}`,
+    [searchParams],
+  );
+
+  return (
+    <Button variant="outline" size="sm" className="h-8" asChild>
+      <a href={href} download>
+        <DownloadIcon className="mr-2 size-4" />
+        Export CSV
+      </a>
+    </Button>
+  );
+}
+
 /**
  * Popover-based date range picker. Uses two native `<input type="date">`
  * (deliberately — see PR description: we can upgrade to a real shadcn
@@ -426,6 +443,7 @@ export function AuditLogTable({
                 options={entityTypeOptions}
               />
             )}
+            <ExportButton />
           </>
         );
       }}

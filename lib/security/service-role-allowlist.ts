@@ -205,6 +205,12 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // it delegates to lib/dal/admin-users.ts, which already owns admin_users.)
   "lib/dal/admin-site-memberships.ts",
 
+  // Audit Log export is a super_admin-only route. `audit_log` SELECT is
+  // service_role-only (migrations 00033 / 00040), so the privileged client is
+  // required. The route uses `requireSuperAdmin()` and passes the resolved
+  // active `site_id` to site-scoped DAL helpers.
+  "app/api/admin/audit-log/export/route.ts",
+
   // Platform admin tabs (Modules, Integrations, Permissions) read/write config
   // tables whose RLS was locked down in migrations 00033 / 00040 / 2026052801:
   // site_modules, site_integrations and user_site_roles are service_role-only;

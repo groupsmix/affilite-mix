@@ -214,7 +214,12 @@ describe("Audit-3 regression locks", () => {
       // /api/auth/token-login. Rationale recorded in the allowlist.
       // Removed 45 -> 44: the dead feature-flags admin route was deleted after the
       // standalone feature-flags UI was removed.
-      expect(count).toBeLessThanOrEqual(44);
+      // Bumped 44 -> 45: GET /api/admin/audit-log/export now imports the privileged
+      // client so super_admin can export the audit_log CSV. `audit_log` SELECT is
+      // service_role-only (migrations 00033 / 00040); the tenant client returns zero
+      // rows. The route is requireSuperAdmin-gated and scopes all queries to the
+      // active site_id. Rationale recorded in the allowlist.
+      expect(count).toBeLessThanOrEqual(45);
     });
   });
 
