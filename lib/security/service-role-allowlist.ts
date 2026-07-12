@@ -205,18 +205,16 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // it delegates to lib/dal/admin-users.ts, which already owns admin_users.)
   "lib/dal/admin-site-memberships.ts",
 
-  // Platform admin tabs (Feature Flags, Modules, Integrations, Permissions)
-  // read/write config tables whose RLS was locked down in migrations 00033 /
-  // 00040 / 2026052801: site_modules, site_feature_flags, site_integrations and
-  // user_site_roles are service_role-only; roles / permissions /
-  // integration_providers allow authenticated read but the routes also touch a
-  // service_role-only table in the same handler. The default tenant client
-  // (authenticated role) therefore returns zero rows / is denied, leaving these
-  // pages blank. Each route is gated by withAuthz(super_admin) (or
+  // Platform admin tabs (Modules, Integrations, Permissions) read/write config
+  // tables whose RLS was locked down in migrations 00033 / 00040 / 2026052801:
+  // site_modules, site_integrations and user_site_roles are service_role-only;
+  // roles / permissions / integration_providers allow authenticated read but the
+  // routes also touch a service_role-only table in the same handler. The default
+  // tenant client (authenticated role) therefore returns zero rows / is denied,
+  // leaving these pages blank. Each route is gated by withAuthz(super_admin) (or
   // requireAdmin + assertRole('super_admin') for permissions) and every
   // site-scoped DAL call carries an explicit `.eq('site_id', …)` predicate, so
   // tenant isolation is preserved without relying on RLS.
-  "app/api/admin/feature-flags/route.ts",
   "app/api/admin/modules/route.ts",
   "app/api/admin/integrations/route.ts",
   "app/api/admin/permissions/route.ts",

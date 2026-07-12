@@ -40,8 +40,6 @@ import { getDashboardStats, type DashboardStats } from "@/lib/dal/dashboard-stat
 import { type NicheHealthRow } from "@/lib/dal/niche-health";
 import { validateCreateProduct } from "@/lib/validation";
 import { validatePasswordPolicy } from "@/lib/password-policy";
-import { upsertFeatureFlag } from "@/lib/dal/feature-flags";
-
 // ── Shared resolver harness (same injection the Phase-1 tests use) ──────────
 // resolveDbSiteId resolves the active site against the `sites` registry via the
 // privileged client. For PRESERVATION we inject a PROVISIONED row (¬C: the row
@@ -401,86 +399,6 @@ describe("admin-launch-blockers Property 8 (3.7/3.8/3.9): untouched admin surfac
       expect(src.length).toBeGreaterThan(0);
       if (s.marker) expect(src.toLowerCase()).toContain(s.marker);
     }
-  });
-});
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * 3.11 — Feature-flag toggle still persists
- * ═══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Minimal in-memory `site_feature_flags` table: the upsert chain
- * `.upsert(row).select().single()` stores and echoes the row back (with an id),
- * exactly what `upsertFeatureFlag` consumes. This proves the toggle persists.
- */
-class InMemoryFeatureFlags {
-  readonly store = new Map<string, { is_enabled: boolean; description: string }>();
-
-  getClient = async () => {
-    const store = this.store;
-    return {
-      from(_table: string) {
-        let pending: {
-          site_id: string;
-          flag_key: string;
-          is_enabled: boolean;
-          description: string;
-        } | null = null;
-        const builder = {
-          upsert(row: typeof pending) {
-            pending = row;
-            const key = `${row!.site_id}:${row!.flag_key}`;
-            store.set(key, { is_enabled: row!.is_enabled, description: row!.description });
-            return builder;
-          },
-          select() {
-            return builder;
-          },
-          single() {
-            const now = new Date().toISOString();
-            return Promise.resolve({
-              data: {
-                id: `${pending!.site_id}:${pending!.flag_key}`,
-                site_id: pending!.site_id,
-                flag_key: pending!.flag_key,
-                is_enabled: pending!.is_enabled,
-                description: pending!.description,
-                created_at: now,
-                updated_at: now,
-              },
-              error: null,
-            });
-          },
-        };
-        return builder;
-      },
-    } as never;
-  };
-}
-
-describe("admin-launch-blockers Property 8 (3.11): feature-flag toggles still persist", () => {
-  it("PRESERVATION: upsertFeatureFlag persists the toggled value for any (flag, enabled) pair", async () => {
-    await fc.assert(
-      fc.asyncProperty(
-        fc
-          .string({ minLength: 1, maxLength: 24 })
-          .map((s) => s.replace(/[^a-z0-9_]/gi, "_").toLowerCase() || "flag"),
-        fc.boolean(),
-        async (flagKey, isEnabled) => {
-          const table = new InMemoryFeatureFlags();
-          const row = await upsertFeatureFlag(
-            { site_id: "db-crypto-tools", flag_key: flagKey, is_enabled: isEnabled },
-            table.getClient,
-          );
-
-          // Observed baseline (unfixed): the toggle is returned and persisted.
-          expect(row.is_enabled).toBe(isEnabled);
-          expect(row.flag_key).toBe(flagKey);
-          expect(table.store.get(`db-crypto-tools:${flagKey}`)?.is_enabled).toBe(isEnabled);
-        },
-      ),
-      { numRuns: 100 },
-    );
   });
 });
 

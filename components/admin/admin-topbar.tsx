@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { AdminMonetizationType } from "./admin-sidebar";
+import { findAdminNavItemByHref, type AdminMonetizationType } from "./admin-sidebar";
 import { CommandMenu } from "./command-menu";
 import { TenantBadgeSwitcher } from "./tenant-badge-switcher";
 
@@ -40,14 +40,14 @@ function humanize(segment: string): string {
  * they match so labels stay consistent with the sidebar.
  */
 function buildCrumbs(pathname: string): Crumb[] {
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts.length === 0 || parts[0] !== "admin") return [];
+  if (!pathname.startsWith(ADMIN_PATH)) return [];
 
+  const parts = pathname.slice(ADMIN_PATH.length).split("/").filter(Boolean);
   const crumbs: Crumb[] = [{ label: "Admin", href: ADMIN_PATH }];
   let acc = ADMIN_PATH;
-  for (let i = 1; i < parts.length; i++) {
+  for (let i = 0; i < parts.length; i++) {
     acc += `/${parts[i]}`;
-    const match = adminNavItems.find((item) => item.href === acc);
+    const match = findAdminNavItemByHref(adminNavItems, acc);
     const label = match?.label ?? humanize(parts[i]!);
     crumbs.push({ label, href: i === parts.length - 1 ? undefined : acc });
   }

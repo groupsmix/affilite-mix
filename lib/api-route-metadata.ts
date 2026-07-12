@@ -235,14 +235,6 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
-    path: "/api/admin/feature-flags",
-    methods: ["GET", "PATCH"],
-    requestSchema: "FeatureFlagInput",
-    responseSchema: "FeatureFlag[]",
-    sensitiveFields: [],
-  },
-  {
-    ...ADMIN_DEFAULTS,
     path: "/api/admin/integrations",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "IntegrationInput",

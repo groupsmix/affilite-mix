@@ -199,18 +199,6 @@ export interface SiteModuleRow {
   updated_at: string;
 }
 
-// ── Site Feature Flags ─────────────────────────────────────────────────
-
-export interface SiteFeatureFlagRow {
-  id: string;
-  site_id: string;
-  flag_key: string;
-  is_enabled: boolean;
-  description: string;
-  created_at: string;
-  updated_at: string;
-}
-
 // ── Roles & Permissions ────────────────────────────────────────────────
 
 type RoleName =

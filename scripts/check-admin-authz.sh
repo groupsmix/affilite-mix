@@ -15,7 +15,6 @@
 #   - app/api/admin/sites/route.ts (multi-site onboarding, requires super_admin via requireSuperAdmin)
 #   - app/api/admin/sites/[id]/route.ts (site management, requires super_admin)
 #   - app/api/admin/users/route.ts (user management, requires super_admin)
-#   - app/api/admin/feature-flags/route.ts (requires super_admin)
 #
 # Any other route importing DAL/service-role without a wrapper must be documented.
 #
@@ -42,7 +41,6 @@ ALLOWLISTED_FILES=(
     "app/api/admin/users/me/route.ts"
     "app/api/admin/users/me/password/route.ts"
     "app/api/admin/users/me/totp/route.ts"
-    "app/api/admin/feature-flags/route.ts"
     "app/api/admin/permissions/route.ts"
 )
 

@@ -34,7 +34,6 @@
         "modules:*",
         "scheduling:*",
         "publishing:*",
-        "feature-flags:*",
         "ads:*",
         "pages:*",
         "privacy:view",
@@ -138,7 +137,6 @@
     "modules",
     "scheduling",
     "publishing",
-    "feature-flags",
     "ads",
     "pages",
     "privacy",
@@ -167,8 +165,7 @@
       "User creation requires super_admin; user cannot self-elevate",
       "Publishing requires editor or above; authors cannot self-publish",
       "Settings changes require admin; editors cannot modify site config",
-      "Privacy/DSAR operations require admin with privacy:view permission",
-      "Feature flag toggles require admin with feature-flags:manage permission"
+      "Privacy/DSAR operations require admin with privacy:view permission"
     ]
   }
 }
