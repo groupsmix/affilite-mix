@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloudIcon, XIcon } from "lucide-react";
+import { UploadCloudIcon, XIcon, ImageIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,20 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
+import { MediaPickerDialog } from "./media-picker-dialog";
+
 interface ImageUploaderProps {
   value: string;
   onChange: (url: string) => void;
   /** Called when a file is successfully uploaded to storage. */
   onUpload?: (url: string) => void;
+  /** Called when a file is selected from the media library. Receives the URL and alt text. */
+  onMediaSelect?: (url: string, alt: string) => void;
   label?: string;
+  /** Placeholder for the URL input. */
+  placeholder?: string;
+  /** Show a button to pick an existing image from the media library. */
+  showMediaPicker?: boolean;
   /** DOM id for the visible input, used to pair the Label via htmlFor. */
   id?: string;
 }
@@ -29,12 +37,16 @@ export function ImageUploader({
   value,
   onChange,
   onUpload,
+  onMediaSelect,
   label = "Image",
+  placeholder = "https://example.com/image.jpg",
+  showMediaPicker = true,
   id: idProp,
 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reactId = typeof idProp === "string" ? idProp : "image-uploader";
@@ -159,13 +171,36 @@ export function ImageUploader({
     <div className="space-y-2">
       <Label htmlFor={urlInputId}>{label}</Label>
 
-      <Input
-        id={urlInputId}
-        type="url"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="https://example.com/image.jpg"
-        aria-invalid={!!error || undefined}
+      <div className="flex items-center gap-2">
+        <Input
+          id={urlInputId}
+          type="url"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          aria-invalid={!!error || undefined}
+        />
+        {showMediaPicker && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPickerOpen(true)}
+            className="shrink-0 gap-1.5"
+          >
+            <ImageIcon className="size-4" />
+            <span className="hidden sm:inline">Library</span>
+          </Button>
+        )}
+      </div>
+
+      <MediaPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(url, alt) => {
+          onChange(url);
+          onMediaSelect?.(url, alt);
+        }}
       />
 
       <div
