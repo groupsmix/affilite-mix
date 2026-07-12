@@ -6,7 +6,7 @@ interface SitePickerPageProps {
 }
 
 export default async function SitePickerPage({ searchParams }: SitePickerPageProps) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const params = await searchParams;
   // ?needsSite=1 is appended by requireAdminSessionWithSite() when any
   // dashboard page redirects here because no active site is set.
@@ -14,7 +14,7 @@ export default async function SitePickerPage({ searchParams }: SitePickerPagePro
 
   return (
     <div className="mx-auto max-w-6xl">
-      <SiteManager needsSite={needsSite} />
+      <SiteManager needsSite={needsSite} isSuperAdmin={session.role === "super_admin"} />
     </div>
   );
 }

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { ModulesManager } from "@/app/q7m-k4j9/(dashboard)/platform/modules/modules-manager";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -66,6 +67,7 @@ interface SiteFormProps {
     db_id?: string;
     theme?: Record<string, string>;
   };
+  isSuperAdmin?: boolean;
 }
 
 const HOMEPAGE_TEMPLATES = [
@@ -178,6 +180,7 @@ export function SiteFormDialog({
   onSuccess,
   mode,
   initialData,
+  isSuperAdmin = false,
 }: SiteFormProps) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<SiteFormData>(() => {
@@ -601,6 +604,22 @@ export function SiteFormDialog({
               ))}
             </div>
           </section>
+
+          {mode === "edit" && isSuperAdmin && initialData?.db_id && (
+            <>
+              <Separator />
+              <section className="space-y-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Modules
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Enable or disable modules for this site. Only super admins can change module
+                  toggles.
+                </p>
+                <ModulesManager siteId={initialData.db_id} />
+              </section>
+            </>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">

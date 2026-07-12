@@ -54,11 +54,15 @@ function registryFallbackModules(): ModuleInfo[] {
   }));
 }
 
-export function ModulesManager() {
+interface ModulesManagerProps {
+  siteId?: string;
+}
+
+export function ModulesManager({ siteId }: ModulesManagerProps) {
   const [sites, setSites] = useState<SiteOption[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("");
+  const [selectedSiteId, setSelectedSiteId] = useState<string>(siteId ?? "");
   const [modules, setModules] = useState<ModuleInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!siteId);
   const [modulesLoading, setModulesLoading] = useState(false);
   const [modulesError, setModulesError] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
@@ -82,7 +86,7 @@ export function ModulesManager() {
 
   // M4: tracks the in-flight target site so a response that arrives after the
   // user switched sites is discarded instead of rendering under the wrong site.
-  const activeSiteIdRef = useRef<string>("");
+  const activeSiteIdRef = useRef<string>(siteId ?? "");
 
   const loadModules = useCallback(async () => {
     if (!selectedSiteId) return;
@@ -116,15 +120,21 @@ export function ModulesManager() {
   }, [selectedSiteId]);
 
   useEffect(() => {
+    if (siteId) return;
     void loadSites();
-  }, [loadSites]);
+  }, [loadSites, siteId]);
 
   useEffect(() => {
+    if (siteId && siteId !== selectedSiteId) {
+      setSelectedSiteId(siteId);
+      activeSiteIdRef.current = siteId;
+      return;
+    }
     activeSiteIdRef.current = selectedSiteId;
     if (selectedSiteId) {
       void loadModules();
     }
-  }, [selectedSiteId, loadModules]);
+  }, [selectedSiteId, loadModules, siteId]);
 
   async function toggleModule(moduleKey: string, enabled: boolean) {
     setSaving(moduleKey);
@@ -149,7 +159,7 @@ export function ModulesManager() {
     setSaving(null);
   }
 
-  if (loading) {
+  if (!siteId && loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
@@ -157,7 +167,7 @@ export function ModulesManager() {
     );
   }
 
-  if (sites.length === 0) {
+  if (!siteId && sites.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center">
         <p className="text-gray-500 dark:text-gray-400">
@@ -176,23 +186,24 @@ export function ModulesManager() {
 
   return (
     <div>
-      {/* Site selector */}
-      <div className="mb-6">
-        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Select Site
-        </label>
-        <select
-          value={selectedSiteId}
-          onChange={(e) => setSelectedSiteId(e.target.value)}
-          className="w-full max-w-xs rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          {sites.map((site) => (
-            <option key={site.db_id ?? site.id} value={site.db_id ?? site.id}>
-              {site.name} ({site.slug ?? site.id})
-            </option>
-          ))}
-        </select>
-      </div>
+      {!siteId && (
+        <div className="mb-6">
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Select Site
+          </label>
+          <select
+            value={selectedSiteId}
+            onChange={(e) => setSelectedSiteId(e.target.value)}
+            className="w-full max-w-xs rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {sites.map((site) => (
+              <option key={site.db_id ?? site.id} value={site.db_id ?? site.id}>
+                {site.name} ({site.slug ?? site.id})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 rounded bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
