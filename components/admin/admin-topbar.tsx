@@ -166,7 +166,11 @@ export function AdminTopbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <CommandMenu monetizationType={monetizationType} hasActiveSite={hasActiveSite} />
+        <CommandMenu
+          monetizationType={monetizationType}
+          isSuperAdmin={isSuperAdmin}
+          hasActiveSite={hasActiveSite}
+        />
         <TenantBadgeSwitcher initialSiteName={siteName ?? null} isSuperAdmin={isSuperAdmin} />
         <ThemeToggle />
         <UserMenu />
