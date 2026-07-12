@@ -1,13 +1,16 @@
 "use client";
 
+import type { CategoryRow } from "@/types/database";
+
 import { BulkActions } from "../components/bulk-actions";
 
 interface ProductBulkActionsProps {
   selectedIds: string[];
   onClear: () => void;
+  categories: CategoryRow[];
 }
 
-export function ProductBulkActions({ selectedIds, onClear }: ProductBulkActionsProps) {
+export function ProductBulkActions({ selectedIds, onClear, categories }: ProductBulkActionsProps) {
   return (
     <BulkActions
       selectedIds={selectedIds}
@@ -35,6 +38,10 @@ export function ProductBulkActions({ selectedIds, onClear }: ProductBulkActionsP
               "rounded bg-gray-500 px-3 py-1 text-xs font-medium text-white dark:text-gray-900 hover:bg-gray-600 disabled:opacity-50",
           },
         ],
+        categoryAction: {
+          label: "Set Category",
+          categories,
+        },
       }}
     />
   );

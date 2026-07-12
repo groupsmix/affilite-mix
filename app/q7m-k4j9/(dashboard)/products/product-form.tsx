@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { ProductRow, CategoryRow } from "@/types/database";
 
 import { ImageUploader } from "../components/image-uploader";
+import { CategoryTree } from "./components/category-tree";
 
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
@@ -374,26 +375,17 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="prod-category">Category</Label>
+              <Label>Category</Label>
 
-              <select
-                id="prod-category"
+              <CategoryTree
+                categories={categories}
                 value={categoryId}
-                onChange={(e) => {
-                  setCategoryId(e.target.value);
+                onChange={(value) => {
+                  setCategoryId(value);
 
                   markDirty();
                 }}
-                className={SELECT_CLASSES}
-              >
-                <option value="">No category</option>
-
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">

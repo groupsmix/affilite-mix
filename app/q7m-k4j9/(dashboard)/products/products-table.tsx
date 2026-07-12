@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 import { ProductBulkActions } from "./bulk-actions";
 import { ProductDeleteButton } from "./product-delete-button";
+import type { CategoryRow } from "@/types/database";
 
 export interface ProductsTableRow {
   id: string;
@@ -56,6 +57,8 @@ interface ProductsTableProps {
   statusOptions: { label: string; value: string }[];
   categoryOptions: { label: string; value: string }[];
   networkOptions: { label: string; value: string }[];
+  /** Full category rows for the bulk category selector. */
+  categories: CategoryRow[];
   /** Whether the missing-URL quick filter is currently active. */
   missingUrlActive: boolean;
 }
@@ -364,6 +367,7 @@ export function ProductsTable({
   statusOptions,
   categoryOptions,
   networkOptions,
+  categories,
   missingUrlActive,
 }: ProductsTableProps) {
   const memoColumns = useMemo(() => columns, []);
@@ -413,6 +417,7 @@ export function ProductsTable({
                 <ProductBulkActions
                   selectedIds={selectedIds}
                   onClear={() => table.resetRowSelection()}
+                  categories={categories}
                 />
               </div>
             )}
