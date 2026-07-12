@@ -45,6 +45,10 @@ const SERVICE_ROLE_ALLOWLIST = new Set([
   "app/api/admin/modules/route.ts",
   "app/api/admin/integrations/route.ts",
   "app/api/admin/permissions/route.ts",
+  // Audit Log export is super_admin-only and needs service-role because `audit_log`
+  // SELECT is service_role-only (migrations 00033 / 00040). Mirrors the security
+  // allow-list in lib/security/service-role-allowlist.ts.
+  "app/api/admin/audit-log/export/route.ts",
   // F5 audit: hard-delete path. The DELETE handler is super_admin + step-up
   // gated at the route layer (assertRole + requireStepUpAuth) and calls
   // deleteSite() which throws unless callerRole === "super_admin" (sites.ts:361).
