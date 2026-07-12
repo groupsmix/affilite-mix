@@ -1,8 +1,12 @@
-import { requireAdminSession } from "../../components/admin-guard";
+import { redirect } from "next/navigation";
+import { getAdminSession } from "@/lib/auth";
 import { IntegrationsManager } from "./integrations-manager";
 
 export default async function IntegrationsPage() {
-  await requireAdminSession();
+  const session = await getAdminSession();
+  if (!session) redirect("/q7m-k4j9/login");
+  // Integrations are global platform configuration — restrict to super admins.
+  if (session.role !== "super_admin") redirect("/q7m-k4j9");
 
   return (
     <div className="mx-auto max-w-5xl">
