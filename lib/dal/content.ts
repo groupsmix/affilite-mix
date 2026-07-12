@@ -138,6 +138,31 @@ export async function getContentBySlug(
   return rowOrNull<ContentRow>(data);
 }
 
+interface ContentTitleRow {
+  id: string;
+  slug: string;
+  title: string;
+}
+
+/** Resolve real titles for a set of content slugs. */
+export async function getContentTitlesBySlugs(
+  siteId: string,
+  slugs: string[],
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<Record<string, ContentTitleRow>> {
+  if (slugs.length === 0) return {};
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("id, slug, title")
+    .eq("site_id", siteId)
+    .in("slug", [...new Set(slugs)]);
+
+  if (error) throw error;
+  const rows = assertRows<ContentTitleRow>(data);
+  return Object.fromEntries(rows.map((row) => [row.slug, row]));
+}
+
 /** Create content */
 export async function createContent(
   input: Omit<ContentRow, "id" | "created_at" | "updated_at">,

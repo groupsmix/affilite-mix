@@ -30,6 +30,7 @@ import {
 import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
 
 import { listProductsByNames } from "@/lib/dal/products";
+import { getContentTitlesBySlugs } from "@/lib/dal/content";
 import { resolveDbSiteBySlug, resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getSiteById } from "@/config/sites";
 
@@ -201,9 +202,28 @@ export default async function AnalyticsPage({
     });
   }
 
+  const contentTitleRows =
+    topContent.length > 0
+      ? (
+          await safeAdminData(
+            "analytics content title lookup",
+            () =>
+              getContentTitlesBySlugs(
+                siteId,
+                topContent.map((r) => r.content_slug),
+              ),
+            {},
+          )
+        ).data
+      : {};
+  const contentTitleBySlug = new Map<string, string>();
+  for (const [slug, row] of Object.entries(contentTitleRows)) {
+    if (row.title) contentTitleBySlug.set(slug, row.title);
+  }
+
   const topContentWithTitles = topContent.map((row) => ({
     ...row,
-    displayTitle: row.content_slug,
+    displayTitle: contentTitleBySlug.get(row.content_slug) ?? row.content_slug,
   }));
 
   const recentClickRows: RecentClickRow[] = recentClicks;
