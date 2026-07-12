@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -14,10 +14,22 @@ interface StatusAction {
   className: string;
 }
 
+interface CategoryOption {
+  id: string;
+  name: string;
+  taxonomy_type: string;
+}
+
+interface CategoryAction {
+  label: string;
+  categories: CategoryOption[];
+}
+
 interface BulkActionsConfig {
   apiPath: string;
   entityLabel: string;
   statusActions: StatusAction[];
+  categoryAction?: CategoryAction;
 }
 
 interface BulkActionsProps {
@@ -34,6 +46,29 @@ export function BulkActions({ selectedIds, onClear, config }: BulkActionsProps) 
   const [progress, setProgress] = useState({ current: 0, total: 0, label: "" });
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+
+  const categoryGroups = useMemo(() => {
+    if (!config.categoryAction) return new Map<string, CategoryOption[]>();
+    const groups = new Map<string, CategoryOption[]>();
+    for (const cat of config.categoryAction.categories) {
+      const list = groups.get(cat.taxonomy_type) ?? [];
+      list.push(cat);
+      groups.set(cat.taxonomy_type, list);
+    }
+    return groups;
+  }, [config.categoryAction]);
+
+  const taxonomyLabels: Record<string, string> = {
+    general: "General",
+    budget: "Budget",
+    occasion: "Occasion",
+    recipient: "Recipient",
+    brand: "Brand",
+  };
+
+  const taxonomyOrder = ["general", "budget", "occasion", "recipient", "brand"];
 
   if (selectedIds.length === 0) return null;
 
@@ -71,6 +106,52 @@ export function BulkActions({ selectedIds, onClear, config }: BulkActionsProps) 
     }
 
     setProgress({ current: 0, total: 0, label: "" });
+
+    onClear();
+
+    setLoading(false);
+
+    router.refresh();
+  }
+
+  async function bulkUpdateCategory(categoryId: string) {
+    const total = selectedIds.length;
+
+    setLoading(true);
+
+    setProgress({ current: 0, total, label: "Updating category" });
+
+    let failed = 0;
+
+    const payloadCategoryId = categoryId || null;
+
+    for (let i = 0; i < total; i++) {
+      setProgress({ current: i + 1, total, label: "Updating category" });
+
+      try {
+        const res = await fetchWithCsrf(config.apiPath, {
+          method: "PATCH",
+
+          headers: { "Content-Type": "application/json" },
+
+          body: JSON.stringify({ id: selectedIds[i], category_id: payloadCategoryId }),
+        });
+
+        if (!res.ok) failed++;
+      } catch {
+        failed++;
+      }
+    }
+
+    if (failed > 0) {
+      toast.error(`${failed} update(s) failed`);
+    } else {
+      toast.success(`${total} ${config.entityLabel}(s) assigned to category`);
+    }
+
+    setProgress({ current: 0, total: 0, label: "" });
+
+    setSelectedCategoryId("");
 
     onClear();
 
@@ -140,6 +221,42 @@ export function BulkActions({ selectedIds, onClear, config }: BulkActionsProps) 
             {action.label}
           </button>
         ))}
+
+        {config.categoryAction && categoryGroups.size > 0 && (
+          <span className="inline-flex items-center gap-1.5">
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              disabled={loading}
+              aria-label="Category"
+              className="h-7 rounded border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <option value="">No category</option>
+              {taxonomyOrder.map((type) => {
+                const group = categoryGroups.get(type);
+                if (!group || group.length === 0) return null;
+                return (
+                  <optgroup key={type} label={taxonomyLabels[type] ?? type}>
+                    {group.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
+            <button
+              onClick={() => {
+                void bulkUpdateCategory(selectedCategoryId);
+              }}
+              disabled={loading}
+              className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {config.categoryAction.label}
+            </button>
+          </span>
+        )}
 
         {confirmDelete ? (
           <span className="inline-flex items-center gap-1.5">

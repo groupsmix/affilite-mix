@@ -223,6 +223,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           statusOptions={STATUS_OPTIONS}
           categoryOptions={categoryOptions}
           networkOptions={networkOptions}
+          categories={categories}
           missingUrlActive={missingUrl}
         />
       )}
