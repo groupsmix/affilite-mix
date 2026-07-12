@@ -1400,6 +1400,12 @@ export type Database = {
           },
         ];
       };
+      media: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
       newsletter_subscribers: {
         Row: {
           confirmation_token: string | null;

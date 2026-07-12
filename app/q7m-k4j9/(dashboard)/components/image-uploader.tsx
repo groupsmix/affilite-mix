@@ -13,6 +13,8 @@ import { fetchWithCsrf } from "@/lib/fetch-csrf";
 interface ImageUploaderProps {
   value: string;
   onChange: (url: string) => void;
+  /** Called when a file is successfully uploaded to storage. */
+  onUpload?: (url: string) => void;
   label?: string;
   /** DOM id for the visible input, used to pair the Label via htmlFor. */
   id?: string;
@@ -26,6 +28,7 @@ interface ImageUploaderProps {
 export function ImageUploader({
   value,
   onChange,
+  onUpload,
   label = "Image",
   id: idProp,
 }: ImageUploaderProps) {
@@ -103,6 +106,7 @@ export function ImageUploader({
           body: JSON.stringify({
             stagingKey: presigned.stagingKey,
             expectedType: file.type,
+            fileName: file.name,
           }),
         });
 
@@ -115,6 +119,7 @@ export function ImageUploader({
 
         const finalized = (await finalizeRes.json()) as { publicUrl: string };
         onChange(finalized.publicUrl);
+        onUpload?.(finalized.publicUrl);
       } catch {
         // fail-open: best-effort
         setError("Upload failed. You can paste an image URL instead.");
@@ -122,7 +127,7 @@ export function ImageUploader({
         setUploading(false);
       }
     },
-    [onChange, MAX_FILE_SIZE],
+    [onChange, onUpload, MAX_FILE_SIZE],
   );
 
   function handleDrop(e: React.DragEvent) {
