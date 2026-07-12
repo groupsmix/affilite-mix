@@ -11,6 +11,7 @@
 
 import {
   BarChart3,
+  Coins,
   FileText,
   Files,
   FolderTree,
@@ -114,13 +115,14 @@ export const adminNavItems: AdminNavItem[] = [
     label: "Sites",
     iconKey: "sites",
     icon: Globe,
+  },
+  {
+    href: adminRoute("/monetization"),
+    label: "Monetization",
+    iconKey: "monetization",
+    icon: Coins,
+    requiresActiveSite: true,
     items: [
-      {
-        href: adminRoute("/sites"),
-        label: "Sites",
-        iconKey: "sites",
-        icon: Globe,
-      },
       {
         href: adminRoute("/ads"),
         label: "Ad Placements",
@@ -131,7 +133,7 @@ export const adminNavItems: AdminNavItem[] = [
       {
         href: adminRoute("/affiliate-networks"),
         label: "Affiliate Networks",
-        iconKey: "sites",
+        iconKey: "affiliate-networks",
         icon: LinkIcon,
         requiresActiveSite: true,
       },
