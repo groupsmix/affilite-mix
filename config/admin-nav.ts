@@ -23,7 +23,6 @@ import {
   Megaphone,
   Package,
   Plug,
-  Puzzle,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -160,13 +159,6 @@ export const adminNavItems: AdminNavItem[] = [
         label: "Settings",
         iconKey: "settings",
         icon: Settings,
-      },
-      {
-        href: adminRoute("/platform/modules"),
-        label: "Modules",
-        iconKey: "modules",
-        icon: Puzzle,
-        requiresActiveSite: true,
       },
       {
         href: adminRoute("/platform/permissions"),

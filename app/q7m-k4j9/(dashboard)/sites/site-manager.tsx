@@ -600,7 +600,13 @@ function SiteCardSkeleton() {
 
 /* ------------------------------------------------------------------ */
 
-export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
+export function SiteManager({
+  needsSite = false,
+  isSuperAdmin = false,
+}: {
+  needsSite?: boolean;
+  isSuperAdmin?: boolean;
+}) {
   const router = useRouter();
 
   const [sites, setSites] = useState<SiteInfo[]>([]);
@@ -894,6 +900,19 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
     [activeSiteId, handleSetActive, router],
   );
 
+  const handleEdit = useCallback(
+    async (site: SiteInfo) => {
+      // Modules are configured against the active site, so editing a site must
+      // switch context to that site before the module toggles can load.
+      if (site.id !== activeSiteId) {
+        const ok = await handleSetActive(site);
+        if (!ok) return;
+      }
+      setEditStubSite(site);
+    },
+    [activeSiteId, handleSetActive],
+  );
+
   const cards = useMemo(() => {
     return sites.map((site) => (
       <SiteCardView
@@ -914,7 +933,9 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
         onProvision={(site) => {
           void handleProvision(site);
         }}
-        onEdit={setEditStubSite}
+        onEdit={(site) => {
+          void handleEdit(site);
+        }}
         onDelete={setDeleteTarget}
         onViewAnalytics={(site) => {
           void handleViewAnalytics(site);
@@ -943,6 +964,8 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
     handleProvision,
 
     handleViewAnalytics,
+
+    handleEdit,
   ]);
 
   return (
@@ -990,19 +1013,23 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
 
       {/* Site create/edit form */}
       <SiteFormDialog
+        key="site-create"
         open={addOpen}
         onOpenChange={setAddOpen}
         onSuccess={() => void Promise.all([loadSites(), loadStats()])}
         mode="create"
+        isSuperAdmin={isSuperAdmin}
       />
 
       <SiteFormDialog
+        key={editStubSite ? `site-edit-${editStubSite.id}` : "site-edit"}
         open={editStubSite != null}
         onOpenChange={(open) => {
           if (!open) setEditStubSite(null);
         }}
         onSuccess={() => void Promise.all([loadSites(), loadStats()])}
         mode="edit"
+        isSuperAdmin={isSuperAdmin}
         initialData={
           editStubSite
             ? {
