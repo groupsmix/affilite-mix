@@ -1,10 +1,10 @@
 // Actionable "work queue" for the dashboard workspace.
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+import { AlertTriangleIcon, CheckCircle2Icon, InfoIcon } from "./dashboard-icons";
 
 export interface DashboardAttention {
   type: "warning" | "info";
@@ -30,7 +30,7 @@ export function NeedsAttentionCard({ items }: NeedsAttentionCardProps) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle2 className="size-4 text-emerald-600" />
+            <CheckCircle2Icon className="text-emerald-600" />
             <span>All caught up.</span>
           </div>
         </CardContent>
@@ -47,7 +47,7 @@ export function NeedsAttentionCard({ items }: NeedsAttentionCardProps) {
       <CardContent className="flex flex-col gap-2">
         {items.map((item, i) => {
           const isWarning = item.type === "warning";
-          const Icon = isWarning ? AlertTriangle : Info;
+          const Icon = isWarning ? AlertTriangleIcon : InfoIcon;
           const badgeClass = isWarning
             ? "bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-200"
             : "bg-sky-100 text-sky-800 hover:bg-sky-100 dark:bg-sky-900/30 dark:text-sky-200";
@@ -68,7 +68,14 @@ export function NeedsAttentionCard({ items }: NeedsAttentionCardProps) {
                 />
                 <span className="text-sm font-medium text-foreground">{item.message}</span>
               </div>
-              <Badge className={cn("shrink-0 tabular-nums", badgeClass)}>{item.count}</Badge>
+              <span
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap tabular-nums",
+                  badgeClass,
+                )}
+              >
+                {item.count}
+              </span>
             </Link>
           );
         })}
