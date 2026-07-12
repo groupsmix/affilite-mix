@@ -17,6 +17,7 @@ import {
   type DashboardAttention,
 } from "./components/dashboard/needs-attention-card";
 import { QuickActions } from "./components/dashboard/quick-actions";
+import { SiteSetupChecklist } from "./components/dashboard/site-setup-checklist";
 import { CardErrorBoundary } from "./components/dashboard/card-error-boundary";
 import { KpiCard } from "./components/dashboard/kpi-card";
 import {
@@ -233,6 +234,10 @@ export default async function AdminDashboard() {
       />
 
       <QuickActions />
+
+      <CardErrorBoundary title="Site setup">
+        <SiteSetupChecklist siteId={dbSiteId} />
+      </CardErrorBoundary>
 
       {/* Section 1 — KPI grid. 1 col on sm, 2 on md, 4 on xl. */}
       <div aria-live="polite" className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
