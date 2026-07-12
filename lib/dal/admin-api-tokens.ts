@@ -50,6 +50,8 @@ export async function createAdminApiToken(
       is_active: values.is_active,
     })
     .select(ALL_COLUMNS)
+    // SAFE: admin_api_tokens is a global, cross-tenant table; the token_hash is unique.
+    .unsafeNoSiteFilter()
     .single();
   if (error) throw error;
   return assertRow<AdminApiTokenRow>(data, TABLE);
@@ -64,6 +66,8 @@ export async function getAdminApiTokenByHash(
     .from(TABLE)
     .select(ALL_COLUMNS)
     .eq("token_hash", tokenHash)
+    // SAFE: admin_api_tokens is a global table; token_hash is unique and the lookup is for exchange.
+    .unsafeNoSiteFilter()
     .single();
   if (error) return null;
   return rowOrNull<AdminApiTokenRow>(data);
@@ -78,7 +82,9 @@ export async function listAdminApiTokens(
     .select(
       "id, site_id, name, created_by, last_used_at, expires_at, is_active, created_at, updated_at",
     )
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // SAFE: admin_api_tokens is a global, cross-tenant table; tokens are listed for all sites.
+    .unsafeNoSiteFilter();
   if (error) throw error;
   return (data ?? []) as AdminApiTokenPublic[];
 }
@@ -88,7 +94,8 @@ export async function deleteAdminApiToken(
   getClient: DalClientGetter = defaultClient,
 ): Promise<void> {
   const sb = await getClient();
-  const { error } = await sb.from(TABLE).delete().eq("id", id);
+  // SAFE: admin_api_tokens is a global table; the revocation is by unique id, not site.
+  const { error } = await sb.from(TABLE).delete().eq("id", id).unsafeNoSiteFilter();
   if (error) throw error;
 }
 
@@ -97,7 +104,12 @@ export async function touchAdminApiToken(
   getClient: DalClientGetter = defaultClient,
 ): Promise<void> {
   const sb = await getClient();
-  const { error } = await sb.from(TABLE).update({ last_used_at: now() }).eq("id", id);
+  const { error } = await sb
+    .from(TABLE)
+    .update({ last_used_at: now() })
+    .eq("id", id)
+    // SAFE: admin_api_tokens is a global table; touch updates a single row by id.
+    .unsafeNoSiteFilter();
   if (error) throw error;
 }
 

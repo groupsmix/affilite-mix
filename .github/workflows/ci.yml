@@ -612,7 +612,12 @@ jobs:
           # products, content, clicks and newsletter subscribers across every active
           # site; it has no p_site_id parameter and is reached only from the
           # super_admin-gated Niche Health card. Annotated with a `// SAFE:` comment.
-          BASELINE=96
+          # then 96 -> 101 (PR #988 / admin API token fix): +5 audited opt-outs in
+          # lib/dal/admin-api-tokens.ts. The `admin_api_tokens` table is global and
+          # cross-tenant; all create/list/get/delete/touch queries need the privileged
+          # client without a site_id filter. Each call is annotated with a `// SAFE:`
+          # comment and the module is on the SERVICE_ROLE_IMPORT_ALLOWLIST.
+          BASELINE=101
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
