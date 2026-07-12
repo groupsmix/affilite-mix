@@ -652,27 +652,16 @@ export function ContentForm({
               </p>
             </div>
 
-            <div>
-              <label
-                htmlFor="content-og-image"
-                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                OG Image URL
-              </label>
+            <ImageUploader
+              value={ogImage ?? ""}
+              onChange={setOgImage}
+              label="OG Image URL"
+              placeholder={featuredImage || "Defaults to featured image"}
+            />
 
-              <input
-                id="content-og-image"
-                type="text"
-                value={ogImage}
-                onChange={(e) => setOgImage(e.target.value)}
-                placeholder={featuredImage || "Defaults to featured image"}
-                className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Override the Open Graph image for social sharing
-              </p>
-            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Override the Open Graph image for social sharing
+            </p>
           </div>
         </details>
 

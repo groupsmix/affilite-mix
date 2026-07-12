@@ -515,7 +515,17 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <ImageUploader value={imageUrl} onChange={setImageUrl} label="Product Image" />
+              <ImageUploader
+                value={imageUrl}
+                onChange={setImageUrl}
+                onMediaSelect={(url, alt) => {
+                  setImageUrl(url);
+                  if (!imageAlt.trim() && alt.trim()) {
+                    setImageAlt(alt);
+                  }
+                }}
+                label="Product Image"
+              />
 
               <div className="space-y-1.5">
                 <Label htmlFor="prod-image-alt">Image Alt Text</Label>

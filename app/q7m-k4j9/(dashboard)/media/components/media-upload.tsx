@@ -18,6 +18,7 @@ export function MediaUpload() {
         router.refresh();
       }}
       label="Image"
+      showMediaPicker={false}
     />
   );
 }
