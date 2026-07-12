@@ -122,22 +122,6 @@ export const adminNavItems: AdminNavItem[] = [
         icon: Globe,
       },
       {
-        href: adminRoute("/platform/modules"),
-        label: "Modules",
-        iconKey: "modules",
-        icon: Puzzle,
-        requiresActiveSite: true,
-      },
-    ],
-  },
-  {
-    href: adminRoute("/ads"),
-    label: "Monetization",
-    iconKey: "ads",
-    icon: Megaphone,
-    requiresActiveSite: true,
-    items: [
-      {
         href: adminRoute("/ads"),
         label: "Ad Placements",
         iconKey: "ads",
@@ -164,6 +148,13 @@ export const adminNavItems: AdminNavItem[] = [
         label: "Settings",
         iconKey: "settings",
         icon: Settings,
+      },
+      {
+        href: adminRoute("/platform/modules"),
+        label: "Modules",
+        iconKey: "modules",
+        icon: Puzzle,
+        requiresActiveSite: true,
       },
       {
         href: adminRoute("/platform/permissions"),
