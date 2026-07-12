@@ -243,6 +243,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/media",
+    methods: ["GET", "DELETE"],
+    requestSchema: "MediaQuery | { id: string }",
+    responseSchema: "Media[] | { ok: true }",
+    sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/modules",
     methods: ["GET", "PATCH"],
     requestSchema: "ModuleInput",

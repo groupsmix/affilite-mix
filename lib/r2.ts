@@ -592,6 +592,14 @@ export async function deleteStagingObject(stagingKey: string): Promise<void> {
   await deleteFromBucket(env.privateBucket, stagingKey);
 }
 
+/**
+ * Delete an object from the public serving bucket.
+ */
+export async function deletePublicObject(publicKey: string): Promise<void> {
+  const env = readBucketEnv();
+  await deleteFromBucket(env.publicBucket, publicKey);
+}
+
 async function deleteFromBucket(bucket: string, key: string): Promise<void> {
   const env = readBucketEnv();
   const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;

@@ -8,14 +8,16 @@ import {
   fetchStagingBytes,
   headStagingObject,
   promoteToPublicBucket,
+  sanitizeOriginalName,
 } from "@/lib/r2";
+import { createMedia } from "@/lib/dal/media";
 import { recordUsage } from "@/lib/quotas";
 import { logger } from "@/lib/logger";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * POST /api/admin/upload/finalize
- *
+
  * Audit-driven hardening (#U-3 / #U-4 / #U-5 / #U-6 / #U-9):
  *
  *   • Reads the first 32 bytes from the *private staging* bucket using a
@@ -40,6 +42,7 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
 
   const stagingKey = typeof bodyOrError.stagingKey === "string" ? bodyOrError.stagingKey : "";
   const expectedType = typeof bodyOrError.expectedType === "string" ? bodyOrError.expectedType : "";
+  const fileName = typeof bodyOrError.fileName === "string" ? bodyOrError.fileName : undefined;
 
   if (!stagingKey || !expectedType) {
     return NextResponse.json(
@@ -86,6 +89,24 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
     }
 
     const promoted = await promoteToPublicBucket(stagingKey, expectedType);
+
+    // Record the validated upload in the unified media library.
+    try {
+      const size = await headStagingObject(stagingKey);
+      await createMedia({
+        site_id: siteId,
+        public_key: promoted.publicKey,
+        url: promoted.publicUrl,
+        filename: sanitizeOriginalName(fileName),
+        content_type: expectedType,
+        size_bytes: size ?? null,
+        created_by: session.userId ?? null,
+      });
+    } catch (mediaErr) {
+      captureException(mediaErr, {
+        context: "[api/admin/upload/finalize] failed to record media row",
+      });
+    }
 
     // G-06: Await audit for upload finalization — ensures durable trail.
     await recordAuditEvent({

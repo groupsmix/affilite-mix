@@ -307,3 +307,19 @@ export interface SiteIntegrationRow {
   created_at: string;
   updated_at: string;
 }
+
+// ── Media Library ───────────────────────────────────────────────────────
+
+export interface MediaRow {
+  id: string;
+  site_id: string;
+  public_key: string;
+  url: string;
+  filename: string | null;
+  content_type: string | null;
+  size_bytes: number | null;
+  alt_text: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
