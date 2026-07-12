@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PanelLeft, PanelRight } from "lucide-react";
 
-import { adminNavItems, type AdminNavItem } from "@/config/admin-nav";
+import { adminNavItems, adminNavSections, type AdminNavItem } from "@/config/admin-nav";
 import { ADMIN_PATH, ADMIN_SITES_PATH } from "@/lib/admin-paths";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,13 @@ function isItemActive(href: string, pathname: string) {
   return href === ADMIN_PATH ? pathname === ADMIN_PATH : pathname.startsWith(href);
 }
 
+function humanizeSectionKey(key: string): string {
+  return key
+    .split("-")
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 /**
  * Navigation links — shared by the desktop rail and the mobile Sheet.
  */
@@ -58,70 +65,85 @@ export function AdminSidebarNav({
   const pathname = usePathname();
   const items = filterAdminNavItems(adminNavItems, monetizationType, isSuperAdmin);
 
+  const renderLink = (item: AdminNavItem) => {
+    const Icon = item.icon;
+    const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
+    const href = disabled ? `${ADMIN_SITES_PATH}?needsSite=1` : item.href;
+    const active = !disabled && isItemActive(item.href, pathname);
+    const linkClass = cn(
+      "relative flex items-center rounded-md text-sm font-medium outline-none transition-colors",
+      "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+      collapsed ? "h-10 w-10 justify-center" : "h-9 gap-3 px-3",
+      disabled
+        ? "cursor-not-allowed text-muted-foreground/45 hover:bg-transparent"
+        : active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+    );
+
+    const link = (
+      <Link
+        key={item.href}
+        href={href}
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
+        aria-disabled={disabled}
+        data-active={active ? "true" : undefined}
+        title={disabled ? "Select a site first" : item.label}
+        className={linkClass}
+      >
+        {/* Active indicator independent of colour: solid start-edge bar */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute top-1 bottom-1 start-0 w-[3px] rounded-full bg-foreground transition-opacity",
+            active ? "opacity-100" : "opacity-0",
+          )}
+        />
+        {Icon ? (
+          <Icon className={cn("size-4 shrink-0", active && "text-foreground")} aria-hidden="true" />
+        ) : null}
+        {!collapsed && <span className="truncate">{item.label}</span>}
+        {disabled && !collapsed ? (
+          <span className="ml-auto text-[10px] font-normal text-muted-foreground/70">site</span>
+        ) : null}
+        {collapsed && <span className="sr-only">{item.label}</span>}
+      </Link>
+    );
+
+    if (!collapsed) return link;
+    return (
+      <Tooltip key={item.href}>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right" sideOffset={6}>
+          {disabled ? `${item.label}: select a site first` : item.label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
   return (
     <TooltipProvider delayDuration={300}>
       <nav aria-label="Admin navigation" className={cn("flex flex-col gap-1 px-2 py-3", className)}>
-        {items.map((item) => {
-          const Icon = item.icon;
-          const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
-          const href = disabled ? `${ADMIN_SITES_PATH}?needsSite=1` : item.href;
-          const active = !disabled && isItemActive(item.href, pathname);
-          const linkClass = cn(
-            "relative flex items-center rounded-md text-sm font-medium outline-none transition-colors",
-            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-            collapsed ? "h-10 w-10 justify-center" : "h-9 gap-3 px-3",
-            disabled
-              ? "cursor-not-allowed text-muted-foreground/45 hover:bg-transparent"
-              : active
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-          );
-
-          const link = (
-            <Link
-              key={item.href}
-              href={href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              aria-disabled={disabled}
-              data-active={active ? "true" : undefined}
-              title={disabled ? "Select a site first" : item.label}
-              className={linkClass}
-            >
-              {/* Active indicator independent of colour: solid start-edge bar */}
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "pointer-events-none absolute top-1 bottom-1 start-0 w-[3px] rounded-full bg-foreground transition-opacity",
-                  active ? "opacity-100" : "opacity-0",
-                )}
-              />
-              {Icon ? (
-                <Icon
-                  className={cn("size-4 shrink-0", active && "text-foreground")}
-                  aria-hidden="true"
-                />
-              ) : null}
-              {!collapsed && <span className="truncate">{item.label}</span>}
-              {disabled && !collapsed ? (
-                <span className="ml-auto text-[10px] font-normal text-muted-foreground/70">
-                  site
-                </span>
-              ) : null}
-              {collapsed && <span className="sr-only">{item.label}</span>}
-            </Link>
-          );
-
-          if (!collapsed) return link;
-          return (
-            <Tooltip key={item.href}>
-              <TooltipTrigger asChild>{link}</TooltipTrigger>
-              <TooltipContent side="right" sideOffset={6}>
-                {disabled ? `${item.label}: select a site first` : item.label}
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
+        {collapsed
+          ? items.map((item) => renderLink(item))
+          : items.map((item, index) => {
+              const nodes: React.ReactNode[] = [];
+              const prevSection = items[index - 1]?.section;
+              if (item.section && item.section !== prevSection) {
+                const label = adminNavSections[item.section] ?? humanizeSectionKey(item.section);
+                nodes.push(
+                  <div
+                    key={`section-${item.section}`}
+                    className="mt-3 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70"
+                  >
+                    {label}
+                  </div>,
+                );
+              }
+              nodes.push(renderLink(item));
+              return nodes;
+            })}
       </nav>
     </TooltipProvider>
   );
