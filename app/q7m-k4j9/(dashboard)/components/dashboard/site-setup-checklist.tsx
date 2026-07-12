@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CheckCircle2Icon, CircleIcon } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { listCategories } from "@/lib/dal/categories";
 import { countProducts } from "@/lib/dal/products";
 import { countContent } from "@/lib/dal/content";
@@ -85,9 +84,12 @@ export async function SiteSetupChecklist({ siteId }: SiteSetupChecklistProps) {
                 <p className="text-sm text-muted-foreground">{item.description}</p>
               </div>
               {!item.done && (
-                <Button asChild variant="outline" size="sm">
-                  <Link href={item.href}>Do this</Link>
-                </Button>
+                <Link
+                  href={item.href}
+                  className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  Do this
+                </Link>
               )}
             </li>
           ))}
