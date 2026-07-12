@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { getDailyClicks } from "@/lib/dal/affiliate-clicks";
 import { getDashboardStats, type DashboardStats } from "@/lib/dal/dashboard-stats";
+import { countContent } from "@/lib/dal/content";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 
 import { PageHeader } from "@/components/admin/page-header";
@@ -25,6 +26,7 @@ import {
 } from "./components/dashboard/dashboard-motion";
 import { NicheHealthCard } from "./components/dashboard/niche-health-card";
 import { RevenuePerSiteCard } from "./components/dashboard/revenue-per-site-card";
+import { ReviewQueueCard } from "./components/dashboard/review-queue-card";
 import { ScheduledContentCard } from "./components/dashboard/scheduled-content-card";
 import { TopProductsCard } from "./components/dashboard/top-products-card";
 import { TrendCard } from "./components/dashboard/trend-card";
@@ -111,6 +113,13 @@ export default async function AdminDashboard() {
   );
   const [stats, dailyClicks] = metricsResult.data;
 
+  const reviewCountResult = await safeAdminData(
+    "dashboard review count",
+    () => countContent({ siteId: dbSiteId, status: "review" }),
+    0,
+  );
+  const reviewCount = reviewCountResult.data;
+
   const {
     active_products: activeProducts,
     total_content: totalContent,
@@ -169,6 +178,14 @@ export default async function AdminDashboard() {
       count: scheduledContent,
       message: "Content scheduled for future publishing",
       href: "/q7m-k4j9/content?status=scheduled",
+    });
+  }
+  if (reviewCount > 0) {
+    attention.push({
+      type: "info",
+      count: reviewCount,
+      message: "Content waiting for review",
+      href: "/q7m-k4j9/content?f.status=review",
     });
   }
   if (draftContent > 0) {
@@ -284,10 +301,11 @@ export default async function AdminDashboard() {
         <NeedsAttentionCard items={attention} />
       </div>
 
-      {/* Section 4 — Top products and scheduled content. */}
-      <div className="mb-6 grid gap-4 md:grid-cols-2">
+      {/* Section 4 — Top products, scheduled content, and pending review. */}
+      <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <TopProductsCard siteId={dbSiteId} sevenDaysAgo={sevenDaysAgo} />
         <ScheduledContentCard siteId={dbSiteId} />
+        <ReviewQueueCard siteId={dbSiteId} count={reviewCount} />
       </div>
 
       {/* Section 5 (super_admin only) — cross-site niche health + revenue.
