@@ -127,10 +127,11 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
           q,
         }),
         countContent({ siteId: dbSiteId, status: "scheduled" }),
+        countContent({ siteId: dbSiteId, status: "review" }),
       ]),
-    [[], 0, 0] as [ContentRow[], number, number],
+    [[], 0, 0, 0] as [ContentRow[], number, number, number],
   );
-  const [contentItems, totalContent, scheduledCount] = contentResult.data;
+  const [contentItems, totalContent, scheduledCount, reviewCount] = contentResult.data;
 
   const rows: ContentTableRow[] = contentItems.map((item) => ({
     id: item.id,
@@ -180,6 +181,7 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
           data={rows}
           totalCount={totalContent}
           scheduledCount={scheduledCount}
+          reviewCount={reviewCount}
           pageSize={pageSize}
         />
       )}
