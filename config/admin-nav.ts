@@ -1,9 +1,12 @@
 /**
  * Admin sidebar navigation configuration.
  *
- * Each entry maps to a route under /admin. Items may carry an optional lucide
- * icon used by the new shadcn-based shell (`components/admin/*`). The legacy
- * `iconKey` field is preserved for the older inline-SVG sidebar.
+ * Each entry maps to a route under the obfuscated admin prefix. Items may carry
+ * an optional lucide icon used by the shadcn-based shell (`components/admin/*`).
+ * The legacy `iconKey` field is preserved for the older inline-SVG sidebar.
+ *
+ * Related items are grouped into visual sections via the `section` key; sections
+ * are rendered as non-clickable headings in the expanded sidebar.
  */
 
 import {
@@ -38,7 +41,17 @@ export interface AdminNavItem {
   icon?: LucideIcon;
   /** True when the route needs an active tenant/site before it can load useful data. */
   requiresActiveSite?: boolean;
+  /** Section key used to group related items under a heading in the sidebar. */
+  section?: string;
 }
+
+/** Section labels for grouped admin nav items. */
+export const adminNavSections: Record<string, string> = {
+  content: "Content",
+  monetization: "Monetization",
+  site: "Site & Modules",
+  access: "Access & Features",
+};
 
 export const adminNavItems: AdminNavItem[] = [
   {
@@ -56,10 +69,10 @@ export const adminNavItems: AdminNavItem[] = [
     requiresActiveSite: true,
   },
   {
-    href: adminRoute("/ai-content"),
-    label: "AI Content",
-    iconKey: "content",
-    icon: Sparkles,
+    href: adminRoute("/products"),
+    label: "Products",
+    iconKey: "products",
+    icon: Package,
     requiresActiveSite: true,
   },
   {
@@ -70,17 +83,11 @@ export const adminNavItems: AdminNavItem[] = [
     requiresActiveSite: true,
   },
   {
-    href: adminRoute("/products"),
-    label: "Products",
-    iconKey: "products",
-    icon: Package,
-    requiresActiveSite: true,
-  },
-  {
     href: adminRoute("/content"),
-    label: "Content",
+    label: "Blog Posts",
     iconKey: "content",
     icon: FileText,
+    section: "content",
     requiresActiveSite: true,
   },
   {
@@ -88,6 +95,15 @@ export const adminNavItems: AdminNavItem[] = [
     label: "Pages",
     iconKey: "pages",
     icon: Files,
+    section: "content",
+    requiresActiveSite: true,
+  },
+  {
+    href: adminRoute("/ai-content"),
+    label: "AI Generator",
+    iconKey: "ai",
+    icon: Sparkles,
+    section: "content",
     requiresActiveSite: true,
   },
   {
@@ -95,44 +111,61 @@ export const adminNavItems: AdminNavItem[] = [
     label: "Ad Placements",
     iconKey: "ads",
     icon: Megaphone,
+    section: "monetization",
     requiresActiveSite: true,
   },
   {
     href: adminRoute("/affiliate-networks"),
-    requiresActiveSite: true,
     label: "Affiliate Networks",
     iconKey: "sites",
     icon: LinkIcon,
+    section: "monetization",
+    requiresActiveSite: true,
   },
-  { href: adminRoute("/users"), label: "Users", iconKey: "users", icon: Users },
-  { href: adminRoute("/sites"), label: "Sites", iconKey: "sites", icon: Globe },
+  {
+    href: adminRoute("/users"),
+    label: "Users",
+    iconKey: "users",
+    icon: Users,
+  },
+  {
+    href: adminRoute("/sites"),
+    label: "Sites",
+    iconKey: "sites",
+    icon: Globe,
+    section: "site",
+  },
   {
     href: adminRoute("/platform/modules"),
     label: "Modules",
-    iconKey: "products",
+    iconKey: "modules",
     icon: Puzzle,
+    section: "site",
+    requiresActiveSite: true,
+  },
+  {
+    href: adminRoute("/platform/permissions"),
+    label: "Permissions",
+    iconKey: "users",
+    icon: ShieldCheck,
+    section: "access",
+    requiresActiveSite: true,
+  },
+  {
+    href: adminRoute("/platform/feature-flags"),
+    label: "Feature Flags",
+    iconKey: "dashboard",
+    icon: Flag,
+    section: "access",
     requiresActiveSite: true,
   },
   {
     href: adminRoute("/platform/integrations"),
-    requiresActiveSite: true,
     label: "Integrations",
     iconKey: "sites",
     icon: Plug,
-  },
-  {
-    href: adminRoute("/platform/permissions"),
+    section: "access",
     requiresActiveSite: true,
-    label: "Permissions",
-    iconKey: "users",
-    icon: ShieldCheck,
-  },
-  {
-    href: adminRoute("/platform/feature-flags"),
-    requiresActiveSite: true,
-    label: "Feature Flags",
-    iconKey: "dashboard",
-    icon: Flag,
   },
   {
     href: adminRoute("/audit-log"),
