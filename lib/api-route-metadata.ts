@@ -119,6 +119,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/ai/rewrite",
+    methods: ["POST"],
+    requestSchema: "AiRewriteInput",
+    responseSchema: "AiRewriteOutput",
+    sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/analytics",
     methods: ["GET"],
     requestSchema: null,
