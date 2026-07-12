@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
 import { rewriteText, type RewriteAction } from "@/lib/ai/rewrite";
 import { parseJsonBody } from "@/lib/api-error";
