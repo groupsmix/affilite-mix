@@ -88,12 +88,15 @@ function getSentryConnectHost(): string {
 export function getCspExternalHosts(): {
   supabase: string | null;
   r2: string | null;
+  r2Upload: string | null;
 } {
   const supabaseHost = hostnameFromEnv("NEXT_PUBLIC_SUPABASE_URL");
   const r2Host = hostnameFromEnv("R2_PUBLIC_URL");
+  const r2AccountId = process.env.R2_ACCOUNT_ID;
   return {
     supabase: supabaseHost ? `https://${supabaseHost}` : null,
     r2: r2Host ? `https://${r2Host}` : null,
+    r2Upload: r2AccountId ? `https://${r2AccountId}.r2.cloudflarestorage.com` : null,
   };
 }
 
@@ -106,7 +109,7 @@ export function getCspExternalHosts(): {
  * browser actually enforces the policy).
  */
 export function buildCspHeader(nonce: string): string {
-  const { supabase, r2 } = getCspExternalHosts();
+  const { supabase, r2, r2Upload } = getCspExternalHosts();
   // G-03 / G-04: build img-src and connect-src from the resolved host
   // list rather than interpolating wildcard-bearing strings. Supabase
   // and R2 origins are only included when their env var resolved to a
@@ -135,6 +138,7 @@ export function buildCspHeader(nonce: string): string {
 
   const connectSources = ["'self'"];
   if (supabase) connectSources.push(supabase);
+  if (r2Upload) connectSources.push(r2Upload);
   connectSources.push("https://challenges.cloudflare.com");
   const sentryHost = getSentryConnectHost();
   if (sentryHost) connectSources.push(sentryHost);
