@@ -19,31 +19,36 @@ function getTier(score: number): { label: string; ringClass: string; badgeClass:
   if (score >= 9)
     return {
       label: "Exceptional",
-      ringClass: "text-emerald-600",
-      badgeClass: "bg-emerald-50 border-emerald-200 text-emerald-700",
+      ringClass: "text-emerald-600 dark:text-emerald-400",
+      badgeClass:
+        "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-400",
     };
   if (score >= 8)
     return {
       label: "Excellent",
-      ringClass: "text-emerald-600",
-      badgeClass: "bg-emerald-50 border-emerald-200 text-emerald-700",
+      ringClass: "text-emerald-600 dark:text-emerald-400",
+      badgeClass:
+        "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-400",
     };
   if (score >= 7)
     return {
       label: "Great",
-      ringClass: "text-amber-600",
-      badgeClass: "bg-amber-50 border-amber-200 text-amber-700",
+      ringClass: "text-amber-600 dark:text-amber-400",
+      badgeClass:
+        "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-400",
     };
   if (score >= 6)
     return {
       label: "Good",
-      ringClass: "text-amber-600",
-      badgeClass: "bg-amber-50 border-amber-200 text-amber-700",
+      ringClass: "text-amber-600 dark:text-amber-400",
+      badgeClass:
+        "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-400",
     };
   return {
     label: "Average",
-    ringClass: "text-gray-500",
-    badgeClass: "bg-gray-50 border-gray-200 text-gray-600",
+    ringClass: "text-gray-500 dark:text-gray-400",
+    badgeClass:
+      "bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-950/30 dark:border-gray-900 dark:text-gray-400",
   };
 }
 
@@ -95,8 +100,7 @@ export function GiftWorthinessScore({
         </svg>
         {/* Score number — uses site accent for brand consistency */}
         <span
-          className={`relative font-bold ${s.text}`}
-          style={{ color: "var(--color-accent-text, var(--color-accent))" }}
+          className={`relative font-bold ${s.text} text-[var(--color-accent-text)] dark:text-[var(--color-accent)]`}
         >
           {clamped.toFixed(1)}
         </span>
@@ -108,7 +112,7 @@ export function GiftWorthinessScore({
           >
             {tier.label}
           </span>
-          <span className={`mt-0.5 text-gray-500 ${s.label}`}>Gift-Worthiness</span>
+          <span className={`mt-0.5 text-muted-foreground ${s.label}`}>Gift-Worthiness</span>
         </div>
       )}
     </div>

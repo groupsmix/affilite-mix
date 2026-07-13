@@ -366,6 +366,14 @@ h6 {
   font-family: var(--font-serif-landing, Georgia, "Times New Roman", serif);
 }
 
+@utility font-heading {
+  font-family: var(--font-heading);
+}
+
+@utility font-body {
+  font-family: var(--font-body);
+}
+
 .showcase-reveal {
   opacity: 0;
   transform: translateY(24px);

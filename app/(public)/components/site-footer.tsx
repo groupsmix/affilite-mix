@@ -3,6 +3,7 @@ import Link from "next/link";
 import { NewsletterSignup } from "./newsletter-signup";
 import { CookieSettingsButton } from "./cookie-settings-button";
 import { SiteFooterCompare } from "./site-footer-compare";
+import { SiteFooterMagazine } from "./site-footer-magazine";
 
 interface SiteFooterProps {
   site: SiteDefinition;
@@ -29,7 +30,12 @@ export function SiteFooter({
       <SiteFooterCompare site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />
     );
   }
-  // "magazine", "minimal", "directory" — fall through to standard until implemented.
+  if (layoutVariant === "magazine") {
+    return (
+      <SiteFooterMagazine site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />
+    );
+  }
+  // "minimal", "directory" — fall through to standard until implemented.
 
   // --- "standard" (default) ---
   return (

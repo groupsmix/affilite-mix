@@ -9,8 +9,13 @@ export const cryptoToolsSite = defineSite({
   description:
     "Compare crypto exchanges, wallets, and DeFi tools — honest reviews and affiliate deals.",
 
-  colors: { primary: "#0F172A", accent: "#F59E0B", accentText: "#B45309" },
+  colors: { primary: "#0F172A", accent: "#F59E0B", accentText: "#B45309", accentLight: "#FCD34D" },
   fonts: "modern",
+  homepage: "showcase",
+  layout: "magazine",
+
+  productLabel: "Tool",
+  productLabelPlural: "Tools",
 
   features: ["blog", "newsletter", "rssFeed", "search", "scheduling", "comparisons", "deals"],
 

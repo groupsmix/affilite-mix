@@ -58,17 +58,17 @@ export function Marquee({ items }: { items: string[] }) {
   return (
     <div
       id="categories"
-      className="w-full border-y border-border py-6 overflow-hidden"
+      className="w-full overflow-hidden border-y border-border py-6"
       aria-hidden="true"
     >
       <div className="flex w-max showcase-animate-marquee">
         {row.map((item, i) => (
           <span
             key={`${item}-${i}`}
-            className="showcase-serif italic text-2xl md:text-3xl text-muted-foreground/60 px-8 whitespace-nowrap"
+            className="font-heading text-2xl italic whitespace-nowrap px-8 text-muted-foreground/60 md:text-3xl"
           >
             {item}
-            <span className="text-primary px-8">·</span>
+            <span className="px-8 text-accent">·</span>
           </span>
         ))}
       </div>

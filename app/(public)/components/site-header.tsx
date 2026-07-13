@@ -4,6 +4,7 @@ import { MobileMenu } from "./mobile-menu";
 import { ActiveNavLinks } from "./active-nav-links";
 import { DarkModeToggle } from "./dark-mode-toggle";
 import { SiteHeaderCompare } from "./site-header-compare";
+import { SiteHeaderMagazine } from "./site-header-magazine";
 
 interface SiteHeaderProps {
   site: SiteDefinition;
@@ -22,7 +23,10 @@ export function SiteHeader({ site, dbNavItems, layoutVariant = "standard" }: Sit
   if (layoutVariant === "compare") {
     return <SiteHeaderCompare site={site} dbNavItems={dbNavItems} />;
   }
-  // "magazine", "minimal", "directory" — stubs that fall through to standard
+  if (layoutVariant === "magazine") {
+    return <SiteHeaderMagazine site={site} dbNavItems={dbNavItems} />;
+  }
+  // "minimal", "directory" — stubs that fall through to standard
   // until their designs are implemented. Add their imports + conditions here.
 
   // --- "standard" (default) ---
@@ -46,7 +50,11 @@ export function SiteHeader({ site, dbNavItems, layoutVariant = "standard" }: Sit
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* Two-tone wordmark */}
-        <Link href="/" className="flex items-center gap-0.5 select-none" aria-label={site.name}>
+        <Link
+          href="/"
+          className="flex items-center gap-0.5 select-none font-heading"
+          aria-label={site.name}
+        >
           <span className="text-xl font-extrabold tracking-tight text-white">{part1}</span>
           {part2 && (
             <span
@@ -66,7 +74,7 @@ export function SiteHeader({ site, dbNavItems, layoutVariant = "standard" }: Sit
           <ActiveNavLinks
             nav={nav}
             className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
-            activeClassName="rounded-md px-3 py-1.5 text-sm font-medium text-white"
+            activeClassName="rounded-md px-3 py-1.5 text-sm font-medium text-[var(--color-accent-foreground)]"
             activeStyle={{ backgroundColor: "var(--color-accent, #3b82f6)" }}
           />
         </nav>
@@ -115,7 +123,7 @@ export function SiteHeader({ site, dbNavItems, layoutVariant = "standard" }: Sit
         className="h-px w-full"
         style={{
           background:
-            "linear-gradient(90deg, transparent, var(--color-accent, #3b82f6)33, transparent)",
+            "linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent, #3b82f6), transparent 80%), transparent)",
         }}
         aria-hidden="true"
       />

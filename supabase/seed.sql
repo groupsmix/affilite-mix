@@ -62,11 +62,13 @@ WITH wt AS (SELECT id FROM sites WHERE slug = 'watch-tools'),
 INSERT INTO products (
   site_id, category_id, name, slug, description,
   price, price_amount, price_currency,
+  image_url, affiliate_url,
   merchant, score, featured, status
 )
 SELECT wt.id, cat.id, 'Seiko Presage', 'seiko-presage',
        'Classic dress watch with automatic movement',
        '$350', 350, 'USD',
+       '/images/showcase/wrist-lifestyle.png', 'https://amazon.com',
        'Amazon', 8.5, true, 'active'
 FROM wt, cat
 ON CONFLICT (site_id, slug) DO NOTHING;
@@ -76,11 +78,13 @@ WITH wt AS (SELECT id FROM sites WHERE slug = 'watch-tools'),
 INSERT INTO products (
   site_id, category_id, name, slug, description,
   price, price_amount, price_currency,
+  image_url, affiliate_url,
   merchant, score, featured, status
 )
 SELECT wt.id, cat.id, 'Casio G-Shock', 'casio-g-shock',
        'Rugged sports watch with atomic sync',
        '$120', 120, 'USD',
+       '/images/showcase/wrist-lifestyle.png', 'https://amazon.com',
        'Amazon', 9.0, true, 'active'
 FROM wt, cat
 ON CONFLICT (site_id, slug) DO NOTHING;

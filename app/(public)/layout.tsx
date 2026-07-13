@@ -10,6 +10,7 @@ import type { LayoutVariant } from "@/config/site-definition";
 import { resolveLayoutVariant } from "@/lib/layout-variant";
 import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -123,7 +124,10 @@ export default async function PublicLayout({ children }: { children: React.React
           {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
         </a>
         <SiteHeader site={site} dbNavItems={dbNavItems} layoutVariant={resolvedLayoutVariant} />
-        <main id="main-content" className="flex-1">
+        <main
+          id="main-content"
+          className={cn("flex-1", resolvedLayoutVariant === "magazine" && "pt-20")}
+        >
           {children}
         </main>
         <SiteFooter site={site} dbFooterNav={dbFooterNav} layoutVariant={resolvedLayoutVariant} />

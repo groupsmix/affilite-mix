@@ -28,6 +28,8 @@ export interface SiteDefinition {
     niche: string;
     logo?: string;
     faviconUrl?: string;
+    /** Optional hero image for editorial homepage templates (e.g. showcase) */
+    heroImage?: string;
   };
 
   theme: {
