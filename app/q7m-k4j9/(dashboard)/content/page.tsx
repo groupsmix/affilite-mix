@@ -2,6 +2,7 @@ import { requireAdminSessionWithSite } from "../components/admin-guard";
 import { AdminDataError, safeAdminData } from "../components/admin-page-state";
 import { listContent, countContent, type ContentSortColumn } from "@/lib/dal/content";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -87,6 +88,7 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
     );
   }
   const dbSiteId = siteIdResult.data;
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const types = parseCsvEnum(sp["f.type"], TYPE_VALUES);
@@ -110,24 +112,30 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
     "content page data",
     () =>
       Promise.all([
-        listContent({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          types: types.length > 0 ? types : undefined,
-          q,
-          sortBy,
-          sortDirection,
-          limit: pageSize,
-          offset: (pageNum - 1) * pageSize,
-        }),
-        countContent({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          types: types.length > 0 ? types : undefined,
-          q,
-        }),
-        countContent({ siteId: dbSiteId, status: "scheduled" }),
-        countContent({ siteId: dbSiteId, status: "review" }),
+        listContent(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            types: types.length > 0 ? types : undefined,
+            q,
+            sortBy,
+            sortDirection,
+            limit: pageSize,
+            offset: (pageNum - 1) * pageSize,
+          },
+          getClient,
+        ),
+        countContent(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            types: types.length > 0 ? types : undefined,
+            q,
+          },
+          getClient,
+        ),
+        countContent({ siteId: dbSiteId, status: "scheduled" }, getClient),
+        countContent({ siteId: dbSiteId, status: "review" }, getClient),
       ]),
     [[], 0, 0, 0] as [ContentRow[], number, number, number],
   );

@@ -8,6 +8,7 @@ import {
 } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -94,6 +95,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     );
   }
   const dbSiteId = siteIdResult.data;
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const categoryIds = parseCsvString(sp["f.category_id"]);
@@ -120,28 +122,34 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     "products page data",
     () =>
       Promise.all([
-        listProducts({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
-          networks: networks.length > 0 ? networks : undefined,
-          q,
-          missingUrl: missingUrl || undefined,
-          sortBy,
-          sortDirection,
-          limit: pageSize,
-          offset: (pageNum - 1) * pageSize,
-        }),
-        countProducts({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
-          networks: networks.length > 0 ? networks : undefined,
-          q,
-          missingUrl: missingUrl || undefined,
-        }),
+        listProducts(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+            networks: networks.length > 0 ? networks : undefined,
+            q,
+            missingUrl: missingUrl || undefined,
+            sortBy,
+            sortDirection,
+            limit: pageSize,
+            offset: (pageNum - 1) * pageSize,
+          },
+          getClient,
+        ),
+        countProducts(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+            networks: networks.length > 0 ? networks : undefined,
+            q,
+            missingUrl: missingUrl || undefined,
+          },
+          getClient,
+        ),
         listCategories(dbSiteId),
-        listDistinctMerchants(dbSiteId),
+        listDistinctMerchants(dbSiteId, {}, getClient),
       ]),
     [[], 0, [], []] as [ProductRow[], number, CategoryRow[], string[]],
   );

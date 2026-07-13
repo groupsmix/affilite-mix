@@ -10,6 +10,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 const JOB_TYPES = new Set([
   "publish_content",
@@ -41,7 +42,8 @@ export const GET = withAuthz(
     );
 
     try {
-      const jobs = await listScheduledJobs(siteId, status ?? undefined, limit);
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      const jobs = await listScheduledJobs(siteId, status ?? undefined, limit, getClient);
       return NextResponse.json({ jobs });
     } catch (err) {
       captureException(err, { context: "[api/admin/schedule] GET failed:" });
@@ -80,16 +82,20 @@ export const POST = withAuthz(
     }
 
     try {
-      const job = await createScheduledJob({
-        site_id: siteId,
-        job_type: body.job_type as ScheduledJobRow["job_type"],
-        target_id: body.target_id as string,
-        scheduled_for: body.scheduled_for as string,
-        payload:
-          typeof body.payload === "object" && body.payload !== null
-            ? (body.payload as Record<string, unknown>)
-            : {},
-      });
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      const job = await createScheduledJob(
+        {
+          site_id: siteId,
+          job_type: body.job_type as ScheduledJobRow["job_type"],
+          target_id: body.target_id as string,
+          scheduled_for: body.scheduled_for as string,
+          payload:
+            typeof body.payload === "object" && body.payload !== null
+              ? (body.payload as Record<string, unknown>)
+              : {},
+        },
+        getClient,
+      );
 
       void recordAuditEvent({
         site_id: siteId,
@@ -128,7 +134,8 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await cancelScheduledJob(siteId, delBodyOrError.id as string);
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      await cancelScheduledJob(siteId, delBodyOrError.id as string, getClient);
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({
         site_id: siteId,

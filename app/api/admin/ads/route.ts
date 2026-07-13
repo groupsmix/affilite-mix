@@ -22,7 +22,9 @@ export const GET = withAuthz("ads", "read", async (_request, { session, siteId }
   if (rlResponse) return rlResponse;
 
   try {
-    const ads = await listAdPlacements(siteId);
+    const ads = await listAdPlacements(siteId, () =>
+      getTenantClientForSite(siteId, session.userId),
+    );
     return NextResponse.json(ads);
   } catch (err) {
     captureException(err, { context: "[api/admin/ads] GET failed:" });

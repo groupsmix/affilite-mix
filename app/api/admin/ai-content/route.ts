@@ -12,6 +12,7 @@ import { withAuthz } from "@/lib/authz";
 import { hasPermission } from "@/lib/dal/permissions";
 import type { AIContentType } from "@/lib/ai/content-generator";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 const VALID_CONTENT_TYPES = new Set(["article", "review", "comparison", "guide"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected", "published"]);
@@ -53,21 +54,25 @@ export const GET = withAuthz(
     if (pagination instanceof NextResponse) return pagination;
 
     try {
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
       // AUDIT-FIX A2-004: Validate content_type against allowlist before passing to DAL
       let contentType = searchParams.get("content_type") ?? undefined;
       if (contentType && !VALID_CONTENT_TYPES.has(contentType)) {
         contentType = undefined;
       }
 
-      const drafts = await listAIDrafts({
-        siteId,
-        status: VALID_STATUSES.has(searchParams.get("status") ?? "")
-          ? (searchParams.get("status") as "pending" | "approved" | "rejected" | "published")
-          : undefined,
-        contentType,
-        limit: pagination.limit,
-        offset: pagination.offset,
-      });
+      const drafts = await listAIDrafts(
+        {
+          siteId,
+          status: VALID_STATUSES.has(searchParams.get("status") ?? "")
+            ? (searchParams.get("status") as "pending" | "approved" | "rejected" | "published")
+            : undefined,
+          contentType,
+          limit: pagination.limit,
+          offset: pagination.offset,
+        },
+        getClient,
+      );
 
       return NextResponse.json(drafts);
     } catch (err) {
@@ -125,6 +130,7 @@ export const POST = withAuthz(
     }
 
     try {
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
       const site = getSiteById(siteSlug);
 
       // AUDIT-FIX A1-003/A2-002: Wrap user data inside a data boundary in the prompt.
@@ -139,22 +145,25 @@ export const POST = withAuthz(
         language: site?.language,
       });
 
-      const draft = await createAIDraft({
-        site_id: siteId,
-        title: result.title,
-        slug: result.slug,
-        body: result.body,
-        excerpt: result.excerpt,
-        content_type: result.contentType,
-        topic,
-        keywords,
-        ai_provider: result.provider,
-        ai_model: result.model,
-        status: "pending",
-        generated_at: new Date().toISOString(),
-        meta_title: result.metaTitle,
-        meta_description: result.metaDescription,
-      });
+      const draft = await createAIDraft(
+        {
+          site_id: siteId,
+          title: result.title,
+          slug: result.slug,
+          body: result.body,
+          excerpt: result.excerpt,
+          content_type: result.contentType,
+          topic,
+          keywords,
+          ai_provider: result.provider,
+          ai_model: result.model,
+          status: "pending",
+          generated_at: new Date().toISOString(),
+          meta_title: result.metaTitle,
+          meta_description: result.metaDescription,
+        },
+        getClient,
+      );
 
       await recordAuditEvent({
         site_id: siteId,
@@ -198,6 +207,7 @@ export const PATCH = withAuthz(
     const action = typeof body.action === "string" ? body.action : "";
 
     try {
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
       if (action === "approve" || action === "publish") {
         // AUDIT-FIX A3-001: Publish requires a separate "publish" permission.
         // A user with only "content:edit" cannot publish without "content:publish".
@@ -211,11 +221,16 @@ export const PATCH = withAuthz(
           );
         }
 
-        const draft = await updateAIDraft(siteId, id, {
-          status: "approved",
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: session.email ?? session.userId ?? "admin",
-        });
+        const draft = await updateAIDraft(
+          siteId,
+          id,
+          {
+            status: "approved",
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: session.email ?? session.userId ?? "admin",
+          },
+          getClient,
+        );
 
         // AUDIT-FIX A3-003: Return 404 when draft doesn't exist (cross-tenant probe)
         if (!draft) {
@@ -227,7 +242,7 @@ export const PATCH = withAuthz(
           // before inserting to prevent duplicate content from concurrent
           // publish requests on the same draft.
           const { getContentBySlug } = await import("@/lib/dal/content");
-          const existing = await getContentBySlug(siteId, draft.slug, true);
+          const existing = await getContentBySlug(siteId, draft.slug, true, getClient);
           if (existing) {
             return NextResponse.json(
               { error: "Content with this slug already exists" },
@@ -235,30 +250,38 @@ export const PATCH = withAuthz(
             );
           }
 
-          await createContent({
-            site_id: siteId,
-            title: draft.title,
-            slug: draft.slug,
-            body: sanitizeHtml(draft.body),
-            excerpt: draft.excerpt,
-            featured_image: "",
-            type: draft.content_type as "article" | "review" | "comparison" | "guide" | "blog",
-            status: "published",
-            category_id: null,
-            tags: draft.keywords ?? [],
-            author: "AI",
-            publish_at: null,
-            meta_title: draft.meta_title,
-            meta_description: draft.meta_description,
-            og_image: null,
-            body_previous: null,
-            review_state: "published",
-            // SEC-13: mark as AI-generated and record human review timestamp
-            ai_generated: true,
-            human_reviewed_at: new Date().toISOString(),
-          });
+          await createContent(
+            {
+              site_id: siteId,
+              title: draft.title,
+              slug: draft.slug,
+              body: sanitizeHtml(draft.body),
+              excerpt: draft.excerpt,
+              featured_image: "",
+              type: draft.content_type as "article" | "review" | "comparison" | "guide" | "blog",
+              status: "published",
+              category_id: null,
+              tags: draft.keywords ?? [],
+              author: "AI",
+              publish_at: null,
+              meta_title: draft.meta_title,
+              meta_description: draft.meta_description,
+              og_image: null,
+              body_previous: null,
+              review_state: "published",
+              // SEC-13: mark as AI-generated and record human review timestamp
+              ai_generated: true,
+              human_reviewed_at: new Date().toISOString(),
+            },
+            getClient,
+          );
 
-          const publishedDraft = await updateAIDraft(siteId, id, { status: "published" });
+          const publishedDraft = await updateAIDraft(
+            siteId,
+            id,
+            { status: "published" },
+            getClient,
+          );
           if (!publishedDraft) {
             return NextResponse.json({ error: "Draft not found after publish" }, { status: 404 });
           }
@@ -287,11 +310,16 @@ export const PATCH = withAuthz(
       }
 
       if (action === "reject") {
-        const draft = await updateAIDraft(siteId, id, {
-          status: "rejected",
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: session.email ?? session.userId ?? "admin",
-        });
+        const draft = await updateAIDraft(
+          siteId,
+          id,
+          {
+            status: "rejected",
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: session.email ?? session.userId ?? "admin",
+          },
+          getClient,
+        );
 
         // A3-003: updateAIDraft returns null when draft doesn't exist
         if (!draft) {
@@ -381,7 +409,12 @@ export const PATCH = withAuthz(
         updates.meta_description = metaDesc;
       }
 
-      const draft = await updateAIDraft(siteId, id, updates as Parameters<typeof updateAIDraft>[2]);
+      const draft = await updateAIDraft(
+        siteId,
+        id,
+        updates as Parameters<typeof updateAIDraft>[2],
+        getClient,
+      );
 
       // AUDIT-FIX A3-003: Return 404 when no row was updated (cross-tenant IDOR probe)
       if (!draft) {
@@ -421,7 +454,8 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await deleteAIDraft(siteId, id);
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      await deleteAIDraft(siteId, id, getClient);
 
       await recordAuditEvent({
         site_id: siteId,

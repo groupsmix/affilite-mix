@@ -53,13 +53,17 @@ export const GET = withAuthz(
     }
 
     try {
-      const products = await listProducts({
-        siteId,
-        categoryId,
-        status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
-        limit: pagination.limit,
-        offset: pagination.offset,
-      });
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      const products = await listProducts(
+        {
+          siteId,
+          categoryId,
+          status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
+          limit: pagination.limit,
+          offset: pagination.offset,
+        },
+        getClient,
+      );
 
       return NextResponse.json(products);
     } catch (err) {

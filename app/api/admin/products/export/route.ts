@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
 import { listProducts } from "@/lib/dal/products";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { MAX_LIMIT, MAX_OFFSET } from "@/lib/dal/pagination-guard";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
@@ -31,8 +32,9 @@ export const GET = withAuthz(
       const products: ProductRow[] = [];
       let offset = 0;
 
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
       for (;;) {
-        const page = await listProducts({ siteId, limit: PAGE_SIZE, offset });
+        const page = await listProducts({ siteId, limit: PAGE_SIZE, offset }, getClient);
         products.push(...page);
 
         // A short (or empty) page means there are no more rows to fetch.

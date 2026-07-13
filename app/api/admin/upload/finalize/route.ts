@@ -14,6 +14,7 @@ import { createMedia } from "@/lib/dal/media";
 import { recordUsage } from "@/lib/quotas";
 import { logger } from "@/lib/logger";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 /**
  * POST /api/admin/upload/finalize
@@ -34,6 +35,7 @@ import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
  *     the audit log fired before the upload completed (#U-9).
  */
 export const POST = withAuthz("upload", "create", async (request, { session, siteId }) => {
+  const getClient = () => getTenantClientForSite(siteId, session.userId);
   const rlResponse = await enforceAdminRateLimit("upload-finalize", session);
   if (rlResponse) return rlResponse;
 
@@ -93,15 +95,18 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
     // Record the validated upload in the unified media library.
     try {
       const size = await headStagingObject(stagingKey);
-      await createMedia({
-        site_id: siteId,
-        public_key: promoted.publicKey,
-        url: promoted.publicUrl,
-        filename: sanitizeOriginalName(fileName),
-        content_type: expectedType,
-        size_bytes: size ?? null,
-        created_by: session.userId ?? null,
-      });
+      await createMedia(
+        {
+          site_id: siteId,
+          public_key: promoted.publicKey,
+          url: promoted.publicUrl,
+          filename: sanitizeOriginalName(fileName),
+          content_type: expectedType,
+          size_bytes: size ?? null,
+          created_by: session.userId ?? null,
+        },
+        getClient,
+      );
     } catch (mediaErr) {
       captureException(mediaErr, {
         context: "[api/admin/upload/finalize] failed to record media row",
