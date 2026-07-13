@@ -95,6 +95,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     );
   }
   const dbSiteId = siteIdResult.data;
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const categoryIds = parseCsvString(sp["f.category_id"]);
@@ -121,28 +122,34 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     "products page data",
     () =>
       Promise.all([
-        listProducts({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
-          networks: networks.length > 0 ? networks : undefined,
-          q,
-          missingUrl: missingUrl || undefined,
-          sortBy,
-          sortDirection,
-          limit: pageSize,
-          offset: (pageNum - 1) * pageSize,
-        }),
-        countProducts({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
-          networks: networks.length > 0 ? networks : undefined,
-          q,
-          missingUrl: missingUrl || undefined,
-        }),
-        listCategories(dbSiteId, undefined, () => getTenantClientForSite(dbSiteId, session.userId)),
-        listDistinctMerchants(dbSiteId),
+        listProducts(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+            networks: networks.length > 0 ? networks : undefined,
+            q,
+            missingUrl: missingUrl || undefined,
+            sortBy,
+            sortDirection,
+            limit: pageSize,
+            offset: (pageNum - 1) * pageSize,
+          },
+          getClient,
+        ),
+        countProducts(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+            networks: networks.length > 0 ? networks : undefined,
+            q,
+            missingUrl: missingUrl || undefined,
+          },
+          getClient,
+        ),
+        listCategories(dbSiteId, undefined, getClient),
+        listDistinctMerchants(dbSiteId, {}, getClient),
       ]),
     [[], 0, [], []] as [ProductRow[], number, CategoryRow[], string[]],
   );

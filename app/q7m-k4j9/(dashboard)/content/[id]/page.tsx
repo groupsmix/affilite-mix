@@ -15,11 +15,12 @@ export default async function EditContentPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug).catch(() => null);
   if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
   const [content, categories, products, linkedProducts] = await Promise.all([
-    getContentById(dbSiteId, id),
-    listCategories(dbSiteId, undefined, () => getTenantClientForSite(dbSiteId, session.userId)),
-    listProducts({ siteId: dbSiteId }),
-    getLinkedProducts(dbSiteId, id),
+    getContentById(dbSiteId, id, getClient),
+    listCategories(dbSiteId, undefined, getClient),
+    listProducts({ siteId: dbSiteId }, getClient),
+    getLinkedProducts(dbSiteId, id, getClient),
   ]);
 
   if (!content) notFound();

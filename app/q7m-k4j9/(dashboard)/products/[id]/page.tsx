@@ -12,9 +12,10 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug).catch(() => null);
   if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
   const [product, categories] = await Promise.all([
-    getProductById(dbSiteId, id),
-    listCategories(dbSiteId, undefined, () => getTenantClientForSite(dbSiteId, session.userId)),
+    getProductById(dbSiteId, id, getClient),
+    listCategories(dbSiteId, undefined, getClient),
   ]);
 
   if (!product) notFound();

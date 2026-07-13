@@ -13,9 +13,10 @@ export default async function NewContentPage() {
   if (!siteSlug) return null;
   const dbSiteId = await resolveDbSiteId(siteSlug).catch(() => null);
   if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
   const [categories, products] = await Promise.all([
-    listCategories(dbSiteId, undefined, () => getTenantClientForSite(dbSiteId, session.userId)),
-    listProducts({ siteId: dbSiteId, limit: 100 }),
+    listCategories(dbSiteId, undefined, getClient),
+    listProducts({ siteId: dbSiteId, limit: 100 }, getClient),
   ]);
 
   return (
