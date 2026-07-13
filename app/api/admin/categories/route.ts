@@ -20,7 +20,9 @@ export const GET = withAuthz("categories", "view", async (_request, { session, s
   if (rlResponse) return rlResponse;
 
   try {
-    const categories = await listCategories(siteId);
+    const categories = await listCategories(siteId, {}, () =>
+      getTenantClientForSite(siteId, session.userId),
+    );
     return NextResponse.json(categories);
   } catch (err) {
     captureException(err, { context: "[api/admin/categories] GET failed:" });

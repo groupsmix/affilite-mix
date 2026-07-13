@@ -8,6 +8,7 @@ import {
 } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -140,7 +141,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           q,
           missingUrl: missingUrl || undefined,
         }),
-        listCategories(dbSiteId),
+        listCategories(dbSiteId, undefined, () => getTenantClientForSite(dbSiteId, session.userId)),
         listDistinctMerchants(dbSiteId),
       ]),
     [[], 0, [], []] as [ProductRow[], number, CategoryRow[], string[]],

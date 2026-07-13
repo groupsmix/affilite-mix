@@ -5,10 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { listCategories } from "@/lib/dal/categories";
 import { countProducts } from "@/lib/dal/products";
 import { countContent } from "@/lib/dal/content";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 
 interface SiteSetupChecklistProps {
   siteId: string;
+  userId?: string | null;
 }
 
 interface ChecklistItem {
@@ -18,13 +20,13 @@ interface ChecklistItem {
   done: boolean;
 }
 
-export async function SiteSetupChecklist({ siteId }: SiteSetupChecklistProps) {
+export async function SiteSetupChecklist({ siteId, userId }: SiteSetupChecklistProps) {
   let items: ChecklistItem[] = [];
   let allDone = false;
 
   try {
     const [categories, products, content] = await Promise.all([
-      listCategories(siteId),
+      listCategories(siteId, undefined, () => getTenantClientForSite(siteId, userId)),
       countProducts({ siteId }),
       countContent({ siteId }),
     ]);

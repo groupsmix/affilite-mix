@@ -2,6 +2,7 @@ import { requireAdminSession } from "../../components/admin-guard";
 import { listCategories } from "@/lib/dal/categories";
 import { listProducts } from "@/lib/dal/products";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { getSiteById } from "@/config/sites";
 import { redirect } from "next/navigation";
 import { ContentForm } from "../content-form";
@@ -13,7 +14,7 @@ export default async function NewContentPage() {
   const dbSiteId = await resolveDbSiteId(siteSlug).catch(() => null);
   if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
   const [categories, products] = await Promise.all([
-    listCategories(dbSiteId),
+    listCategories(dbSiteId, undefined, () => getTenantClientForSite(dbSiteId, session.userId)),
     listProducts({ siteId: dbSiteId, limit: 100 }),
   ]);
 
