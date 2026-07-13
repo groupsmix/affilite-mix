@@ -15,7 +15,7 @@ export default async function NewContentPage() {
   if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
   const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
   const [categories, products] = await Promise.all([
-    listCategories(dbSiteId),
+    listCategories(dbSiteId, undefined, getClient),
     listProducts({ siteId: dbSiteId, limit: 100 }, getClient),
   ]);
 

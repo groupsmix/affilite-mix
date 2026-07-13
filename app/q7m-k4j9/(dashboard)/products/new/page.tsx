@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireAdminSession } from "../../components/admin-guard";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { ProductForm } from "../product-form";
 
 export default async function NewProductPage() {
@@ -14,7 +15,9 @@ export default async function NewProductPage() {
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug).catch(() => null);
   if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
 
-  const categories = await listCategories(dbSiteId);
+  const categories = await listCategories(dbSiteId, undefined, () =>
+    getTenantClientForSite(dbSiteId, session.userId),
+  );
 
   return (
     <div className="mx-auto max-w-4xl">

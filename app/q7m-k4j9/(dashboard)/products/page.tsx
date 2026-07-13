@@ -148,7 +148,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           },
           getClient,
         ),
-        listCategories(dbSiteId),
+        listCategories(dbSiteId, undefined, getClient),
         listDistinctMerchants(dbSiteId, {}, getClient),
       ]),
     [[], 0, [], []] as [ProductRow[], number, CategoryRow[], string[]],

@@ -20,7 +20,9 @@ export const GET = withAuthzDynamic(
 
     try {
       const { id } = params;
-      const page = await getPageById(dbSiteId, id!);
+      const page = await getPageById(dbSiteId, id!, () =>
+        getTenantClientForSite(dbSiteId, session.userId),
+      );
       if (!page) {
         return NextResponse.json({ error: "Page not found" }, { status: 404 });
       }

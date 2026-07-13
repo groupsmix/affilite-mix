@@ -16,7 +16,7 @@ export const GET = withAuthz("pages", "read", async (_request, { session, siteId
   if (rlResponse) return rlResponse;
 
   try {
-    const pages = await listPages(siteId);
+    const pages = await listPages(siteId, () => getTenantClientForSite(siteId, session.userId));
     return NextResponse.json(pages);
   } catch (err) {
     captureException(err, { context: "[api/admin/pages] GET failed:" });

@@ -24,7 +24,8 @@ import { Button } from "@/components/ui/button";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 import { ContentBulkActions } from "./bulk-actions";
-import { ContentDeleteButton } from "./content-delete-button";
+import { ContentDeleteDialog } from "./content-delete-button";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 export interface ContentTableRow {
   id: string;
@@ -76,6 +77,7 @@ function RowActions({ row }: { row: ContentTableRow }) {
   const router = useRouter();
   const [cloning, setCloning] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<null | "published" | "draft">(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   async function handleClone() {
     setCloning(true);
@@ -124,54 +126,57 @@ function RowActions({ row }: { row: ContentTableRow }) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/q7m-k4j9/content/${row.id}`}>Edit</Link>
-        </DropdownMenuItem>
-        {row.status === "review" && (
-          <>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                if (!updatingStatus) void handleReview("published");
-              }}
-              disabled={updatingStatus !== null}
-            >
-              {updatingStatus === "published" ? "Approving…" : "Approve"}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                if (!updatingStatus) void handleReview("draft");
-              }}
-              disabled={updatingStatus !== null}
-            >
-              {updatingStatus === "draft" ? "Rejecting…" : "Reject"}
-            </DropdownMenuItem>
-          </>
-        )}
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            if (!cloning) void handleClone();
-          }}
-          disabled={cloning || updatingStatus !== null}
-        >
-          {cloning ? "Duplicating…" : "Duplicate"}
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild variant="destructive">
-          <div className="flex w-full" onClick={(event) => event.stopPropagation()}>
-            <ContentDeleteButton id={row.id} title={row.title} />
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/q7m-k4j9/content/${row.id}`}>Edit</Link>
+          </DropdownMenuItem>
+          {row.status === "review" && (
+            <>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  if (!updatingStatus) void handleReview("published");
+                }}
+                disabled={updatingStatus !== null}
+              >
+                {updatingStatus === "published" ? "Approving…" : "Approve"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  if (!updatingStatus) void handleReview("draft");
+                }}
+                disabled={updatingStatus !== null}
+              >
+                {updatingStatus === "draft" ? "Rejecting…" : "Reject"}
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              if (!cloning) void handleClone();
+            }}
+            disabled={cloning || updatingStatus !== null}
+          >
+            {cloning ? "Duplicating…" : "Duplicate"}
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setShowConfirm(true)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {showConfirm && (
+        <ContentDeleteDialog id={row.id} title={row.title} onOpenChange={setShowConfirm} />
+      )}
+    </AlertDialog>
   );
 }
 

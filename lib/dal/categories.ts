@@ -97,9 +97,10 @@ async function queryCategoriesWithFallback(
 export async function listCategories(
   siteId: string,
   opts: ListCategoriesOptions = {},
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CategoryRow[]> {
   if (shouldSkipDbCall()) return [];
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const ilikePattern = buildCategoryNameIlikePattern(opts.q);
 
   const result = await queryCategoriesWithFallback(
@@ -116,9 +117,10 @@ export async function listCategories(
 export async function listCategoriesByTaxonomy(
   siteId: string,
   taxonomyType: TaxonomyType,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CategoryRow[]> {
   if (shouldSkipDbCall()) return [];
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const result = await queryCategoriesWithFallback(sb, siteId, (b) =>
     b.eq("taxonomy_type", taxonomyType),
@@ -154,12 +156,16 @@ export async function getCategoryById(
 }
 
 /** Get a single category by slug */
-export async function getCategoryBySlug(siteId: string, slug: string): Promise<CategoryRow | null> {
+export async function getCategoryBySlug(
+  siteId: string,
+  slug: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<CategoryRow | null> {
   if (shouldSkipDbCall()) {
     return null;
   }
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(FULL_COLUMNS)
@@ -174,10 +180,11 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
 /** List categories with product counts, sorted by product count descending */
 export async function listCategoriesWithProductCount(
   siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<(CategoryRow & { product_count: number })[]> {
   if (shouldSkipDbCall()) return [];
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const catsResult = await queryCategoriesWithFallback(sb, siteId);
   if (catsResult.error) return [];
 

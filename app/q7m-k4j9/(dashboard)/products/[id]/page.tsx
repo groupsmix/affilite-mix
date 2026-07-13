@@ -15,7 +15,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
   const [product, categories] = await Promise.all([
     getProductById(dbSiteId, id, getClient),
-    listCategories(dbSiteId),
+    listCategories(dbSiteId, undefined, getClient),
   ]);
 
   if (!product) notFound();

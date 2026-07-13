@@ -18,7 +18,7 @@ export default async function EditContentPage({ params }: { params: Promise<{ id
   const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
   const [content, categories, products, linkedProducts] = await Promise.all([
     getContentById(dbSiteId, id, getClient),
-    listCategories(dbSiteId),
+    listCategories(dbSiteId, undefined, getClient),
     listProducts({ siteId: dbSiteId }, getClient),
     getLinkedProducts(dbSiteId, id, getClient),
   ]);

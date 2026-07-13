@@ -98,7 +98,7 @@ export default async function AdminDashboard() {
 
       <CardErrorBoundary title="Site setup">
         <Suspense fallback={<DashboardCardSkeleton />}>
-          <SiteSetupChecklist siteId={dbSiteId} />
+          <SiteSetupChecklist siteId={dbSiteId} userId={session.userId} />
         </Suspense>
       </CardErrorBoundary>
 
