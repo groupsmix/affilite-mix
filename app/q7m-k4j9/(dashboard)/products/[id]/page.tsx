@@ -2,6 +2,7 @@ import { requireAdminSession } from "../../components/admin-guard";
 import { getProductById } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { notFound, redirect } from "next/navigation";
 import { ProductForm } from "../product-form";
 
@@ -13,7 +14,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
   const [product, categories] = await Promise.all([
     getProductById(dbSiteId, id),
-    listCategories(dbSiteId),
+    listCategories(dbSiteId, undefined, () => getTenantClientForSite(dbSiteId, session.userId)),
   ]);
 
   if (!product) notFound();

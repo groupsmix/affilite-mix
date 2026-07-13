@@ -4,6 +4,7 @@ import { listCategories } from "@/lib/dal/categories";
 import { listProducts } from "@/lib/dal/products";
 import { getLinkedProducts } from "@/lib/dal/content-products";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { getSiteById } from "@/config/sites";
 import { notFound, redirect } from "next/navigation";
 import { ContentForm } from "../content-form";
@@ -16,7 +17,7 @@ export default async function EditContentPage({ params }: { params: Promise<{ id
   if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
   const [content, categories, products, linkedProducts] = await Promise.all([
     getContentById(dbSiteId, id),
-    listCategories(dbSiteId),
+    listCategories(dbSiteId, undefined, () => getTenantClientForSite(dbSiteId, session.userId)),
     listProducts({ siteId: dbSiteId }),
     getLinkedProducts(dbSiteId, id),
   ]);
