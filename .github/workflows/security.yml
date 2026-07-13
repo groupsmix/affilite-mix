@@ -233,7 +233,7 @@ jobs:
         with:
           languages: javascript-typescript
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
 
   # FR-015: run the in-repo Semgrep rules (.semgrep/) in CI. The custom rules
   # encode project-specific security conventions (getClientIp usage, admin-route
