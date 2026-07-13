@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontalIcon } from "lucide-react";
@@ -18,7 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { CategoryDeleteButton } from "./category-delete-button";
+import { CategoryDeleteDialog } from "./category-delete-button";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 export const CATEGORIES_TABLE_PAGE_SIZE = 50;
 
@@ -75,24 +77,34 @@ function formatAbsoluteDate(value: string): string {
 }
 
 function RowActions({ row }: { row: CategoriesTableRow }) {
+  const [showConfirm, setShowConfirm] = useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/q7m-k4j9/categories/${row.id}`}>Edit</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild variant="destructive">
-          <div className="flex w-full" onClick={(event) => event.stopPropagation()}>
-            <CategoryDeleteButton id={row.id} name={row.name} />
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/q7m-k4j9/categories/${row.id}`}>Edit</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setShowConfirm(true)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {showConfirm && (
+        <CategoryDeleteDialog
+          id={row.id}
+          name={row.name}
+          open={showConfirm}
+          onOpenChange={setShowConfirm}
+        />
+      )}
+    </AlertDialog>
   );
 }
 

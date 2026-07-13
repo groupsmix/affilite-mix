@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -30,8 +30,9 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { ProductBulkActions } from "./bulk-actions";
-import { ProductDeleteButton } from "./product-delete-button";
+import { ProductDeleteDialog } from "./product-delete-button";
 import type { CategoryRow } from "@/types/database";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 export interface ProductsTableRow {
   id: string;
@@ -158,6 +159,8 @@ function AffiliateUrlIcon({ row }: { row: ProductsTableRow }) {
 }
 
 function RowActions({ row }: { row: ProductsTableRow }) {
+  const [showConfirm, setShowConfirm] = useState(false);
+
   async function handleCopy() {
     if (!row.affiliate_url) {
       toast.error("No affiliate URL to copy");
@@ -173,33 +176,36 @@ function RowActions({ row }: { row: ProductsTableRow }) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/q7m-k4j9/products/${row.id}`}>Edit</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            void handleCopy();
-          }}
-          disabled={!row.affiliate_url}
-        >
-          <CopyIcon className="size-4" />
-          Copy affiliate URL
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild variant="destructive">
-          <div className="flex w-full" onClick={(event) => event.stopPropagation()}>
-            <ProductDeleteButton id={row.id} name={row.name} />
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/q7m-k4j9/products/${row.id}`}>Edit</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              void handleCopy();
+            }}
+            disabled={!row.affiliate_url}
+          >
+            <CopyIcon className="size-4" />
+            Copy affiliate URL
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setShowConfirm(true)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {showConfirm && (
+        <ProductDeleteDialog id={row.id} name={row.name} onOpenChange={setShowConfirm} />
+      )}
+    </AlertDialog>
   );
 }
 
