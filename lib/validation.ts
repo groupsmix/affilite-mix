@@ -696,6 +696,7 @@ export function validateCreateContent(
 
   if (
     body.meta_description !== undefined &&
+    body.meta_description !== null &&
     body.meta_description !== "" &&
     (!isString(body.meta_description) || body.meta_description.length > 5000)
   ) {
@@ -797,6 +798,7 @@ export function validateUpdateContent(
   }
   if (
     body.meta_description !== undefined &&
+    body.meta_description !== null &&
     body.meta_description !== "" &&
     (!isString(body.meta_description) || body.meta_description.length > 5000)
   ) {
