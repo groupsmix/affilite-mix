@@ -239,6 +239,13 @@ export function productJsonLd(site: SiteDefinition, product: ProductRow) {
         priceCurrency: product.price_currency || "USD",
         availability: "https://schema.org/InStock",
         ...(product.affiliate_url ? { url: product.affiliate_url } : {}),
+        // `merchant` is the retailer we link to (e.g. "Amazon"), which is
+        // the schema.org Offer *seller* — NOT the product's manufacturer
+        // brand. Emitting it as `brand` produced incorrect rich results
+        // (every product branded "Amazon").
+        ...(product.merchant
+          ? { seller: { "@type": "Organization", name: product.merchant } }
+          : {}),
       };
     }
   }
@@ -253,13 +260,6 @@ export function productJsonLd(site: SiteDefinition, product: ProductRow) {
         worstRating: 0,
       },
       author: { "@type": "Organization", name: site.name },
-    };
-  }
-
-  if (product.merchant) {
-    data.brand = {
-      "@type": "Brand",
-      name: product.merchant,
     };
   }
 
