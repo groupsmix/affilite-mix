@@ -68,7 +68,13 @@ export function ShowcaseHomepage({
           productCount={productCount}
           reviewCount={reviewCount}
         />
-        <Editorial siteName={site.name} recentContent={recentContent} />
+        <Editorial
+          siteName={site.name}
+          productLabelPlural={site.productLabelPlural}
+          recentContent={recentContent}
+          productCount={productCount}
+          reviewCount={reviewCount}
+        />
       </main>
     </div>
   );
