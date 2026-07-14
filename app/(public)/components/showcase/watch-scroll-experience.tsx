@@ -114,7 +114,7 @@ export function WatchScrollExperience({
         <section className="flex h-screen flex-col items-center justify-end pb-24 text-center">
           <div data-fade className="flex flex-col items-center gap-4 px-6">
             <p className="text-xs uppercase tracking-[0.4em] text-primary">{siteName} Signature</p>
-            <h1 className="showcase-serif text-5xl text-balance md:text-7xl">The Meridian One</h1>
+            <h2 className="showcase-serif text-5xl text-balance md:text-7xl">The Meridian One</h2>
             <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
               Scroll to explore every angle of a watch engineered for obsessives.
             </p>
