@@ -55,6 +55,15 @@ export function ImageUploader({
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
+  // Bound every network leg so a mis-/unconfigured R2 endpoint can no
+  // longer hang the uploader forever. A stalled cross-origin PUT to R2
+  // (e.g. missing bucket CORS or a wrong endpoint host) has no browser
+  // timeout by default, which is what leaves the "Uploading…" spinner
+  // spinning indefinitely. Abort and surface a real error instead.
+  const PRESIGN_TIMEOUT_MS = 20_000;
+  const UPLOAD_TIMEOUT_MS = 60_000;
+  const FINALIZE_TIMEOUT_MS = 30_000;
+
   const uploadFile = useCallback(
     async (file: File) => {
       setError("");
@@ -67,20 +76,33 @@ export function ImageUploader({
 
       setUploading(true);
 
+      const withTimeout = (ms: number): { signal: AbortSignal; done: () => void } => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        return { signal: controller.signal, done: () => clearTimeout(timer) };
+      };
+
       try {
         // 1. Ask the server for a presigned URL targeting the private
         //    staging bucket. The server returns the exact headers we
         //    must echo on the PUT — Content-Length is signed so we can
         //    no longer lie about the upload size.
-        const presignRes = await fetchWithCsrf("/api/admin/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: file.name,
-            contentType: file.type,
-            fileSize: file.size,
-          }),
-        });
+        const presignTimeout = withTimeout(PRESIGN_TIMEOUT_MS);
+        let presignRes: Response;
+        try {
+          presignRes = await fetchWithCsrf("/api/admin/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: file.name,
+              contentType: file.type,
+              fileSize: file.size,
+            }),
+            signal: presignTimeout.signal,
+          });
+        } finally {
+          presignTimeout.done();
+        }
 
         if (!presignRes.ok) {
           const data = await presignRes.json().catch(() => ({}));
@@ -97,11 +119,18 @@ export function ImageUploader({
         };
 
         // 2. PUT to R2 with the exact headers the server signed.
-        const uploadRes = await fetch(presigned.uploadUrl, {
-          method: "PUT",
-          headers: presigned.requiredHeaders,
-          body: file,
-        });
+        const uploadTimeout = withTimeout(UPLOAD_TIMEOUT_MS);
+        let uploadRes: Response;
+        try {
+          uploadRes = await fetch(presigned.uploadUrl, {
+            method: "PUT",
+            headers: presigned.requiredHeaders,
+            body: file,
+            signal: uploadTimeout.signal,
+          });
+        } finally {
+          uploadTimeout.done();
+        }
 
         if (!uploadRes.ok) {
           setError("Failed to upload file to storage");
@@ -112,15 +141,22 @@ export function ImageUploader({
         // 3. Ask the server to magic-byte validate and promote the
         //    upload to the public bucket. Only after this succeeds is
         //    publicUrl actually reachable.
-        const finalizeRes = await fetchWithCsrf("/api/admin/upload/finalize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            stagingKey: presigned.stagingKey,
-            expectedType: file.type,
-            fileName: file.name,
-          }),
-        });
+        const finalizeTimeout = withTimeout(FINALIZE_TIMEOUT_MS);
+        let finalizeRes: Response;
+        try {
+          finalizeRes = await fetchWithCsrf("/api/admin/upload/finalize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              stagingKey: presigned.stagingKey,
+              expectedType: file.type,
+              fileName: file.name,
+            }),
+            signal: finalizeTimeout.signal,
+          });
+        } finally {
+          finalizeTimeout.done();
+        }
 
         if (!finalizeRes.ok) {
           const data = await finalizeRes.json().catch(() => ({}));
@@ -132,14 +168,22 @@ export function ImageUploader({
         const finalized = (await finalizeRes.json()) as { publicUrl: string };
         onChange(finalized.publicUrl);
         onUpload?.(finalized.publicUrl);
-      } catch {
-        // fail-open: best-effort
-        setError("Upload failed. You can paste an image URL instead.");
+      } catch (err) {
+        // fail-open: best-effort. An AbortError means one of the legs hit
+        // its timeout (most likely a stalled R2 PUT) — say so explicitly
+        // rather than leaving the spinner running.
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setError(
+            "Upload timed out. Check that image storage (R2) is configured and reachable, or paste an image URL instead.",
+          );
+        } else {
+          setError("Upload failed. You can paste an image URL instead.");
+        }
       } finally {
         setUploading(false);
       }
     },
-    [onChange, onUpload, MAX_FILE_SIZE],
+    [onChange, onUpload, MAX_FILE_SIZE, PRESIGN_TIMEOUT_MS, UPLOAD_TIMEOUT_MS, FINALIZE_TIMEOUT_MS],
   );
 
   function handleDrop(e: React.DragEvent) {

@@ -39,7 +39,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const finalFavicon = dbFaviconUrl || site.brand.faviconUrl || "/favicon.svg";
 
   return {
-    title: metaTitle || site.name,
+    // Use an absolute title so the root layout's `%s | ${site.name}`
+    // template does not double the brand into "WristNerd | WristNerd".
+    // The niche gives the homepage a descriptive, keyword-bearing title.
+    title: { absolute: metaTitle || `${site.name} — ${site.brand.niche}` },
     description: metaDescription || `${site.name} — curated content and product recommendations`,
     icons: { icon: finalFavicon },
     ...(ogImageUrl && {
