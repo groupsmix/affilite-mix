@@ -5,6 +5,7 @@ import type { ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { getContentLinkedToProducts } from "@/lib/dal/content-products";
 
 /** 30 gift-finder requests per minute per IP
  * P0-5: failPolicy: "closed" — database-driven recommendation endpoint.
@@ -84,28 +85,44 @@ export async function GET(request: NextRequest) {
   const dbSiteId = site.id; // site.id is already the resolved DB UUID
   const sb = await getTenantClient();
 
-  // Fetch active products within budget
-  let query = sb
-    // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
-    .from("products")
-    .select(
-      "id, name, slug, price_label, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id",
-    )
-    .eq("site_id", dbSiteId)
-    .eq("status", "active")
-    .not("score", "is", null);
+  // Fetch active products, optionally constrained to the requested budget.
+  // `applyBudget=false` drops the price ceiling so we can fall back to the
+  // closest matches rather than dead-ending the visitor on "No Matches".
+  const runProductQuery = async (applyBudget: boolean) => {
+    let query = sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
+      .from("products")
+      .select(
+        "id, name, slug, price_label, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id",
+      )
+      .eq("site_id", dbSiteId)
+      .eq("status", "active")
+      .not("score", "is", null);
 
-  if (budget < 9999) {
-    query = query.lte("price_amount", budget);
-  }
+    if (applyBudget && budget < 9999) {
+      // Include products with no parsed price_amount: an unpriced item should
+      // not be silently dropped from a budgeted search.
+      query = query.or(`price_amount.is.null,price_amount.lte.${budget}`);
+    }
 
-  const { data: products, error } = await query
-    .order("score", { ascending: false, nullsFirst: false })
-    .limit(50);
+    return query.order("score", { ascending: false, nullsFirst: false }).limit(50);
+  };
+
+  let { data: products, error } = await runProductQuery(true);
 
   if (error) {
     captureException(error, { context: "[api/gift-finder] query failed:" });
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
+  }
+
+  // Never dead-end the quiz: if the budget filter excluded everything, retry
+  // without it so the visitor still gets our closest recommendations.
+  if ((!products || products.length === 0) && budget < 9999) {
+    ({ data: products, error } = await runProductQuery(false));
+    if (error) {
+      captureException(error, { context: "[api/gift-finder] fallback query failed:" });
+      return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
+    }
   }
 
   if (!products || products.length === 0) {
@@ -169,11 +186,33 @@ export async function GET(request: NextRequest) {
 
   scored.sort((a, b) => b.relevance - a.relevance);
 
+  const top = scored.slice(0, 3);
+
+  // Resolve the published review (if any) for each recommended product so the
+  // "Read Full Review" button links to the real review page instead of a
+  // top-level slug that 404s. Products without a review simply omit the link.
+  const reviewUrlByProduct = new Map<string, string>();
+  try {
+    const linked = await getContentLinkedToProducts(
+      dbSiteId,
+      top.map((p) => p.id),
+      { types: ["review"] },
+    );
+    for (const { productId, content } of linked) {
+      if (!reviewUrlByProduct.has(productId) && content.slug) {
+        reviewUrlByProduct.set(productId, `/${content.type}/${content.slug}`);
+      }
+    }
+  } catch (reviewErr) {
+    // Non-fatal: recommendations are still useful without the review link.
+    captureException(reviewErr, { context: "[api/gift-finder] review link lookup failed" });
+  }
+
   // Issue 8: suppress raw affiliate_url and replace with a /r/ redirect URL.
   // Exposing affiliate_url publicly lets competitors identify networks and strip
   // tracking parameters. Route traffic through the internal /r/[slug] redirect
   // instead so the affiliate URL is never sent to the browser.
-  const results = scored.slice(0, 3).map((p) => ({
+  const results = top.map((p) => ({
     name: p.name,
     slug: p.slug,
     price_label: p.price_label,
@@ -186,6 +225,8 @@ export async function GET(request: NextRequest) {
     deal_text: p.deal_text,
     // Include redirect_url only when the product has a non-empty slug.
     ...(p.slug ? { redirect_url: `/r/${p.slug}` } : {}),
+    // Only present when a published review exists for this product.
+    ...(reviewUrlByProduct.has(p.id) ? { review_url: reviewUrlByProduct.get(p.id) } : {}),
   }));
 
   return NextResponse.json({ results });
