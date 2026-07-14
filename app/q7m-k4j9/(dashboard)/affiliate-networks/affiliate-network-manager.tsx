@@ -111,8 +111,23 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
   // otherwise fall back to the static `NETWORK_CONFIGS` catalog.
   const availableNetworks = available.length > 0 ? available : STATIC_AVAILABLE_NETWORKS;
 
+  const selectedNetwork = availableNetworks.find((n) => n.network === formNetwork);
+  const selectedRequiresApiKey = selectedNetwork?.requiresApiKey ?? false;
+
   return (
     <div className="space-y-4">
+      {/* What configuring a network does — set expectations honestly. */}
+      <div className="rounded-md border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-3 text-sm text-gray-600 dark:text-gray-400">
+        <p>
+          <strong className="text-gray-800 dark:text-gray-200">How this works:</strong> your product
+          links are set <strong>per product</strong> (each product&rsquo;s affiliate URL) and are
+          served through the tracked <code className="rounded bg-muted px-1">/r/</code> redirect.
+          Registering a network here does <strong>not</strong> rewrite those links — it records
+          which networks you use and, for supported networks, enables automated commission-report
+          imports. A network&rsquo;s link domain must be on the affiliate allow-list for its links
+          to work.
+        </p>
+      </div>
       {error && (
         <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
           {error}
@@ -232,18 +247,26 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
                   className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  API Key (env var name)
-                </label>
-                <input
-                  type="text"
-                  value={formApiKeyRef}
-                  onChange={(e) => setFormApiKeyRef(e.target.value)}
-                  placeholder="e.g. CJ_API_KEY"
-                  className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm"
-                />
-              </div>
+              {selectedRequiresApiKey && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Commission-report key (Worker secret name)
+                  </label>
+                  <input
+                    type="text"
+                    value={formApiKeyRef}
+                    onChange={(e) => setFormApiKeyRef(e.target.value)}
+                    placeholder={selectedNetwork?.envKeyName || "e.g. CJ_API_KEY"}
+                    className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-600">
+                    Optional. Only used by the commission-report importer. Enter the <em>name</em>{" "}
+                    of the Worker secret that holds the API key (e.g.{" "}
+                    <code className="rounded bg-muted px-1">{selectedNetwork?.envKeyName}</code>) —
+                    never paste the key itself here.
+                  </p>
+                </div>
+              )}
             </div>
             <button
               onClick={() => {
@@ -275,7 +298,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
                   Status
                 </th>
                 <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">
-                  Env Variable
+                  Commission import
                 </th>
               </tr>
             </thead>
@@ -298,7 +321,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
                     )}
                   </td>
                   <td className="px-4 py-2 font-mono text-xs text-gray-500 dark:text-gray-400">
-                    {net.envKeyName}
+                    {net.requiresApiKey ? net.envKeyName : "—"}
                   </td>
                 </tr>
               ))}

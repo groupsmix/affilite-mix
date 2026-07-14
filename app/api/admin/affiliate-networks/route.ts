@@ -12,7 +12,7 @@ import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { getTenantClientForSite } from "@/lib/supabase-server";
 
-const VALID_NETWORKS = new Set(["cj", "partnerstack", "admitad", "direct"]);
+const VALID_NETWORKS = new Set(Object.keys(NETWORK_CONFIGS));
 
 /** GET — List affiliate network configs for the active site */
 export const GET = withAuthz("integrations", "view", async (_request, { session, siteId }) => {
@@ -53,7 +53,7 @@ export const POST = withAuthz(
     const network = typeof body.network === "string" ? body.network : "";
     if (!VALID_NETWORKS.has(network)) {
       return NextResponse.json(
-        { error: "network must be one of: cj, partnerstack, admitad, direct" },
+        { error: `network must be one of: ${Object.keys(NETWORK_CONFIGS).join(", ")}` },
         { status: 400 },
       );
     }
