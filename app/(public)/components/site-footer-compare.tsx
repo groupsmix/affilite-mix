@@ -44,7 +44,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
         <div className="mb-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             {/* Two-tone wordmark */}
-            <div className="flex items-baseline gap-0.5 text-2xl font-extrabold tracking-tight select-none">
+            <div className="flex items-baseline gap-0.5 text-2xl font-extrabold tracking-tight select-none font-heading">
               <span className="text-white">{part1}</span>
               {part2 && (
                 <span style={{ color: "var(--color-accent-light, #3B82F6)" }}>&nbsp;{part2}</span>
@@ -128,7 +128,10 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
         {/* Newsletter */}
         {site.features.newsletter && !hideNewsletter && (
           <div className="mt-10 rounded-xl border border-white/10 bg-white/5 px-6 py-6">
-            <NewsletterSignup siteLanguage={site.language} />
+            <NewsletterSignup
+              siteLanguage={site.language}
+              className="dark bg-transparent border-0"
+            />
           </div>
         )}
 

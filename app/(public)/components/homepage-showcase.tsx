@@ -4,8 +4,8 @@ import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import { ShowcaseHero } from "./showcase/showcase-hero";
 import { Marquee } from "./showcase/showcase-ui";
 import { CollectionGrid } from "./showcase/collection-grid";
-import { SocialProof } from "./showcase/social-proof";
-import { Editorial } from "./showcase/editorial";
+import { ShowcaseTrust } from "./showcase/showcase-trust";
+import { ShowcaseJournal } from "./showcase/showcase-journal";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
 
@@ -19,15 +19,14 @@ interface ShowcaseHomepageProps {
 }
 
 /**
- * "Showcase" homepage — an immersive dark storefront with a scroll-driven
- * 3D product hero (three.js/gsap, lazy-loaded client-side only), an
- * infinite category marquee, a filterable curated collection, social
- * proof, and an editorial section. Ported from the WristNerd storefront
- * design (groupsmix/hoodie-store).
+ * "Showcase" homepage — an editorial dark storefront with a premium hero,
+ * infinite category marquee, filterable collection grid, trust section, and
+ * journal. Designed for gift/product authority sites (WristNerd, CryptoRanked,
+ * CalmRoutine) and inspired by awwwards/v0-style editorial layouts.
  *
- * The `dark showcase-root` wrapper scopes the shadcn dark token palette
- * to this template only — the rest of the site (header, footer, inner
- * pages) keeps its per-site light theme.
+ * The `dark` wrapper scopes the shadcn dark token palette to this template
+ * only — the rest of the site (header, footer, inner pages) keeps its
+ * per-site theme tokens.
  */
 export function ShowcaseHomepage({
   site,
@@ -40,29 +39,35 @@ export function ShowcaseHomepage({
   const marqueeItems =
     categories.length > 0
       ? categories.map((c) => c.name)
-      : ["Dive", "Field", "Dress", "Chronograph", "Minimalist", "GMT", "Pilot", "Skeleton"];
+      : ["Curated", "Independent", "Reviewed", "Affiliate-Supported", "Honest Picks"];
 
   return (
-    <div className="dark showcase-root bg-background text-foreground">
+    <div className="dark -mt-20 bg-background text-foreground">
       <JsonLd data={organizationJsonLd(site)} />
       <JsonLd data={webSiteJsonLd(site)} />
 
-      <main className="flex min-h-screen flex-col">
-        <ShowcaseHero siteName={site.name} productLabelPlural={site.productLabelPlural} />
+      <div className="flex-1">
+        <ShowcaseHero
+          site={site}
+          featuredProducts={featuredProducts}
+          categories={categories}
+          productCount={productCount}
+          reviewCount={reviewCount}
+        />
         <Marquee items={marqueeItems} />
         <CollectionGrid
           products={featuredProducts}
           categories={categories}
           productLabelPlural={site.productLabelPlural}
         />
-        <SocialProof
-          siteName={site.name}
-          productLabelPlural={site.productLabelPlural}
+        <ShowcaseTrust
+          site={site}
           productCount={productCount}
           reviewCount={reviewCount}
+          categoryCount={categories.length}
         />
-        <Editorial siteName={site.name} recentContent={recentContent} />
-      </main>
+        <ShowcaseJournal site={site} recentContent={recentContent} />
+      </div>
     </div>
   );
 }

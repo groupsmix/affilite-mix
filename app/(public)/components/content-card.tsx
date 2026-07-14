@@ -27,11 +27,11 @@ export function ContentCard({
   const [imgError, setImgError] = useState(false);
 
   return (
-    <article className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+    <article className="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-colors hover:border-accent/50">
       {content.featured_image && (
         <Link href={href}>
           {imgError ? (
-            <div className="flex h-44 w-full items-center justify-center bg-gray-100 text-gray-400">
+            <div className="flex h-44 w-full items-center justify-center bg-muted text-muted-foreground">
               <svg
                 className="h-10 w-10"
                 fill="none"
@@ -65,16 +65,16 @@ export function ContentCard({
       )}
       <div className="p-5">
         <Link href={href}>
-          <h3 className="mb-2 text-xl font-semibold leading-tight transition-colors hover:[color:var(--color-accent,#10B981)]">
+          <h3 className="mb-2 text-xl font-semibold leading-tight text-card-foreground transition-colors hover:[color:var(--color-accent-text)] dark:hover:[color:var(--color-accent)]">
             {searchQuery ? highlightText(content.title, searchQuery) : content.title}
           </h3>
         </Link>
         {content.excerpt && (
-          <p className="mb-3 line-clamp-2 text-sm text-gray-600">
+          <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">
             {searchQuery ? highlightText(content.excerpt, searchQuery) : content.excerpt}
           </p>
         )}
-        <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{content.type}</span>
           {(content.publish_at ?? content.created_at) && (
             <time dateTime={content.publish_at ?? content.created_at}>

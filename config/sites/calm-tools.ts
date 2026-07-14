@@ -1,38 +1,31 @@
 import { defineSite } from "../define-site";
 
-export const watchToolsSite = defineSite({
-  id: "watch-tools",
-  name: "WristNerd",
-  domain: "wristnerd.xyz",
-  aliases: ["watch.localhost"],
-  niche: "Watch Gift Guides & Reviews",
+export const calmToolsSite = defineSite({
+  id: "calm-tools",
+  name: "CalmRoutine",
+  domain: "calmroutine.site",
+  aliases: ["calm.localhost"],
+  niche: "Small-Space Home Organization & Calm-Living Systems",
   description:
-    "Expert watch gift guides and reviews — honest ratings and a proprietary Gift-Worthiness Score to help you pick the perfect watch.",
+    "Find calm in the clutter. Curated, renter-friendly home organization tools and systems that make everyday routines feel lighter.",
 
-  // Accent is the luminous brand gold used on dark surfaces. accentText is the
-  // WCAG AA-compliant dark variant used for button backgrounds and text on white.
-  // accentLight is an even lighter decorative gold for large wordmarks/hero text.
-  colors: { primary: "#1B2A4A", accent: "#C9A96E", accentText: "#8B6914", accentLight: "#E1C68C" },
-  fonts: "classic",
+  colors: { primary: "#1F4E45", accent: "#D4B483", accentText: "#8B6B3E", accentLight: "#F0E6D2" },
+  fonts: "modern",
   homepage: "showcase",
   layout: "magazine",
-  heroImage: "/images/showcase/wrist-lifestyle.png",
 
-  productLabel: "Watch",
-  productLabelPlural: "Watches",
+  productLabel: "Product",
+  productLabelPlural: "Products",
 
   features: [
     "blog",
-    "brandSpotlights",
-    "comparisons",
-    "cookieConsent",
-    "deals",
-    "giftFinder",
     "newsletter",
     "rssFeed",
-    "scheduling",
     "search",
-    "taxonomyPages",
+    "scheduling",
+    "comparisons",
+    "deals",
+    "cookieConsent",
   ],
 
   nav: [
@@ -40,7 +33,7 @@ export const watchToolsSite = defineSite({
     { title: "Reviews", href: "/review" },
     { title: "Comparisons", href: "/comparison" },
     { title: "Guides", href: "/guide" },
-    { title: "Gift Finder", href: "/gift-finder" },
+    { title: "Deals", href: "/deals" },
   ],
 
   footerNav: {
@@ -48,7 +41,7 @@ export const watchToolsSite = defineSite({
       { title: "Home", href: "/" },
       { title: "Reviews", href: "/review" },
       { title: "Comparisons", href: "/comparison" },
-      { title: "Gift Finder", href: "/gift-finder" },
+      { title: "Guides", href: "/guide" },
     ],
     legal: [
       { title: "About", href: "/about" },
@@ -61,8 +54,8 @@ export const watchToolsSite = defineSite({
 
   pages: {
     about: {
-      title: "About WristNerd",
-      description: "Expert watch gift guides and honest reviews",
+      title: "About CalmRoutine",
+      description: "Helping you find calm through better organization",
     },
     privacy: {
       title: "Privacy Policy",
@@ -74,8 +67,8 @@ export const watchToolsSite = defineSite({
     },
     contact: {
       title: "Contact Us",
-      description: "Get in touch with the WristNerd team",
-      email: "contact@wristnerd.xyz",
+      description: "Get in touch with the CalmRoutine team",
+      email: "contact@calmroutine.site",
     },
     affiliateDisclosurePage: {
       title: "Affiliate Disclosure",

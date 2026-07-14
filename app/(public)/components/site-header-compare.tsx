@@ -55,7 +55,11 @@ export function SiteHeaderCompare({ site, dbNavItems }: SiteHeaderCompareProps) 
 
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* Two-tone wordmark */}
-        <Link href="/" className="flex items-center gap-0.5 select-none" aria-label={site.name}>
+        <Link
+          href="/"
+          className="flex items-center gap-0.5 select-none font-heading"
+          aria-label={site.name}
+        >
           <span className="text-xl font-extrabold tracking-tight text-white">{part1}</span>
           {part2 && (
             <span
@@ -107,7 +111,7 @@ export function SiteHeaderCompare({ site, dbNavItems }: SiteHeaderCompareProps) 
           {/* CTA — hidden on very small screens, visible md+ */}
           <Link
             href={ctaHref}
-            className="hidden rounded-md px-4 py-2 text-sm font-semibold text-white opacity-100 transition-opacity hover:opacity-85 md:block"
+            className="hidden rounded-md px-4 py-2 text-sm font-semibold text-[var(--color-accent-foreground)] opacity-100 transition-opacity hover:opacity-85 md:block"
             style={{
               backgroundColor: "var(--color-accent, #2D6BF0)",
             }}
@@ -127,7 +131,7 @@ export function SiteHeaderCompare({ site, dbNavItems }: SiteHeaderCompareProps) 
         className="h-px w-full"
         style={{
           background:
-            "linear-gradient(90deg, transparent, var(--color-accent, #2D6BF0)33, transparent)",
+            "linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent, #2D6BF0), transparent 80%), transparent)",
         }}
         aria-hidden="true"
       />

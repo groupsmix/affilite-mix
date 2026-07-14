@@ -5,6 +5,9 @@ import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import type { ProductRow, CategoryRow } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { fireTrackingBeacon } from "../product-card";
+import { useCookieConsent } from "../cookie-consent";
+import { GiftWorthinessScore } from "../gift-worthiness-score";
 import { ScrollReveal } from "./showcase-ui";
 
 interface ShowcaseProductCardProps {
@@ -13,49 +16,73 @@ interface ShowcaseProductCardProps {
 }
 
 function ShowcaseProductCard({ product, categoryName }: ShowcaseProductCardProps) {
+  const { accepted: consentAccepted } = useCookieConsent();
+  const [imgError, setImgError] = useState(false);
+
+  const ctaText = product.cta_text || `Shop on ${product.merchant || "retailer"}`;
+
+  function handleCtaClick() {
+    if (product.affiliate_url && consentAccepted) {
+      fireTrackingBeacon(product.slug, "showcase");
+    }
+  }
+
   return (
-    <article className="group bg-card border border-border overflow-hidden flex flex-col">
+    <article className="group flex flex-col overflow-hidden border border-border bg-card">
       <div className="relative aspect-square overflow-hidden">
-        {product.image_url ? (
+        {product.image_url && !imgError ? (
           <Image
             src={product.image_url}
             alt={product.image_alt || product.name}
             fill
             className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            onError={() => setImgError(true)}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground text-xs uppercase tracking-[0.25em]">
+          <div className="absolute inset-0 flex items-center justify-center bg-muted text-xs uppercase tracking-[0.25em] text-muted-foreground">
             {categoryName ?? "Featured"}
           </div>
         )}
         {categoryName && (
-          <span className="absolute top-4 left-4 text-[10px] uppercase tracking-[0.25em] bg-background/80 backdrop-blur-sm text-primary px-3 py-1.5">
+          <span className="absolute left-4 top-4 bg-background/80 px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] text-accent backdrop-blur-sm">
             {categoryName}
           </span>
         )}
       </div>
 
-      <div className="p-5 md:p-6 flex flex-col flex-1">
+      <div className="flex flex-1 flex-col p-5 md:p-6">
         <div className="flex items-start justify-between gap-4">
-          <h3 className="showcase-serif text-xl text-foreground text-balance">{product.name}</h3>
-          {product.price && (
-            <p className="text-primary font-medium whitespace-nowrap">{product.price}</p>
-          )}
+          <h3 className="font-heading text-xl text-balance text-card-foreground">{product.name}</h3>
+          <div className="flex shrink-0 items-center gap-2">
+            {product.price && (
+              <p className="whitespace-nowrap font-medium text-accent">{product.price}</p>
+            )}
+            {product.score !== null && (
+              <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
+            )}
+          </div>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground leading-relaxed flex-1 line-clamp-3">
+        <p className="mt-2 flex-1 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
           {product.description}
         </p>
 
-        <a
-          href={product.affiliate_url}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          className="mt-5 inline-flex items-center justify-center gap-2 border border-primary/50 text-primary text-xs uppercase tracking-[0.2em] px-4 py-3 hover:bg-primary hover:text-primary-foreground transition-colors duration-300"
-        >
-          {product.cta_text || `Shop on ${product.merchant || "retailer"}`}
-          <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-        </a>
+        {product.affiliate_url ? (
+          <a
+            href={product.affiliate_url}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            onClick={handleCtaClick}
+            className="mt-5 inline-flex items-center justify-center gap-2 border border-accent/50 px-4 py-3 text-xs uppercase tracking-[0.2em] text-accent transition-colors duration-300 hover:bg-[var(--color-accent-text)] hover:text-[var(--color-accent-text-foreground)]"
+          >
+            {ctaText}
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </a>
+        ) : (
+          <span className="mt-5 inline-flex items-center justify-center border border-border px-4 py-3 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            {ctaText}
+          </span>
+        )}
       </div>
     </article>
   );
@@ -85,13 +112,13 @@ export function CollectionGrid({ products, categories, productLabelPlural }: Col
     <section id="collection" className="w-full py-20 md:py-32">
       <div className="container mx-auto px-4">
         <ScrollReveal>
-          <p className="text-xs uppercase tracking-[0.4em] text-primary text-center mb-4">
+          <p className="mb-4 text-center text-xs uppercase tracking-[0.4em] text-accent">
             The Edit
           </p>
-          <h2 className="showcase-serif text-4xl md:text-5xl text-foreground text-center text-balance">
+          <h2 className="text-center text-balance font-heading text-4xl italic text-foreground md:text-5xl">
             Curated <span className="italic">Collection</span>
           </h2>
-          <p className="mt-4 text-muted-foreground text-center max-w-lg mx-auto leading-relaxed text-pretty">
+          <p className="mx-auto mt-4 max-w-lg text-center text-pretty leading-relaxed text-muted-foreground">
             Every one of these {productLabelPlural.toLowerCase()} earned its place. We link you to
             the best retailer — you get the best price, we earn a small commission.
           </p>
@@ -111,10 +138,10 @@ export function CollectionGrid({ products, categories, productLabelPlural }: Col
                   aria-selected={activeCategory === cat.id}
                   onClick={() => setActiveCategory(cat.id)}
                   className={cn(
-                    "text-xs uppercase tracking-[0.2em] px-4 py-2 border transition-colors duration-300",
+                    "border px-4 py-2 text-xs uppercase tracking-[0.2em] transition-colors duration-300",
                     activeCategory === cat.id
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
+                      ? "border-accent bg-[var(--color-accent-text)] text-[var(--color-accent-text-foreground)]"
+                      : "border-border text-muted-foreground hover:border-accent/50 hover:text-accent",
                   )}
                 >
                   {cat.name}
@@ -124,7 +151,7 @@ export function CollectionGrid({ products, categories, productLabelPlural }: Col
           </ScrollReveal>
         )}
 
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((product, i) => (
             <ScrollReveal key={product.id} delay={(i % 3) * 100}>
               <ShowcaseProductCard

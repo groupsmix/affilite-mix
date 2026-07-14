@@ -3,11 +3,14 @@
 import { useState, useCallback } from "react";
 import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { cn } from "@/lib/utils";
+
 interface NewsletterSignupProps {
   siteLanguage?: string;
+  className?: string;
 }
 
-export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps) {
+export function NewsletterSignup({ siteLanguage = "en", className }: NewsletterSignupProps) {
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState(""); // A157: honeypot field
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -63,7 +66,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
   if (status === "success") {
     return (
       <div
-        className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center"
+        className={cn(className, "rounded-lg border border-amber-200 bg-amber-50 p-6 text-center")}
         role="status"
         aria-live="polite"
       >
@@ -91,11 +94,11 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
-      <h3 className="mb-2 text-lg font-semibold text-gray-900">
+    <div className={cn("rounded-lg border border-border bg-card p-6", className)}>
+      <h3 className="mb-2 text-lg font-semibold text-card-foreground">
         {isAr ? "اشترك في النشرة البريدية" : "Subscribe to our newsletter"}
       </h3>
-      <p className="mb-4 text-sm text-gray-600">
+      <p className="mb-4 text-sm text-muted-foreground">
         {isAr
           ? "احصل على أحدث المراجعات والعروض الحصرية مباشرة في بريدك."
           : "Get the latest reviews and exclusive deals delivered to your inbox."}
@@ -126,7 +129,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
             onChange={(e) => setEmail(e.target.value)}
             placeholder={isAr ? "بريدك الإلكتروني" : "your@email.com"}
             required
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-1"
+            className="flex-1 rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1"
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "var(--color-accent, #10B981)";
               e.currentTarget.style.boxShadow = "0 0 0 1px var(--color-accent, #10B981)";
@@ -140,7 +143,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
             type="submit"
             disabled={status === "loading"}
             data-accent-bg
-            className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
+            className="rounded-lg px-5 py-2.5 text-sm font-medium text-[var(--color-accent-text-foreground)] transition-colors disabled:opacity-50"
           >
             {status === "loading" ? (isAr ? "جاري..." : "...") : isAr ? "اشترك" : "Subscribe"}
           </button>

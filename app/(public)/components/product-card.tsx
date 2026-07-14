@@ -44,7 +44,7 @@ function getDealTimeLeft(expiresAt: string | null): string | null {
  * Fire-and-forget click tracking, then navigate to the affiliate URL directly.
  * Decouples tracking from navigation so tracking failures don't block the user.
  */
-function fireTrackingBeacon(slug: string, sourceType: string) {
+export function fireTrackingBeacon(slug: string, sourceType: string) {
   const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=${sourceType}`;
   try {
     if (navigator.sendBeacon) {
@@ -96,7 +96,7 @@ export function ProductCard({
 
   if (variant === "compact") {
     return (
-      <div className="relative flex gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+      <div className="relative flex gap-4 rounded-lg border border-border bg-card p-3 transition-colors hover:border-accent/50">
         {showDeal && (
           <div className="absolute -top-2 start-3 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
             {product.deal_text}
@@ -106,7 +106,7 @@ export function ProductCard({
         {product.image_url && (
           <div className="shrink-0 overflow-hidden rounded-md">
             {imgError ? (
-              <div className="flex size-20 items-center justify-center bg-gray-100 text-gray-400">
+              <div className="flex size-20 items-center justify-center bg-muted text-muted-foreground">
                 <svg
                   className="size-6"
                   fill="none"
@@ -139,13 +139,13 @@ export function ProductCard({
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold leading-tight">
+          <h3 className="text-sm font-semibold leading-tight text-card-foreground">
             {searchQuery ? highlightText(product.name, searchQuery) : product.name}
           </h3>
-          {product.merchant && <p className="text-xs text-gray-500">{product.merchant}</p>}
+          {product.merchant && <p className="text-xs text-muted-foreground">{product.merchant}</p>}
           <div className="mt-1 flex items-center gap-2">
             {product.price && (
-              <span className="text-sm font-bold" style={{ color: "var(--color-accent, #10B981)" }}>
+              <span className="text-sm font-bold text-[var(--color-accent-text)] dark:text-[var(--color-accent)]">
                 {product.price}
               </span>
             )}
@@ -160,8 +160,8 @@ export function ProductCard({
               onClick={handleCtaClick}
               target="_blank"
               rel="noopener noreferrer nofollow"
-              className="mt-2 inline-block rounded px-3 py-1 text-xs font-medium text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+              className="mt-2 inline-block rounded px-3 py-1 text-xs font-medium text-[var(--color-accent-text-foreground)] transition-colors hover:opacity-90"
+              style={{ backgroundColor: "var(--color-accent-text, #10B981)" }}
             >
               {buttonLabel}
             </a>
@@ -186,7 +186,7 @@ export function ProductCard({
       : [];
 
     return (
-      <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <div className="relative overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-accent/50">
         {showDeal && (
           <div className="absolute -top-2 start-3 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
             {product.deal_text}
@@ -196,7 +196,7 @@ export function ProductCard({
         {product.image_url && (
           <div className="overflow-hidden">
             {imgError ? (
-              <div className="flex h-48 w-full items-center justify-center bg-gray-100 text-gray-400">
+              <div className="flex h-48 w-full items-center justify-center bg-muted text-muted-foreground">
                 <svg
                   className="size-10"
                   fill="none"
@@ -229,16 +229,18 @@ export function ProductCard({
           </div>
         )}
         <div className="p-4">
-          <h3 className="mb-1 text-lg font-semibold leading-tight">
+          <h3 className="mb-1 text-lg font-semibold leading-tight text-card-foreground">
             {searchQuery ? highlightText(product.name, searchQuery) : product.name}
           </h3>
-          {product.merchant && <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>}
+          {product.merchant && (
+            <p className="mb-1 text-sm text-muted-foreground">{product.merchant}</p>
+          )}
           {product.description && (
-            <p className="mb-3 line-clamp-2 text-sm text-gray-600">{product.description}</p>
+            <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
           )}
           <div className="mb-3 flex items-center gap-3">
             {product.price && (
-              <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>
+              <span className="text-lg font-bold text-[var(--color-accent-text)] dark:text-[var(--color-accent)]">
                 {product.price}
               </span>
             )}
@@ -255,8 +257,7 @@ export function ProductCard({
                   {prosArr.slice(0, 3).map((pro) => (
                     <li
                       key={pro}
-                      className="flex items-start gap-1"
-                      style={{ color: "var(--color-accent-text, #059669)" }}
+                      className="flex items-start gap-1 text-emerald-600 dark:text-emerald-400"
                     >
                       <svg
                         className="mt-0.5 size-3 shrink-0"
@@ -277,7 +278,7 @@ export function ProductCard({
               {consArr.length > 0 && (
                 <ul className="space-y-0.5">
                   {consArr.slice(0, 3).map((con) => (
-                    <li key={con} className="flex items-start gap-1 text-red-600">
+                    <li key={con} className="flex items-start gap-1 text-red-600 dark:text-red-400">
                       <svg
                         className="mt-0.5 size-3 shrink-0"
                         fill="currentColor"
@@ -304,8 +305,8 @@ export function ProductCard({
               onClick={handleCtaClick}
               target="_blank"
               rel="noopener noreferrer nofollow"
-              className="block w-full rounded-md px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+              className="block w-full rounded-md px-4 py-2.5 text-center text-sm font-medium text-[var(--color-accent-text-foreground)] transition-colors hover:opacity-90"
+              style={{ backgroundColor: "var(--color-accent-text, #10B981)" }}
             >
               {buttonLabel}
             </a>
@@ -313,8 +314,7 @@ export function ProductCard({
           {relatedContentHref && (
             <a
               href={relatedContentHref}
-              className="mt-2 block text-center text-xs font-medium transition-colors hover:underline"
-              style={{ color: "var(--color-accent, #10B981)" }}
+              className="mt-2 block text-center text-xs font-medium text-[var(--color-accent-text)] transition-colors hover:underline dark:text-[var(--color-accent)]"
             >
               {relatedContentLabel ?? "Read our review →"}
             </a>
@@ -326,7 +326,7 @@ export function ProductCard({
 
   // Standard variant (default)
   return (
-    <div className="relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="relative rounded-lg border border-border bg-card p-4 transition-colors hover:border-accent/50">
       {/* Deal badge */}
       {showDeal && (
         <div className="absolute -top-2 start-3 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
@@ -337,7 +337,7 @@ export function ProductCard({
       {product.image_url && (
         <div className="mb-3 overflow-hidden rounded-md">
           {imgError ? (
-            <div className="flex h-40 w-full items-center justify-center bg-gray-100 text-gray-400">
+            <div className="flex h-40 w-full items-center justify-center bg-muted text-muted-foreground">
               <svg
                 className="h-10 w-10"
                 fill="none"
@@ -369,13 +369,13 @@ export function ProductCard({
           )}
         </div>
       )}
-      <h3 className="mb-1 text-lg font-semibold leading-tight">
+      <h3 className="mb-1 text-lg font-semibold leading-tight text-card-foreground">
         {searchQuery ? highlightText(product.name, searchQuery) : product.name}
       </h3>
-      {product.merchant && <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>}
+      {product.merchant && <p className="mb-1 text-sm text-muted-foreground">{product.merchant}</p>}
       <div className="mb-3 flex items-center gap-3">
         {product.price && (
-          <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>
+          <span className="text-lg font-bold text-[var(--color-accent-text)] dark:text-[var(--color-accent)]">
             {product.price}
           </span>
         )}
@@ -390,8 +390,8 @@ export function ProductCard({
           onClick={handleCtaClick}
           target="_blank"
           rel="noopener noreferrer nofollow"
-          className="block w-full rounded-md px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+          className="block w-full rounded-md px-4 py-2 text-center text-sm font-medium text-[var(--color-accent-text-foreground)] transition-colors hover:opacity-90"
+          style={{ backgroundColor: "var(--color-accent-text, #10B981)" }}
         >
           {buttonLabel}
         </a>
@@ -399,8 +399,7 @@ export function ProductCard({
       {relatedContentHref && (
         <a
           href={relatedContentHref}
-          className="mt-2 block text-center text-xs font-medium transition-colors hover:underline"
-          style={{ color: "var(--color-accent, #10B981)" }}
+          className="mt-2 block text-center text-xs font-medium text-[var(--color-accent-text)] transition-colors hover:underline dark:text-[var(--color-accent)]"
         >
           {relatedContentLabel ?? "Read our review →"}
         </a>

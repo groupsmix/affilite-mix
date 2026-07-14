@@ -200,6 +200,8 @@ export interface SiteInput {
   logo?: string;
   /** Favicon URL */
   faviconUrl?: string;
+  /** Hero image URL for editorial homepage templates */
+  heroImage?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -293,6 +295,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
       niche: input.niche,
       logo: input.logo,
       faviconUrl: input.faviconUrl,
+      heroImage: input.heroImage,
     },
 
     theme: {

@@ -1,17 +1,19 @@
 import type { SiteDefinition, FeatureFlags } from "../site-definition";
 import { aiComparedSite } from "./ai-compared";
 import { arabicToolsSite } from "./arabic-tools";
+import { calmToolsSite } from "./calm-tools";
 import { cryptoToolsSite } from "./crypto-tools";
 import { watchToolsSite } from "./watch-tools";
 
 // A95-2: Named re-exports kept for test consumers
 // (__tests__/get-site-by-domain.test.ts). All runtime code uses allSites/getSiteById.
-export { arabicToolsSite, cryptoToolsSite };
+export { arabicToolsSite, cryptoToolsSite, calmToolsSite };
 
 /** All registered sites. Add new sites here. */
 export const allSites: SiteDefinition[] = [
   aiComparedSite,
   arabicToolsSite,
+  calmToolsSite,
   cryptoToolsSite,
   watchToolsSite,
 ];
