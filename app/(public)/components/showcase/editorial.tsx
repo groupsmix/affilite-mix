@@ -5,10 +5,19 @@ import { ScrollReveal } from "./showcase-ui";
 
 interface EditorialProps {
   siteName: string;
+  productLabelPlural: string;
   recentContent: ContentRow[];
+  productCount: number;
+  reviewCount: number;
 }
 
-export function Editorial({ siteName, recentContent }: EditorialProps) {
+export function Editorial({
+  siteName,
+  productLabelPlural,
+  recentContent,
+  productCount,
+  reviewCount,
+}: EditorialProps) {
   const journal = recentContent.slice(0, 3);
 
   return (
@@ -49,15 +58,15 @@ export function Editorial({ siteName, recentContent }: EditorialProps) {
               <dl className="mt-10 grid grid-cols-3 gap-6">
                 <div>
                   <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Watches reviewed
+                    Curated {productLabelPlural.toLowerCase()}
                   </dt>
-                  <dd className="mt-2 showcase-serif text-3xl text-primary">200+</dd>
+                  <dd className="mt-2 showcase-serif text-3xl text-primary">{productCount}</dd>
                 </div>
                 <div>
                   <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Make the cut
+                    In-depth reviews
                   </dt>
-                  <dd className="mt-2 showcase-serif text-3xl text-primary">3%</dd>
+                  <dd className="mt-2 showcase-serif text-3xl text-primary">{reviewCount}</dd>
                 </div>
                 <div>
                   <dt className="text-xs uppercase tracking-[0.2em] text-muted-foreground">

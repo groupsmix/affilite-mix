@@ -256,9 +256,12 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         <div className="mb-2 text-sm text-gray-500">{contentTypeLabel}</div>
         <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">{content.title}</h1>
         {content.excerpt && <p className="text-lg text-gray-600">{content.excerpt}</p>}
-        {content.updated_at && (
-          <time dateTime={content.updated_at} className="mt-2 block text-sm text-gray-500">
-            {new Date(content.updated_at).toLocaleDateString(locale, {
+        {(content.publish_at ?? content.created_at) && (
+          <time
+            dateTime={content.publish_at ?? content.created_at}
+            className="mt-2 block text-sm text-gray-500"
+          >
+            {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale, {
               year: "numeric",
               month: "long",
               day: "numeric",
