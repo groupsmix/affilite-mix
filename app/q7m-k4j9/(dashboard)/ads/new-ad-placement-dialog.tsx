@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import type { AdPlacementRow, AdPlacementType, AdProvider } from "@/types/database";
+import { ImageUploader } from "../components/image-uploader";
 
 const PLACEMENT_TYPES: { value: AdPlacementType; label: string }[] = [
   { value: "sidebar", label: "Sidebar" },
@@ -38,6 +39,7 @@ const PLACEMENT_TYPES: { value: AdPlacementType; label: string }[] = [
 ];
 
 const PROVIDERS: { value: AdProvider; label: string }[] = [
+  { value: "image", label: "Image / banner (self-served)" },
   { value: "adsense", label: "Google AdSense" },
   { value: "carbon", label: "Carbon Ads" },
   { value: "ethicalads", label: "EthicalAds" },
@@ -71,26 +73,38 @@ export function NewAdPlacementDialog({
 
   const [name, setName] = useState("");
   const [placementType, setPlacementType] = useState<AdPlacementType>("sidebar");
-  const [provider, setProvider] = useState<AdProvider>("adsense");
+  const [provider, setProvider] = useState<AdProvider>("image");
   const [adCode, setAdCode] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [clickUrl, setClickUrl] = useState("");
+  const [alt, setAlt] = useState("");
   const [priority, setPriority] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const isImage = provider === "image";
+
   function resetForm() {
     if (ad) {
+      const cfg = (ad.config ?? {}) as Record<string, unknown>;
       setName(ad.name);
       setPlacementType(ad.placement_type);
       setProvider(ad.provider);
       setAdCode(ad.ad_code ?? "");
+      setImageUrl(typeof cfg.image_url === "string" ? cfg.image_url : "");
+      setClickUrl(typeof cfg.click_url === "string" ? cfg.click_url : "");
+      setAlt(typeof cfg.alt === "string" ? cfg.alt : "");
       setPriority(ad.priority ?? 0);
       setIsActive(ad.is_active);
     } else {
       setName("");
       setPlacementType("sidebar");
-      setProvider("adsense");
+      setProvider("image");
       setAdCode("");
+      setImageUrl("");
+      setClickUrl("");
+      setAlt("");
       setPriority(0);
       setIsActive(true);
     }
@@ -107,15 +121,25 @@ export function NewAdPlacementDialog({
     setSaving(true);
     setError("");
 
-    const body = {
-      name,
-      placement_type: placementType,
-      provider,
-      ad_code: adCode || null,
-      config: ad?.config ?? {},
-      is_active: isActive,
-      priority,
-    };
+    const body = isImage
+      ? {
+          name,
+          placement_type: placementType,
+          provider,
+          ad_code: null,
+          config: { ...(ad?.config ?? {}), image_url: imageUrl, click_url: clickUrl, alt },
+          is_active: isActive,
+          priority,
+        }
+      : {
+          name,
+          placement_type: placementType,
+          provider,
+          ad_code: adCode || null,
+          config: ad?.config ?? {},
+          is_active: isActive,
+          priority,
+        };
     const url = isEdit && ad ? `/api/admin/ads/${ad.id}` : "/api/admin/ads";
 
     try {
@@ -231,17 +255,59 @@ export function NewAdPlacementDialog({
             />
             <p className="text-xs text-muted-foreground">Lower numbers appear first.</p>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="new-ad-code">Ad code</Label>
-            <Textarea
-              id="new-ad-code"
-              rows={4}
-              placeholder="Paste your ad code (HTML/JS snippet) here…"
-              value={adCode}
-              onChange={(e) => setAdCode(e.target.value)}
-              className="font-mono text-xs"
-            />
-          </div>
+          {isImage ? (
+            <>
+              <ImageUploader
+                value={imageUrl}
+                onChange={setImageUrl}
+                label="Ad image"
+                placeholder="Upload a banner/creative"
+                id="new-ad-image"
+              />
+              <div className="grid gap-2">
+                <Label htmlFor="new-ad-click-url">Click-through URL</Label>
+                <Input
+                  id="new-ad-click-url"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://example.com/landing-page"
+                  value={clickUrl}
+                  onChange={(e) => setClickUrl(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Where the ad links when clicked (opens in a new tab, marked
+                  rel=&quot;sponsored&quot;).
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-ad-alt">Alt text</Label>
+                <Input
+                  id="new-ad-alt"
+                  type="text"
+                  placeholder="Describe the ad for screen readers"
+                  value={alt}
+                  onChange={(e) => setAlt(e.target.value)}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-2">
+              <Label htmlFor="new-ad-code">Ad code</Label>
+              <Textarea
+                id="new-ad-code"
+                rows={4}
+                placeholder="Paste your ad code (HTML/JS snippet) here…"
+                value={adCode}
+                onChange={(e) => setAdCode(e.target.value)}
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Note: script/HTML ad networks are stored but not yet rendered on the public site.
+                Use “Image / banner” for ads that display today.
+              </p>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Checkbox
               id="new-ad-active"

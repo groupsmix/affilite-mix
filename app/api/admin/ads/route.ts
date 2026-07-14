@@ -3,6 +3,7 @@ import { listAdPlacements, createAdPlacement } from "@/lib/dal/ad-placements";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { parseJsonBody } from "@/lib/api-error";
 import type { AdPlacementType, AdProvider } from "@/types/database";
+import { parseImageAdConfig } from "@/lib/ads/image-ad";
 import { captureException } from "@/lib/sentry";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
@@ -15,7 +16,7 @@ const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
   "footer",
   "between_posts",
 ];
-const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom"];
+const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom", "image"];
 
 export const GET = withAuthz("ads", "read", async (_request, { session, siteId }) => {
   const rlResponse = await enforceAdminRateLimit("ads", session);
@@ -69,6 +70,20 @@ export const POST = withAuthz(
       );
     }
 
+    // Self-served image/banner ads carry their creative + destination in
+    // `config` and render directly on the public site — validate and
+    // normalise those fields, and force `ad_code` to null.
+    let resolvedConfig: Record<string, unknown> = config ?? {};
+    let resolvedAdCode: string | null = ad_code ?? null;
+    if (provider === "image") {
+      const imageConfig = parseImageAdConfig(config);
+      if ("error" in imageConfig) {
+        return NextResponse.json({ error: imageConfig.error }, { status: 400 });
+      }
+      resolvedConfig = { ...resolvedConfig, ...imageConfig };
+      resolvedAdCode = null;
+    }
+
     try {
       // Bind the tenant client to the withAuthz-validated `siteId` so the
       // minted JWT carries app_metadata.site_id and the write satisfies the
@@ -80,12 +95,13 @@ export const POST = withAuthz(
           name,
           placement_type,
           provider,
-          // ad_code is stored as raw HTML/JS intentionally — it is rendered inside
-          // a sandboxed iframe (SandboxedAd) with no `allow-same-origin`, so the
-          // ad script cannot access the parent page's DOM, cookies, or storage.
-          // See app/(public)/components/sandboxed-ad.tsx for the security model.
-          ad_code: ad_code ?? null,
-          config: config ?? {},
+          // For `image` ads the creative + destination live in `config` and
+          // ad_code is null. For script/HTML providers ad_code is stored as
+          // raw markup; note those providers are not yet rendered on the
+          // public site (the CSP frame-src does not allow third-party ad
+          // frames) — only `image` placements render today.
+          ad_code: resolvedAdCode,
+          config: resolvedConfig,
           is_active: is_active ?? true,
           priority: priority ?? 0,
         },

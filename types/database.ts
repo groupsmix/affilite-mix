@@ -172,7 +172,7 @@ export interface PageRow {
 }
 
 export type AdPlacementType = "sidebar" | "in_content" | "header" | "footer" | "between_posts";
-export type AdProvider = "adsense" | "carbon" | "ethicalads" | "custom";
+export type AdProvider = "adsense" | "carbon" | "ethicalads" | "custom" | "image";
 
 export interface AdPlacementRow {
   id: string;

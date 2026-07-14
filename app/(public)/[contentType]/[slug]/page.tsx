@@ -9,6 +9,7 @@ import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
 import { RelatedLinks } from "../../components/related-links";
+import { AdSlot } from "../../components/ads/ad-slot";
 import { Breadcrumbs } from "../../components/breadcrumbs";
 import { ReportContentLink } from "../../components/report-content-link";
 import dynamic from "next/dynamic";
@@ -356,6 +357,9 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           direction={site.direction}
         />
       </div>
+
+      {/* In-article ad slot (renders only when an active image placement exists) */}
+      <AdSlot placementType="in_content" className="mb-10 px-0" />
 
       {/* Linked products */}
       {linkedProducts.length > 0 && (
