@@ -5,6 +5,7 @@ import type { ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { getContentLinkedToProducts } from "@/lib/dal/content-products";
 
 /** 30 gift-finder requests per minute per IP
  * P0-5: failPolicy: "closed" — database-driven recommendation endpoint.
@@ -192,11 +193,33 @@ export async function GET(request: NextRequest) {
 
   scored.sort((a, b) => b.relevance - a.relevance);
 
+  const top = scored.slice(0, 3);
+
+  // Resolve the published review (if any) for each recommended product so the
+  // "Read Full Review" button links to the real review page instead of a
+  // top-level slug that 404s. Products without a review omit the link.
+  const reviewUrlByProduct = new Map<string, string>();
+  try {
+    const linked = await getContentLinkedToProducts(
+      dbSiteId,
+      top.map((p) => p.id),
+      { types: ["review"] },
+    );
+    for (const { productId, content } of linked) {
+      if (!reviewUrlByProduct.has(productId) && content.slug) {
+        reviewUrlByProduct.set(productId, `/${content.type}/${content.slug}`);
+      }
+    }
+  } catch (reviewErr) {
+    // Non-fatal: recommendations are still useful without the review link.
+    captureException(reviewErr, { context: "[api/gift-finder] review link lookup failed" });
+  }
+
   // Issue 8: suppress raw affiliate_url and replace with a /r/ redirect URL.
   // Exposing affiliate_url publicly lets competitors identify networks and strip
   // tracking parameters. Route traffic through the internal /r/[slug] redirect
   // instead so the affiliate URL is never sent to the browser.
-  const results = scored.slice(0, 3).map((p) => ({
+  const results = top.map((p) => ({
     name: p.name,
     slug: p.slug,
     price_label: p.price_label,
@@ -209,6 +232,8 @@ export async function GET(request: NextRequest) {
     deal_text: p.deal_text,
     // Include redirect_url only when the product has a non-empty slug.
     ...(p.slug ? { redirect_url: `/r/${p.slug}` } : {}),
+    // Only present when a published review exists for this product.
+    ...(reviewUrlByProduct.has(p.id) ? { review_url: reviewUrlByProduct.get(p.id) } : {}),
   }));
 
   return NextResponse.json({ results });

@@ -55,6 +55,8 @@ interface GiftFinderResult {
   score: number | null;
   /** Internal /r/[slug] redirect. The API suppresses the raw affiliate_url. */
   redirect_url?: string;
+  /** Real review page URL, present only when a published review exists. */
+  review_url?: string;
   image_url: string;
   description: string;
   merchant: string;
@@ -479,9 +481,9 @@ export function GiftFinderQuiz({
                     </svg>
                   </a>
                 )}
-                {product.slug && (
+                {product.review_url && (
                   <Link
-                    href={product.slug.startsWith("/") ? product.slug : `/${product.slug}`}
+                    href={product.review_url}
                     className="inline-flex items-center rounded-full border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                   >
                     {t.readFullReview}
