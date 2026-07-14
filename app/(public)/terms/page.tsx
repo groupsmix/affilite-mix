@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return staticPageMetadata({
     site,
-    title: isAr ? "شروط الاستخدام" : "Terms of Use",
+    title: isAr ? "الشروط والأحكام" : "Terms of Service",
     description: isAr
       ? `الشروط والأحكام الخاصة باستخدام موقع ${site.name}.`
       : `Terms and conditions for using ${site.name}.`,
@@ -22,7 +22,7 @@ export default async function TermsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="mb-6 text-3xl font-bold">{isAr ? "شروط الاستخدام" : "Terms of Use"}</h1>
+      <h1 className="mb-6 text-3xl font-bold">{isAr ? "الشروط والأحكام" : "Terms of Service"}</h1>
       <div className="prose prose-gray max-w-none">
         <p>
           {isAr

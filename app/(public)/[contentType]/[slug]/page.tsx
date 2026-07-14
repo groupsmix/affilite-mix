@@ -313,6 +313,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           }
           runnerUpProduct={comparisonRunnerUp ?? null}
           totalCompared={comparisonProducts.length}
+          productLabelPlural={site.productLabelPlural}
           lastVerified={lastVerifiedLabel}
         />
       )}

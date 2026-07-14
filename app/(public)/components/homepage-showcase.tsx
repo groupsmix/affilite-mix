@@ -48,6 +48,13 @@ export function ShowcaseHomepage({
       <JsonLd data={webSiteJsonLd(site)} />
 
       <main className="flex min-h-screen flex-col">
+        {/* The visible hero is a client-only (ssr:false) WebGL scene, so the
+            page would otherwise ship no server-rendered <h1>. This crawlable,
+            keyword-relevant heading gives search engines and screen readers a
+            proper page title without altering the cinematic hero. */}
+        <h1 className="sr-only">
+          {site.name} — {site.brand.niche}
+        </h1>
         <ShowcaseHero siteName={site.name} productLabelPlural={site.productLabelPlural} />
         <Marquee items={marqueeItems} />
         <CollectionGrid
