@@ -17,6 +17,15 @@ const GIFT_FINDER_RATE_LIMIT = {
   failPolicy: "closed" as const,
 };
 
+/** Parse a numeric amount out of a display price label like "$295" or "1,299 USD". */
+function parsePriceLabel(label: string | null): number | null {
+  if (!label) return null;
+  const match = label.replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
+  if (!match?.[1]) return null;
+  const parsed = parseFloat(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 /**
  * GET /api/gift-finder?budget=500&occasion=birthday&recipient=husband&style=classic
  *
@@ -96,7 +105,10 @@ export async function GET(request: NextRequest) {
     .not("score", "is", null);
 
   if (budget < 9999) {
-    query = query.lte("price_amount", budget);
+    // Products without a numeric price_amount still carry a display price in
+    // price_label; keep them here and enforce the budget on the parsed label
+    // below, so label-only products are not silently excluded.
+    query = query.or(`price_amount.lte.${budget},price_amount.is.null`);
   }
 
   const { data: products, error } = await query
@@ -111,6 +123,17 @@ export async function GET(request: NextRequest) {
   if (!products || products.length === 0) {
     return NextResponse.json({ results: [] });
   }
+
+  // Enforce the budget for label-only products (price_amount is null). A
+  // product with an unparseable label is kept rather than silently dropped.
+  const withinBudget =
+    budget < 9999
+      ? products.filter((p: { price_amount: number | null; price_label: string | null }) => {
+          if (p.price_amount !== null) return true;
+          const parsed = parsePriceLabel(p.price_label);
+          return parsed === null || parsed <= budget;
+        })
+      : products;
 
   // Fetch taxonomy categories for scoring (occasion, recipient, style matching)
   const { data: categories } = await sb
@@ -145,7 +168,7 @@ export async function GET(request: NextRequest) {
     category_id: string | null;
   }
   type ScoredProduct = ProductResult & { relevance: number };
-  const scored: ScoredProduct[] = (products as ProductResult[]).map((p) => {
+  const scored: ScoredProduct[] = (withinBudget as ProductResult[]).map((p) => {
     let relevance = (p.score ?? 5) * 10;
 
     // Category match scoring
