@@ -49,11 +49,12 @@ function ResultSkeleton({ language = "en" }: { language?: string }) {
 interface GiftFinderResult {
   name: string;
   slug: string;
-  price: string;
+  price_label: string | null;
   price_amount: number | null;
   price_currency: string;
   score: number | null;
-  affiliate_url: string;
+  /** Internal /r/[slug] redirect. The API suppresses the raw affiliate_url. */
+  redirect_url?: string;
   image_url: string;
   description: string;
   merchant: string;
@@ -265,24 +266,6 @@ interface Answers {
   style: string;
 }
 
-function fireTrackingBeacon(slug: string) {
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=gift-finder`;
-  try {
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(trackUrl);
-    } else {
-      fetch(trackUrl, { method: "GET", keepalive: true }).catch((err) => {
-        // A91-6: Log tracking failures for observability.
-        // eslint-disable-next-line no-console -- FR-06: client component, browser console is the sink
-        console.warn("[gift-finder] impression tracking failed:", err);
-      });
-    }
-  } catch {
-    // fail-open: best-effort
-    // Tracking failure should never block navigation
-  }
-}
-
 export function GiftFinderQuiz({
   productLabel,
   productLabelPlural,
@@ -356,16 +339,6 @@ export function GiftFinderQuiz({
     setShowResults(false);
     setError(null);
     setLastAnswers(null);
-  };
-
-  const handleCtaClick = (e: React.MouseEvent<HTMLAnchorElement>, product: GiftFinderResult) => {
-    e.preventDefault();
-    if (product.slug) {
-      fireTrackingBeacon(product.slug);
-    }
-    if (product.affiliate_url) {
-      window.open(product.affiliate_url, "_blank", "noopener,noreferrer");
-    }
   };
 
   if (loading) {
@@ -472,7 +445,9 @@ export function GiftFinderQuiz({
                     {t.giftScore(product.score)}
                   </span>
                 )}
-                {product.price && <span className="text-sm text-gray-500">{product.price}</span>}
+                {product.price_label && (
+                  <span className="text-sm text-gray-500">{product.price_label}</span>
+                )}
                 {product.merchant && (
                   <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-500">
                     {product.merchant}
@@ -485,10 +460,9 @@ export function GiftFinderQuiz({
               )}
 
               <div className="flex flex-wrap gap-3">
-                {product.affiliate_url && (
+                {product.redirect_url && (
                   <a
-                    href={product.affiliate_url}
-                    onClick={(e) => handleCtaClick(e, product)}
+                    href={product.redirect_url}
                     rel="noopener noreferrer nofollow"
                     target="_blank"
                     className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white transition-shadow hover:shadow-lg"
