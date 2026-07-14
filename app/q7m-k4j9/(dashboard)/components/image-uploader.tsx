@@ -68,6 +68,18 @@ export function ImageUploader({
     async (file: File) => {
       setError("");
 
+      // Reject empty/0-byte files before the round-trip. The server signs
+      // Content-Length and requires a positive size, so a 0-byte file would
+      // otherwise fail with a cryptic "fileSize must be a positive integer".
+      // The usual culprit is a cloud placeholder (OneDrive/iCloud "online-only"
+      // file not yet downloaded locally) or an empty/corrupt file.
+      if (!Number.isFinite(file.size) || file.size <= 0) {
+        setError(
+          "That file is empty (0 bytes). If it's stored in the cloud (OneDrive/iCloud), open it once so it downloads to this device, then upload again — or choose a different image.",
+        );
+        return;
+      }
+
       // Client-side file size validation
       if (file.size > MAX_FILE_SIZE) {
         setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 10MB limit`);
@@ -192,9 +204,18 @@ export function ImageUploader({
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith("image/")) {
       void uploadFile(file);
-    } else {
-      setError("Please drop an image file");
+      return;
     }
+    // Dragging an image straight from another web page yields a URL, not a
+    // File. Accept it as a pasted image URL instead of failing.
+    const dropped = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+    const url = dropped.trim();
+    if (/^https?:\/\/\S+$/i.test(url)) {
+      setError("");
+      onChange(url);
+      return;
+    }
+    setError("Please drop an image file (or paste an image URL in the field above)");
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
