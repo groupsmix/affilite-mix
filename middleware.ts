@@ -34,8 +34,16 @@ import { emitMetric } from "@/lib/metrics";
 // F-017: env-tunable self-reference recursion ceiling (default 2, was 3).
 import { MAX_RECURSION_DEPTH, RECURSION_DEPTH_HEADER } from "@/lib/worker-recursion";
 import { PATHNAME_HEADER } from "@/lib/request-path";
+import { setApiVersionHeaders } from "@/lib/api-version";
 
 const CSP_HEADER = "Content-Security-Policy";
+
+function finalizeApiVersionResponse(request: NextRequest, response: NextResponse): NextResponse {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    setApiVersionHeaders(response.headers);
+  }
+  return response;
+}
 
 /**
  * Middleware: resolves domain → site_id and injects x-site-id header.
@@ -239,7 +247,6 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
     gpcEnabled,
     cspHeaderValue,
     traceId,
-    requestedApiVersion: request.headers.get("Accept-Version"),
   });
 
   // ── W3C Trace Context (R-002) ──────────────────────────
@@ -369,20 +376,23 @@ export async function middleware(request: NextRequest) {
       path: request.nextUrl.pathname,
       status: result.status,
     });
-    return result;
+    return finalizeApiVersionResponse(request, result);
   } catch (err) {
     // A98-49: Swallow AbortError — it means the timeout fired and we already
     // returned 503. Other errors are genuine and should be reported.
     if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json(
-        { error: "Gateway Timeout", code: "MIDDLEWARE_TIMEOUT" },
-        {
-          status: 503,
-          headers: {
-            "Retry-After": "5",
-            "Cache-Control": "no-store",
+      return finalizeApiVersionResponse(
+        request,
+        NextResponse.json(
+          { error: "Gateway Timeout", code: "MIDDLEWARE_TIMEOUT" },
+          {
+            status: 503,
+            headers: {
+              "Retry-After": "5",
+              "Cache-Control": "no-store",
+            },
           },
-        },
+        ),
       );
     }
 
@@ -392,14 +402,17 @@ export async function middleware(request: NextRequest) {
     // Otherwise, return a soft-failed request so the Next.js app can still render
     // a basic page (e.g. not-found or an un-branded homepage).
     if (request.nextUrl.pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Internal Server Error" },
-        {
-          status: 500,
-          headers: {
-            "Cache-Control": "no-store, max-age=0",
+      return finalizeApiVersionResponse(
+        request,
+        NextResponse.json(
+          { error: "Internal Server Error", code: "INTERNAL_ERROR" },
+          {
+            status: 500,
+            headers: {
+              "Cache-Control": "no-store, max-age=0",
+            },
           },
-        },
+        ),
       );
     }
 

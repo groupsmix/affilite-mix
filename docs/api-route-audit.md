@@ -3,6 +3,7 @@
 This document is the **human-readable** view of the route audit. The machine-readable source of truth lives in:
 
 - [`lib/api-route-metadata.ts`](../lib/api-route-metadata.ts) — registry + TypeScript types
+- [`lib/api-contract-schema.ts`](../lib/api-contract-schema.ts) — machine-readable schemas for representative contracts
 - [`__tests__/api-routes-metadata.test.ts`](../__tests__/api-routes-metadata.test.ts) — tests that fail when a new route is added without metadata
 
 ## What is recorded for every route
@@ -30,6 +31,9 @@ This document is the **human-readable** view of the route audit. The machine-rea
 4. Every cookie-authenticated mutation (`admin` / `super_admin` with a non-GET method) enforces CSRF.
 
 If you add a new route, the test will fail until you add an entry to `lib/api-route-metadata.ts`. This keeps the audit from silently decaying.
+
+Run `npm run generate:openapi` after changing route metadata or contract
+schemas. Commit the generated `openapi.yaml`; do not edit it by hand.
 
 ## Summary of the current audit
 

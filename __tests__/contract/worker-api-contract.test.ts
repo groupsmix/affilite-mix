@@ -7,6 +7,7 @@
  * the schemas and payload constraints that both sides rely on.
  */
 import { describe, it, expect } from "vitest";
+import { CURRENT_API_VERSION } from "@/lib/api-version";
 
 // ── Click queue contract ──────────────────────────────────────────────
 
@@ -159,9 +160,7 @@ describe("Worker ↔ API contract: webhook DLQ", () => {
 // ── API versioning contract ───────────────────────────────────────────
 
 describe("Worker ↔ API contract: versioning", () => {
-  it("API-Version header format is a date string", () => {
-    const version = "2026-05-25";
-    expect(version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(new Date(version).toString()).not.toBe("Invalid Date");
+  it("API-Version header format is a numeric major version", () => {
+    expect(CURRENT_API_VERSION).toMatch(/^[1-9]\d*$/);
   });
 });
