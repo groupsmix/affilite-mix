@@ -9,7 +9,12 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { captureException } from "@/lib/sentry";
 import { apiError } from "@/lib/api-error";
-import { fetchPaginatedReports } from "@/lib/commission-adapters";
+import {
+  fetchPaginatedReports,
+  normalizeAdmitadCommission,
+  normalizeCjCommission,
+  normalizePartnerStackCommission,
+} from "@/lib/commission-adapters";
 import { validateCommissionReport, type CommissionReport } from "@/lib/commission-validation";
 
 /**
@@ -48,7 +53,7 @@ export async function POST(request: NextRequest) {
   const networks: {
     name: string;
     envVar: string;
-    fetcher: () => Promise<CommissionReport[]>;
+    fetcher: () => Promise<unknown[]>;
   }[] = [
     { name: "cj", envVar: "CJ_API_KEY", fetcher: fetchCjReports },
     { name: "admitad", envVar: "ADMITAD_API_KEY", fetcher: fetchAdmitadReports },
@@ -72,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     configuredNetworks++;
 
-    let reports: CommissionReport[];
+    let reports: unknown[];
     try {
       reports = await network.fetcher();
     } catch (err) {
@@ -147,8 +152,6 @@ export async function POST(request: NextRequest) {
 // These return the normalized commission format.
 // Replace with real API calls when network credentials are configured.
 
-interface NormalizedCommission extends CommissionReport {}
-
 type ResolvedCommission = {
   site_id: string;
   product_id?: string;
@@ -203,7 +206,7 @@ async function resolveCommissions(
   return { resolved, discarded };
 }
 
-async function fetchCjReports(): Promise<NormalizedCommission[]> {
+async function fetchCjReports(): Promise<unknown[]> {
   const apiKey = process.env.CJ_API_KEY;
   if (!apiKey) {
     throw new Error("CJ API credentials missing");
@@ -217,9 +220,9 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
     buildUrl: (page) =>
       `https://commission-detail.api.cj.com/v3/commissions?date-type=event&start-date=${startDate}&end-date=${endDate}&page-number=${page}`,
     extractItems: (data: unknown) => {
-      if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
+      if (typeof data !== "object" || data === null || Array.isArray(data)) return undefined;
       const commissions = (data as Record<string, unknown>).commissions;
-      return Array.isArray(commissions) ? commissions : [];
+      return commissions;
     },
     requestInit: {
       headers: {
@@ -228,23 +231,10 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
     },
   });
 
-  return items.map((c: unknown) => {
-    const raw = c as Record<string, unknown>;
-    return {
-      tracking_key: typeof raw.shopperId === "string" ? raw.shopperId : "",
-      order_id: typeof raw.actionId === "string" ? raw.actionId : undefined,
-      network: "cj",
-      commission_amount:
-        typeof raw.pubCommissionAmountUsd === "number" ? raw.pubCommissionAmountUsd : 0,
-      sale_amount: typeof raw.saleAmountUsd === "number" ? raw.saleAmountUsd : undefined,
-      status: typeof raw.actionStatus === "string" ? raw.actionStatus : undefined,
-      event_date: typeof raw.eventDate === "string" ? raw.eventDate : new Date().toISOString(),
-      raw_data: raw,
-    };
-  });
+  return items.map(normalizeCjCommission);
 }
 
-async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
+async function fetchAdmitadReports(): Promise<unknown[]> {
   const apiKey = process.env.ADMITAD_API_KEY;
   if (!apiKey) {
     throw new Error("Admitad API credentials missing");
@@ -258,9 +248,9 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
       return `https://api.admitad.com/statistics/actions/?limit=${limit}&offset=${offset}`;
     },
     extractItems: (data: unknown) => {
-      if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
+      if (typeof data !== "object" || data === null || Array.isArray(data)) return undefined;
       const results = (data as Record<string, unknown>).results;
-      return Array.isArray(results) ? results : [];
+      return results;
     },
     requestInit: {
       headers: {
@@ -269,27 +259,10 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
     },
   });
 
-  return items.map((c: unknown) => {
-    const raw = c as Record<string, unknown>;
-    return {
-      tracking_key: typeof raw.subid === "string" ? raw.subid : "",
-      order_id:
-        typeof raw.id === "string"
-          ? raw.id
-          : typeof raw.id === "number"
-            ? String(raw.id)
-            : undefined,
-      network: "admitad",
-      commission_amount: typeof raw.payment === "number" ? raw.payment : 0,
-      currency: typeof raw.currency === "string" ? raw.currency : undefined,
-      status: typeof raw.status === "string" ? raw.status : undefined,
-      event_date: typeof raw.action_date === "string" ? raw.action_date : new Date().toISOString(),
-      raw_data: raw,
-    };
-  });
+  return items.map(normalizeAdmitadCommission);
 }
 
-async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
+async function fetchPartnerStackReports(): Promise<unknown[]> {
   const apiKey = process.env.PARTNERSTACK_API_KEY;
   if (!apiKey) {
     throw new Error("PartnerStack API credentials missing");
@@ -299,9 +272,9 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     label: "PartnerStack",
     buildUrl: (page) => `https://api.partnerstack.com/api/v2/transactions?page=${page}`,
     extractItems: (data: unknown) => {
-      if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
+      if (typeof data !== "object" || data === null || Array.isArray(data)) return undefined;
       const transactions = (data as Record<string, unknown>).transactions;
-      return Array.isArray(transactions) ? transactions : [];
+      return transactions;
     },
     requestInit: {
       headers: {
@@ -310,17 +283,5 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     },
   });
 
-  return items.map((c: unknown) => {
-    const raw = c as Record<string, unknown>;
-    return {
-      tracking_key: typeof raw.customer_key === "string" ? raw.customer_key : "",
-      order_id: typeof raw.key === "string" ? raw.key : undefined,
-      network: "partnerstack",
-      commission_amount: typeof raw.amount === "number" ? raw.amount : 0,
-      currency: typeof raw.currency === "string" ? raw.currency : undefined,
-      status: typeof raw.status === "string" ? raw.status : undefined,
-      event_date: typeof raw.created_at === "string" ? raw.created_at : new Date().toISOString(),
-      raw_data: raw,
-    };
-  });
+  return items.map(normalizePartnerStackCommission);
 }
