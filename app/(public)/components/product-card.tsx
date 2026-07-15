@@ -7,6 +7,7 @@ import { useCookieConsent } from "./cookie-consent";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
 import { highlightText } from "./highlight-text";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface ProductCardProps {
   product: ProductRow;
@@ -153,7 +154,7 @@ export function ProductCard({
               <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
             )}
           </div>
-          {product.affiliate_url && (
+          {hasUsableAffiliateUrl(product.affiliate_url) && (
             <a
               href={product.affiliate_url}
               data-href={product.affiliate_url}
@@ -297,7 +298,7 @@ export function ProductCard({
             </div>
           )}
 
-          {product.affiliate_url && (
+          {hasUsableAffiliateUrl(product.affiliate_url) && (
             <a
               href={product.affiliate_url}
               data-href={product.affiliate_url}
@@ -383,7 +384,7 @@ export function ProductCard({
           <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
         )}
       </div>
-      {product.affiliate_url && (
+      {hasUsableAffiliateUrl(product.affiliate_url) && (
         <a
           href={product.affiliate_url}
           data-href={product.affiliate_url}

@@ -6,6 +6,7 @@ import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getContentLinkedToProducts } from "@/lib/dal/content-products";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 /** 30 gift-finder requests per minute per IP
  * P0-5: failPolicy: "closed" — database-driven recommendation endpoint.
@@ -94,16 +95,17 @@ export async function GET(request: NextRequest) {
   const dbSiteId = site.id; // site.id is already the resolved DB UUID
   const sb = await getTenantClient();
 
-  // Fetch active products within budget
+  // Fetch active products within budget. Score may be null; it is defaulted
+  // during ranking so products without an explicit score are not silently
+  // excluded from the gift finder.
   let query = sb
     // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
     .from("products")
     .select(
-      "id, name, slug, price_label, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id",
+      "id, name, slug, price_label, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id, category_ids",
     )
     .eq("site_id", dbSiteId)
-    .eq("status", "active")
-    .not("score", "is", null);
+    .eq("status", "active");
 
   if (budget < 9999) {
     // Products without a numeric price_amount still carry a display price in
@@ -136,13 +138,13 @@ export async function GET(request: NextRequest) {
         })
       : products;
 
-  // Fetch taxonomy categories for scoring (occasion, recipient, style matching)
+  // Fetch taxonomy categories for scoring across every gift-finder dimension.
   const { data: categories } = await sb
     // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
     .from("categories")
     .select("id, slug, taxonomy_type")
     .eq("site_id", dbSiteId)
-    .in("taxonomy_type", ["occasion", "recipient", "general"]);
+    .neq("taxonomy_type", "budget");
 
   // Build lookup: category_id -> { slug, taxonomy_type }
   const categoryMap = new Map<string, { slug: string; taxonomy_type: string }>(
@@ -167,17 +169,29 @@ export async function GET(request: NextRequest) {
     merchant: string | null;
     deal_text: string | null;
     category_id: string | null;
+    category_ids: string[] | null;
   }
   type ScoredProduct = ProductResult & { relevance: number };
   const scored: ScoredProduct[] = (withinBudget as ProductResult[]).map((p) => {
     let relevance = (p.score ?? 5) * 10;
 
-    // Category match scoring
-    const cat = p.category_id ? categoryMap.get(p.category_id) : undefined;
-    if (cat) {
+    // A product can now be tagged against multiple categories (occasion,
+    // recipient, style, etc.). Score each matching dimension independently.
+    const productCategoryIds = p.category_ids?.length
+      ? p.category_ids
+      : p.category_id
+        ? [p.category_id]
+        : [];
+    for (const categoryId of productCategoryIds) {
+      const cat = categoryMap.get(categoryId);
+      if (!cat) continue;
+
       if (cat.taxonomy_type === "occasion" && cat.slug === occasion) relevance += 15;
       if (cat.taxonomy_type === "recipient" && cat.slug === recipient) relevance += 20;
-      if (cat.slug === style) relevance += 15;
+      if (cat.taxonomy_type === "style" && cat.slug === style) relevance += 15;
+      // General/brand slugs that happen to match a dimension still count, but
+      // with a smaller weight to avoid distorting the taxonomy-first signal.
+      if (cat.slug === occasion || cat.slug === recipient || cat.slug === style) relevance += 5;
     }
 
     // Text-based style matching from name/description
@@ -193,7 +207,9 @@ export async function GET(request: NextRequest) {
 
   scored.sort((a, b) => b.relevance - a.relevance);
 
-  const top = scored.slice(0, 3);
+  const top = scored
+    .filter((p) => p.slug && !isPlaceholderAffiliateUrl(p.affiliate_url))
+    .slice(0, 3);
 
   // Resolve the published review (if any) for each recommended product so the
   // "Read Full Review" button links to the real review page instead of a

@@ -5,6 +5,7 @@ import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface Top10HomepageProps {
   site: SiteDefinition;
@@ -130,7 +131,7 @@ export function Top10Homepage({
                             {product.score}/10
                           </span>
                         )}
-                        {product.affiliate_url && (
+                        {hasUsableAffiliateUrl(product.affiliate_url) && (
                           <a
                             href={product.affiliate_url}
                             target="_blank"

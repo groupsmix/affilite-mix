@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react";
 
 import type { CategoryRow } from "@/types/database";
 
-const TAXONOMY_ORDER = ["general", "budget", "occasion", "recipient", "brand"] as const;
+const TAXONOMY_ORDER = ["general", "budget", "occasion", "recipient", "brand", "style"] as const;
 
 const TAXONOMY_LABELS: Record<string, string> = {
   general: "General",
@@ -12,12 +12,13 @@ const TAXONOMY_LABELS: Record<string, string> = {
   occasion: "Occasion",
   recipient: "Recipient",
   brand: "Brand",
+  style: "Style",
 };
 
 interface CategoryTreeProps {
   categories: CategoryRow[];
-  value: string;
-  onChange: (value: string) => void;
+  value: string[];
+  onChange: (value: string[]) => void;
   name?: string;
 }
 
@@ -37,7 +38,7 @@ function CategoryOption({
   return (
     <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent">
       <input
-        type="radio"
+        type="checkbox"
         name={name}
         value={value}
         checked={checked}
@@ -53,7 +54,7 @@ export function CategoryTree({
   categories,
   value,
   onChange,
-  name = "category_id",
+  name = "category_ids",
 }: CategoryTreeProps) {
   const byType = new Map<string, CategoryRow[]>();
   for (const cat of categories) {
@@ -62,9 +63,26 @@ export function CategoryTree({
     byType.set(cat.taxonomy_type, list);
   }
 
+  const selected = new Set(value);
+
+  function toggle(id: string) {
+    const next = new Set(selected);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    onChange(Array.from(next));
+  }
+
   return (
     <div className="space-y-1">
-      <CategoryOption name={name} value="" checked={value === ""} onChange={() => onChange("")}>
+      <CategoryOption
+        name={name}
+        value=""
+        checked={selected.size === 0}
+        onChange={() => onChange([])}
+      >
         <span className="text-muted-foreground">No category</span>
       </CategoryOption>
 
@@ -87,8 +105,8 @@ export function CategoryTree({
                   key={cat.id}
                   name={name}
                   value={cat.id}
-                  checked={value === cat.id}
-                  onChange={() => onChange(cat.id)}
+                  checked={selected.has(cat.id)}
+                  onChange={() => toggle(cat.id)}
                 >
                   {cat.name}
                 </CategoryOption>

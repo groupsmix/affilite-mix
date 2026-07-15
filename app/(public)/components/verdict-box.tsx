@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
 import { getTrackingUrl } from "@/lib/tracking-url";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface VerdictBoxProps {
   /** The subject (review) or the winning tool (comparison). */
@@ -91,14 +92,14 @@ export function VerdictBox({
   const pluralNoun = (productLabelPlural || "products").toLowerCase();
 
   const trackingType = isComparison ? "comparison" : "hero";
-  const ctaUrl = product.affiliate_url
+  const ctaUrl = hasUsableAffiliateUrl(product.affiliate_url)
     ? getTrackingUrl(product.slug, trackingType, product.affiliate_url, hasConsent)
     : null;
 
   // Second tracked CTA for the runner-up. Same "comparison" tracking type — the
   // product slug (p=…) is what attributes the click, so EPC stays correct.
   const runnerUpCtaUrl =
-    isComparison && runnerUpProduct?.affiliate_url
+    isComparison && runnerUpProduct && hasUsableAffiliateUrl(runnerUpProduct.affiliate_url)
       ? getTrackingUrl(
           runnerUpProduct.slug,
           "comparison",
