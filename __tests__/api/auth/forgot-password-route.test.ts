@@ -206,6 +206,71 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
+  it("does not overwrite or resend when a valid unexpired reset token already exists (F-4)", async () => {
+    // Issue 13 / F-4: an account with a still-valid pending token must return
+    // the generic success envelope WITHOUT a DB write or a Resend round-trip,
+    // and (like the unknown-user branch) after the timing-equalization delay.
+    mockedGetAdminUserByEmail.mockResolvedValue({
+      id: "user-uuid-123",
+      email: "admin@test.com",
+      name: "Admin",
+      role: "admin",
+      is_active: true,
+      password_hash: "hashed",
+      totp_secret: null,
+      totp_enabled: false,
+      totp_verified_at: null,
+      totp_last_step: null,
+      totp_failed_attempts: 0,
+      totp_locked_until: null,
+      login_failed_attempts: 0,
+      login_locked_until: null,
+      reset_token: "existing-hash",
+      reset_token_expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    const res = await POST(makeRequest({ email: "admin@test.com" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    // No token overwrite and no email send on the early-return branch.
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(capturedResendBody).toBeNull();
+  });
+
+  it("issues a fresh token when the existing reset token has expired (F-4)", async () => {
+    mockedGetAdminUserByEmail.mockResolvedValue({
+      id: "user-uuid-123",
+      email: "admin@test.com",
+      name: "Admin",
+      role: "admin",
+      is_active: true,
+      password_hash: "hashed",
+      totp_secret: null,
+      totp_enabled: false,
+      totp_verified_at: null,
+      totp_last_step: null,
+      totp_failed_attempts: 0,
+      totp_locked_until: null,
+      login_failed_attempts: 0,
+      login_locked_until: null,
+      reset_token: "stale-hash",
+      reset_token_expires_at: new Date(Date.now() - 60 * 1000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    const res = await POST(makeRequest({ email: "admin@test.com" }));
+
+    expect(res.status).toBe(200);
+    // Expired token → full path runs: a new token is written and email sent.
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(capturedResendBody).not.toBeNull();
+  });
+
   it("returns 429 when rate limited", async () => {
     mockedCheckRateLimit.mockResolvedValue({
       allowed: false,
