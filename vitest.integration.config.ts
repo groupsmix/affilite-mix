@@ -4,7 +4,7 @@ import path from "path";
 export default defineConfig({
   test: {
     globals: true,
-    include: ["**/*.integration.test.ts"],
+    include: ["**/*.integration.test.ts", "__tests__/integration/**/*.test.ts"],
     // J-1: do NOT hard-code placeholder credentials. Real Supabase variables
     // come from the environment / CI secrets; if they are missing the
     // shouldRunSupabaseIntegration guard skips the suite. Hard-coding would
