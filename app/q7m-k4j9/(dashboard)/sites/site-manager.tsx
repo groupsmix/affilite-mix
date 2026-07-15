@@ -108,6 +108,10 @@ interface SiteInfo {
   source: "config" | "database";
 
   db_id?: string;
+
+  is_provisioned?: boolean;
+
+  database_is_active?: boolean;
 }
 
 interface SiteStats {
@@ -196,10 +200,6 @@ function SourceBadge({ source }: { source: "config" | "database" }) {
   );
 }
 
-// F-007 / Property 1: a configured tenant (config/sites/*) whose `sites` row is
-// missing surfaces as a config-source site here — i.e. it is NOT provisioned in
-// the database. Flag it so an admin knows the active-site resolution / module
-// load will fail until the row is provisioned.
 function NotProvisionedBadge() {
   return (
     <Badge
@@ -293,12 +293,11 @@ function SiteCardView({
 
   const isConfigSite = site.source === "config";
 
-  // A configured tenant whose `sites` row is missing (it only resolves from
-  // static config, not the DB). Until it is provisioned, site-scoped modules
-  // cannot resolve its active site (F-007 / Property 1).
-  const isNotProvisioned = isConfigSite;
+  const isNotProvisioned = isConfigSite && site.is_provisioned === false;
 
-  const isEnabled = site.is_active ?? true;
+  const isEnabled = isConfigSite ? true : (site.is_active ?? true);
+
+  const hasIgnoredDatabaseStatus = isConfigSite && site.database_is_active === false;
 
   return (
     <Card
@@ -367,7 +366,7 @@ function SiteCardView({
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="left">
-                        Static-config sites are resolved from code, not the database.
+                        Runtime settings come from config/sites and are read-only here.
                       </TooltipContent>
                     </Tooltip>
                   ) : (
@@ -384,7 +383,7 @@ function SiteCardView({
                     </DropdownMenuItem>
                   )}
 
-                  {isNotProvisioned && !isConfigSite && (
+                  {isNotProvisioned && (
                     <DropdownMenuItem onSelect={() => onProvision(site)} disabled={provisioning}>
                       <AlertTriangleIcon />
                       Run site provisioning
@@ -468,6 +467,15 @@ function SiteCardView({
           <SourceBadge source={site.source} />
 
           {isNotProvisioned && <NotProvisionedBadge />}
+
+          {hasIgnoredDatabaseStatus && (
+            <Badge
+              variant="outline"
+              className="border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300"
+            >
+              DB status ignored
+            </Badge>
+          )}
         </div>
       </CardHeader>
 
@@ -501,6 +509,13 @@ function SiteCardView({
                 )}
               </Button>
             </div>
+          </div>
+        )}
+
+        {hasIgnoredDatabaseStatus && (
+          <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+            This site remains online because config/sites is authoritative. Its database row is
+            inactive and must be reconciled before strict drift checks can pass.
           </div>
         )}
 
@@ -545,7 +560,7 @@ function SiteCardView({
                 names two different concepts (the working-context control below
                 remains "Set as active"). This disambiguates the overloaded
                 "Active" affordance on the fresh-login Sites page. */}
-            {isEnabled ? "Enabled" : "Disabled"}
+            {isConfigSite ? "Enabled in code" : isEnabled ? "Enabled" : "Disabled"}
           </label>
         </div>
 
