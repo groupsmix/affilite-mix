@@ -135,6 +135,17 @@ restore() {
   echo "==> Verifying restored schema (dr_test)..."
   verify_schema "dr_test"
 
+  # DR_KEEP_SCHEMA=1 leaves the restored dr_test schema in place so an external
+  # caller (the backup-restore-drill workflow) can run additional validation
+  # against the RESTORED data rather than the live public schema. The caller is
+  # then responsible for dropping dr_test.
+  if [ "${DR_KEEP_SCHEMA:-}" = "1" ]; then
+    echo "==> DR_KEEP_SCHEMA=1 — leaving dr_test in place for external validation."
+    echo "==> DR drill restore verified. Cleaning up dump file..."
+    rm -f "$DUMP_FILE"
+    return 0
+  fi
+
   echo "==> Cleaning up test schema..."
   psql "$DB_URL" -c "DROP SCHEMA IF EXISTS dr_test CASCADE;" 2>/dev/null || true
 

@@ -3,6 +3,7 @@ import { generateCsrfToken, CSRF_COOKIE } from "@/lib/csrf";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { apiError } from "@/lib/api-error";
 
 /**
  * GET /api/auth/csrf — Issue a CSRF token (double-submit cookie pattern).
@@ -18,9 +19,12 @@ export async function GET(request: NextRequest) {
     failPolicy: "grace" as const,
   });
   if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    return apiError(
+      429,
+      "Too many requests",
+      undefined,
+      { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      "RATE_LIMITED",
     );
   }
 

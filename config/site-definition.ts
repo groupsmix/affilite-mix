@@ -1,4 +1,4 @@
-/** Site configuration — single source of truth for all site-specific behavior */
+/** Static tenant configuration — authoritative for sites registered in config/sites. */
 
 /**
  * Controls the chrome (header + footer) rendered around every page of a site.
@@ -103,8 +103,7 @@ export interface SiteDefinition {
 
   /**
    * Chrome variant — controls the header and footer design for this site.
-   * Defaults to "standard". Can be overridden at runtime via the DB
-   * `theme.layout_variant` field (admin panel → Site Settings).
+   * Defaults to "standard".
    */
   layoutVariant?: LayoutVariant;
 

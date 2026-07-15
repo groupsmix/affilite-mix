@@ -95,9 +95,34 @@ const worker = {
     }
 
     const url = `${cronHost}${job.path}`;
-    // A-018: await the dispatch and throw on failure so Cloudflare marks the
-    // cron as failed and applies its retry/back-off policy. Previously we used
-    // ctx.waitUntil, which swallowed failures and left missed jobs unalerted.
+    // A-018 / P1-5: await the dispatch and throw on terminal failure so the
+    // scheduled invocation is marked failed and surfaced to alerting. Cron
+    // triggers do NOT auto-retry the way Queues do, so transient failures are
+    // retried HERE with bounded exponential backoff before we give up. A
+    // terminal failure both alerts (captureException) and rejects the promise.
+    await dispatchWithRetry(url, cronSecret, job.name);
+  },
+};
+
+/** Per-attempt request timeout (ms). Heavy routes can be slow but must not hang. */
+const DISPATCH_TIMEOUT_MS = 25_000;
+/** Maximum dispatch attempts (1 initial + retries). */
+const DISPATCH_MAX_ATTEMPTS = 3;
+/** Base backoff (ms); doubled each retry: 1s, 2s, ... */
+const DISPATCH_BASE_BACKOFF_MS = 1_000;
+
+/** A 4xx (other than 408/429) is a client/config error — retrying won't help. */
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function dispatchOnce(
+  url: string,
+  cronSecret: string,
+): Promise<{ ok: boolean; status: number; body: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DISPATCH_TIMEOUT_MS);
+  try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -105,22 +130,57 @@ const worker = {
         "Content-Type": "application/json",
         "Accept-Version": "1",
       },
+      signal: controller.signal,
     });
     const body = await res.text();
-    if (!res.ok) {
-      logger.error("[heavy-crons] dispatch failed", {
-        job: job.name,
-        status: res.status,
-        body,
+    return { ok: res.ok, status: res.status, body };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function dispatchWithRetry(url: string, cronSecret: string, jobName: string): Promise<void> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= DISPATCH_MAX_ATTEMPTS; attempt++) {
+    try {
+      const { ok, status, body } = await dispatchOnce(url, cronSecret);
+      if (ok) {
+        logger.info("[heavy-crons] dispatch responded", { job: jobName, status, body, attempt });
+        return;
+      }
+
+      lastError = new Error(`Heavy cron dispatch failed for ${jobName}: ${status}`);
+      logger.error("[heavy-crons] dispatch failed", { job: jobName, status, body, attempt });
+
+      // Non-retryable client/config error (e.g. 401/403 bad secret) — fail fast.
+      if (!isRetryableStatus(status)) break;
+    } catch (err) {
+      // Network error / timeout / abort — retryable.
+      lastError = err instanceof Error ? err : new Error(String(err));
+      logger.error("[heavy-crons] dispatch error", {
+        job: jobName,
+        error: lastError.message,
+        attempt,
       });
-      throw new Error(`Heavy cron dispatch failed for ${job.name}: ${res.status}`);
     }
-    logger.info("[heavy-crons] dispatch responded", {
-      job: job.name,
-      status: res.status,
-      body,
-    });
-  },
-};
+
+    // Back off before the next attempt (skip the wait after the final attempt).
+    if (attempt < DISPATCH_MAX_ATTEMPTS) {
+      const backoffMs = DISPATCH_BASE_BACKOFF_MS * 2 ** (attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
+  }
+
+  // Terminal failure: alert and reject so the scheduled invocation is marked failed.
+  const terminal =
+    lastError ??
+    new Error(`Heavy cron dispatch failed for ${jobName} after ${DISPATCH_MAX_ATTEMPTS} attempts`);
+  captureException(terminal, {
+    tags: { job: jobName, worker: "heavy-crons" },
+    extra: { attempts: DISPATCH_MAX_ATTEMPTS },
+  });
+  throw terminal;
+}
 
 export default worker;

@@ -33,16 +33,28 @@ paths:
       responses:
         200:
           description: "Successful response (Ad | Ad[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/ads (site) — auth=admin
       operationId: postApiAdminAds
@@ -62,16 +74,28 @@ paths:
       responses:
         200:
           description: "Successful response (Ad | Ad[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/ads/{id}:
     get:
       summary: "GET /api/admin/ads/[id] (site) — auth=admin"
@@ -92,16 +116,28 @@ paths:
       responses:
         200:
           description: Successful response (Ad)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -127,16 +163,28 @@ paths:
       responses:
         200:
           description: Successful response (Ad)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -162,16 +210,28 @@ paths:
       responses:
         200:
           description: Successful response (Ad)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -198,16 +258,28 @@ paths:
       responses:
         200:
           description: Successful response (AffiliateNetwork)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/affiliate-networks (site) — auth=admin
       operationId: postApiAdminAffiliatenetworks
@@ -227,16 +299,28 @@ paths:
       responses:
         200:
           description: Successful response (AffiliateNetwork)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/affiliate-networks (site) — auth=admin
       operationId: patchApiAdminAffiliatenetworks
@@ -256,16 +340,28 @@ paths:
       responses:
         200:
           description: Successful response (AffiliateNetwork)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/affiliate-networks (site) — auth=admin
       operationId: deleteApiAdminAffiliatenetworks
@@ -285,16 +381,28 @@ paths:
       responses:
         200:
           description: Successful response (AffiliateNetwork)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/ai-content:
     post:
       summary: POST /api/admin/ai-content (site) — auth=admin
@@ -315,16 +423,28 @@ paths:
       responses:
         200:
           description: Successful response (AiContentDraft)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/ai/rewrite:
     post:
       summary: POST /api/admin/ai/rewrite (site) — auth=admin
@@ -345,16 +465,28 @@ paths:
       responses:
         200:
           description: Successful response (AiRewriteOutput)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/analytics:
     get:
       summary: GET /api/admin/analytics (site) — auth=admin
@@ -375,16 +507,28 @@ paths:
       responses:
         200:
           description: Successful response (AnalyticsSnapshot)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/analytics/conversion:
     get:
       summary: GET /api/admin/analytics/conversion (site) — auth=admin
@@ -405,16 +549,28 @@ paths:
       responses:
         200:
           description: Successful response (ConversionFunnel)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/analytics/domains:
     get:
       summary: GET /api/admin/analytics/domains (site) — auth=admin
@@ -435,16 +591,28 @@ paths:
       responses:
         200:
           description: Successful response (DomainPerformance)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/analytics/products:
     get:
       summary: GET /api/admin/analytics/products (site) — auth=admin
@@ -465,16 +633,28 @@ paths:
       responses:
         200:
           description: Successful response (TopProducts)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/analytics/revenue:
     get:
       summary: GET /api/admin/analytics/revenue (site) — auth=admin
@@ -495,16 +675,28 @@ paths:
       responses:
         200:
           description: Successful response (RevenueTrend)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/analytics/summary:
     get:
       summary: GET /api/admin/analytics/summary (site) — auth=admin
@@ -525,16 +717,28 @@ paths:
       responses:
         200:
           description: Successful response (AnalyticsSummary)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/api-tokens:
     get:
       summary: GET /api/admin/api-tokens (site) — auth=super_admin
@@ -555,16 +759,28 @@ paths:
       responses:
         200:
           description: "Successful response (AdminApiToken | AdminApiToken[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/api-tokens (site) — auth=super_admin
       operationId: postApiAdminApitokens
@@ -584,16 +800,28 @@ paths:
       responses:
         200:
           description: "Successful response (AdminApiToken | AdminApiToken[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/api-tokens/{id}:
     delete:
       summary: "DELETE /api/admin/api-tokens/[id] (site) — auth=super_admin"
@@ -614,16 +842,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ ok: true })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -650,16 +890,28 @@ paths:
       responses:
         200:
           description: Successful response (CSV)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/categories:
     get:
       summary: GET /api/admin/categories (site) — auth=admin
@@ -680,16 +932,28 @@ paths:
       responses:
         200:
           description: Successful response (Category)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/categories (site) — auth=admin
       operationId: postApiAdminCategories
@@ -709,16 +973,28 @@ paths:
       responses:
         200:
           description: Successful response (Category)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/categories (site) — auth=admin
       operationId: patchApiAdminCategories
@@ -738,16 +1014,28 @@ paths:
       responses:
         200:
           description: Successful response (Category)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/categories (site) — auth=admin
       operationId: deleteApiAdminCategories
@@ -767,16 +1055,28 @@ paths:
       responses:
         200:
           description: Successful response (Category)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/categories/usage:
     get:
       summary: GET /api/admin/categories/usage (site) — auth=admin
@@ -797,16 +1097,28 @@ paths:
       responses:
         200:
           description: "Successful response (CategoryUsage[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/content:
     get:
       summary: GET /api/admin/content (site) — auth=admin
@@ -827,16 +1139,28 @@ paths:
       responses:
         200:
           description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/content (site) — auth=admin
       operationId: postApiAdminContent
@@ -856,16 +1180,28 @@ paths:
       responses:
         200:
           description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/content (site) — auth=admin
       operationId: patchApiAdminContent
@@ -885,16 +1221,28 @@ paths:
       responses:
         200:
           description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/content (site) — auth=admin
       operationId: deleteApiAdminContent
@@ -914,16 +1262,28 @@ paths:
       responses:
         200:
           description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/content-products:
     get:
       summary: GET /api/admin/content-products (site) — auth=admin
@@ -944,16 +1304,28 @@ paths:
       responses:
         200:
           description: Successful response (ContentProduct)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/content-products (site) — auth=admin
       operationId: postApiAdminContentproducts
@@ -973,16 +1345,28 @@ paths:
       responses:
         200:
           description: Successful response (ContentProduct)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/content-products (site) — auth=admin
       operationId: deleteApiAdminContentproducts
@@ -1002,16 +1386,28 @@ paths:
       responses:
         200:
           description: Successful response (ContentProduct)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/content/clone:
     post:
       summary: POST /api/admin/content/clone (site) — auth=admin
@@ -1032,16 +1428,28 @@ paths:
       responses:
         200:
           description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/content/share:
     post:
       summary: POST /api/admin/content/share (site) — auth=admin
@@ -1062,16 +1470,28 @@ paths:
       responses:
         200:
           description: Successful response (ContentShare)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/content/share (site) — auth=admin
       operationId: deleteApiAdminContentShare
@@ -1091,16 +1511,28 @@ paths:
       responses:
         200:
           description: Successful response (ContentShare)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/integrations:
     get:
       summary: GET /api/admin/integrations (site) — auth=admin
@@ -1121,16 +1553,28 @@ paths:
       responses:
         200:
           description: Successful response (Integration)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/integrations (site) — auth=admin
       operationId: postApiAdminIntegrations
@@ -1150,16 +1594,28 @@ paths:
       responses:
         200:
           description: Successful response (Integration)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/integrations (site) — auth=admin
       operationId: patchApiAdminIntegrations
@@ -1179,16 +1635,28 @@ paths:
       responses:
         200:
           description: Successful response (Integration)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/integrations (site) — auth=admin
       operationId: deleteApiAdminIntegrations
@@ -1208,16 +1676,28 @@ paths:
       responses:
         200:
           description: Successful response (Integration)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/media:
     get:
       summary: GET /api/admin/media (site) — auth=admin
@@ -1238,16 +1718,28 @@ paths:
       responses:
         200:
           description: "Successful response (Media[] | { ok: true })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/media (site) — auth=admin
       operationId: deleteApiAdminMedia
@@ -1267,16 +1759,28 @@ paths:
       responses:
         200:
           description: "Successful response (Media[] | { ok: true })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/modules:
     get:
       summary: GET /api/admin/modules (site) — auth=admin
@@ -1297,16 +1801,28 @@ paths:
       responses:
         200:
           description: "Successful response (Module[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/modules (site) — auth=admin
       operationId: patchApiAdminModules
@@ -1326,16 +1842,28 @@ paths:
       responses:
         200:
           description: "Successful response (Module[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/pages:
     get:
       summary: GET /api/admin/pages (site) — auth=admin
@@ -1356,16 +1884,28 @@ paths:
       responses:
         200:
           description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/pages (site) — auth=admin
       operationId: postApiAdminPages
@@ -1385,16 +1925,28 @@ paths:
       responses:
         200:
           description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/pages/{id}:
     get:
       summary: "GET /api/admin/pages/[id] (site) — auth=admin"
@@ -1415,16 +1967,28 @@ paths:
       responses:
         200:
           description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -1450,16 +2014,28 @@ paths:
       responses:
         200:
           description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -1485,16 +2061,28 @@ paths:
       responses:
         200:
           description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -1521,16 +2109,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/permissions:
     get:
       summary: GET /api/admin/permissions (site) — auth=super_admin
@@ -1551,16 +2151,28 @@ paths:
       responses:
         200:
           description: Successful response (Permission)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/permissions (site) — auth=super_admin
       operationId: postApiAdminPermissions
@@ -1580,16 +2192,28 @@ paths:
       responses:
         200:
           description: Successful response (Permission)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/permissions (site) — auth=super_admin
       operationId: deleteApiAdminPermissions
@@ -1609,16 +2233,28 @@ paths:
       responses:
         200:
           description: Successful response (Permission)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/preview-token:
     post:
       summary: POST /api/admin/preview-token (site) — auth=admin
@@ -1639,16 +2275,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ token: string })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/privacy/user:
     post:
       summary: POST /api/admin/privacy/user (site) — auth=super_admin
@@ -1669,16 +2317,28 @@ paths:
       responses:
         200:
           description: "Successful response (PrivacyExport | Ok)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/privacy/user (site) — auth=super_admin
       operationId: deleteApiAdminPrivacyUser
@@ -1698,16 +2358,28 @@ paths:
       responses:
         200:
           description: "Successful response (PrivacyExport | Ok)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/privacy/restrict:
     post:
       summary: POST /api/admin/privacy/restrict (site) — auth=super_admin
@@ -1728,16 +2400,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/privacy/restrict (site) — auth=super_admin
       operationId: deleteApiAdminPrivacyRestrict
@@ -1757,16 +2441,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/privacy/rectify:
     post:
       summary: POST /api/admin/privacy/rectify (site) — auth=super_admin
@@ -1787,16 +2483,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/privacy/object:
     post:
       summary: POST /api/admin/privacy/object (site) — auth=super_admin
@@ -1817,16 +2525,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/privacy/object (site) — auth=super_admin
       operationId: deleteApiAdminPrivacyObject
@@ -1846,16 +2566,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/dlq:
     get:
       summary: GET /api/admin/dlq (site) — auth=super_admin
@@ -1876,16 +2608,28 @@ paths:
       responses:
         200:
           description: Successful response (DlqDashboard)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/products:
     get:
       summary: GET /api/admin/products (site) — auth=admin
@@ -1906,16 +2650,28 @@ paths:
       responses:
         200:
           description: Successful response (Product)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/products (site) — auth=admin
       operationId: postApiAdminProducts
@@ -1935,16 +2691,28 @@ paths:
       responses:
         200:
           description: Successful response (Product)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/products (site) — auth=admin
       operationId: patchApiAdminProducts
@@ -1964,16 +2732,28 @@ paths:
       responses:
         200:
           description: Successful response (Product)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/products (site) — auth=admin
       operationId: deleteApiAdminProducts
@@ -1993,16 +2773,28 @@ paths:
       responses:
         200:
           description: Successful response (Product)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/products/export:
     get:
       summary: GET /api/admin/products/export (site) — auth=admin
@@ -2023,16 +2815,28 @@ paths:
       responses:
         200:
           description: Successful response (CSV stream)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/products/import:
     post:
       summary: POST /api/admin/products/import (site) — auth=admin
@@ -2053,16 +2857,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ imported: number; errors: ImportError[] })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/schedule:
     get:
       summary: GET /api/admin/schedule (site) — auth=admin
@@ -2083,16 +2899,28 @@ paths:
       responses:
         200:
           description: Successful response (ScheduledJob)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/schedule (site) — auth=admin
       operationId: postApiAdminSchedule
@@ -2112,16 +2940,28 @@ paths:
       responses:
         200:
           description: Successful response (ScheduledJob)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/schedule (site) — auth=admin
       operationId: deleteApiAdminSchedule
@@ -2141,16 +2981,28 @@ paths:
       responses:
         200:
           description: Successful response (ScheduledJob)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/sites:
     get:
       summary: GET /api/admin/sites (site) — auth=admin
@@ -2171,16 +3023,28 @@ paths:
       responses:
         200:
           description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/sites (site) — auth=admin
       operationId: postApiAdminSites
@@ -2200,16 +3064,28 @@ paths:
       responses:
         200:
           description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/sites/{id}:
     get:
       summary: "GET /api/admin/sites/[id] (site) — auth=admin"
@@ -2230,16 +3106,28 @@ paths:
       responses:
         200:
           description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -2265,16 +3153,28 @@ paths:
       responses:
         200:
           description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -2300,16 +3200,28 @@ paths:
       responses:
         200:
           description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: id
           in: path
@@ -2336,16 +3248,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ siteId: string; slug: string })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/sites/select:
     post:
       summary: POST /api/admin/sites/select (site) — auth=admin
@@ -2366,16 +3290,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/sites/stats:
     get:
       summary: GET /api/admin/sites/stats (site) — auth=admin
@@ -2396,16 +3332,28 @@ paths:
       responses:
         200:
           description: Successful response (SiteStats)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/sites/templates:
     get:
       summary: GET /api/admin/sites/templates (site) — auth=admin
@@ -2426,16 +3374,28 @@ paths:
       responses:
         200:
           description: "Successful response (SiteTemplate[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/upload:
     post:
       summary: POST /api/admin/upload (site) — auth=admin
@@ -2456,16 +3416,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ uploadUrl: string; stagingKey: string; publicUrl: string; requiredHeaders: Record<string,string>; maxBytes: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/upload/finalize:
     post:
       summary: POST /api/admin/upload/finalize (site) — auth=admin
@@ -2486,16 +3458,28 @@ paths:
       responses:
         200:
           description: Successful response (UploadedImage)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/webhook-dlq:
     get:
       summary: GET /api/admin/webhook-dlq (site) — auth=super_admin
@@ -2516,16 +3500,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ data: WebhookDlqEntry[]; count: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/webhook-dlq (site) — auth=super_admin
       operationId: patchApiAdminWebhookdlq
@@ -2545,16 +3541,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ data: WebhookDlqEntry[]; count: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/users:
     get:
       summary: GET /api/admin/users (site) — auth=super_admin
@@ -2575,16 +3583,28 @@ paths:
       responses:
         200:
           description: Successful response (AdminUser)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/users (site) — auth=super_admin
       operationId: postApiAdminUsers
@@ -2604,16 +3624,28 @@ paths:
       responses:
         200:
           description: Successful response (AdminUser)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/users (site) — auth=super_admin
       operationId: patchApiAdminUsers
@@ -2633,16 +3665,28 @@ paths:
       responses:
         200:
           description: Successful response (AdminUser)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/users (site) — auth=super_admin
       operationId: deleteApiAdminUsers
@@ -2662,16 +3706,28 @@ paths:
       responses:
         200:
           description: Successful response (AdminUser)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/users/me:
     get:
       summary: GET /api/admin/users/me (site) — auth=admin
@@ -2692,16 +3748,28 @@ paths:
       responses:
         200:
           description: Successful response (AdminUser (self))
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     patch:
       summary: PATCH /api/admin/users/me (site) — auth=admin
       operationId: patchApiAdminUsersMe
@@ -2721,16 +3789,28 @@ paths:
       responses:
         200:
           description: Successful response (AdminUser (self))
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/users/me/password:
     post:
       summary: POST /api/admin/users/me/password (site) — auth=admin
@@ -2751,16 +3831,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/users/me/totp:
     get:
       summary: GET /api/admin/users/me/totp (site) — auth=admin
@@ -2781,16 +3873,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ secret?: string; qr?: string; enabled: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/admin/users/me/totp (site) — auth=admin
       operationId: postApiAdminUsersMeTotp
@@ -2810,16 +3914,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ secret?: string; qr?: string; enabled: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     delete:
       summary: DELETE /api/admin/users/me/totp (site) — auth=admin
       operationId: deleteApiAdminUsersMeTotp
@@ -2839,16 +3955,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ secret?: string; qr?: string; enabled: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/auth/csrf:
     get:
       summary: GET /api/auth/csrf (global) — public
@@ -2866,13 +3994,23 @@ paths:
       security: []
       responses:
         200:
-          description: Successful response
+          description: CSRF token issued
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
-                type: object
+                $ref: "#/components/schemas/CsrfTokenResponse"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /api/auth/forgot-password:
     post:
       summary: POST /api/auth/forgot-password (global) — public
@@ -2891,12 +4029,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/auth/login:
     post:
       summary: POST /api/auth/login (global) — public
@@ -2915,12 +4059,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/auth/logout:
     post:
       summary: POST /api/auth/logout (global) — auth=admin
@@ -2941,16 +4091,28 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/auth/me:
     get:
       summary: GET /api/auth/me (global) — auth=admin
@@ -2970,17 +4132,32 @@ paths:
       x-internal: true
       responses:
         200:
-          description: Successful response (AdminUser (self))
+          description: Current admin session
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
-                type: object
+                $ref: "#/components/schemas/AuthMeResponse"
         401:
-          description: Unauthorized
-        403:
-          description: Forbidden — insufficient role or cross-tenant access
+          description: Not authenticated
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /api/auth/refresh:
     post:
       summary: POST /api/auth/refresh (global) — auth=admin
@@ -3001,16 +4178,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ expiresAt: string } + refreshed cookie)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/auth/step-up:
     post:
       summary: POST /api/auth/step-up (global) — auth=admin
@@ -3031,16 +4220,28 @@ paths:
       responses:
         200:
           description: "Successful response ({ ok: true } + re-minted session cookie)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         403:
           description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/auth/reset-password:
     post:
       summary: POST /api/auth/reset-password (global) — auth=token
@@ -3060,14 +4261,23 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/auth/token-login:
     post:
       summary: POST /api/auth/token-login (global) — auth=token
@@ -3087,14 +4297,23 @@ paths:
       responses:
         200:
           description: "Successful response ({ ok: true } + httpOnly session cookie)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/ai-generate:
     post:
       summary: POST /api/cron/ai-generate (tenant) — auth=cron
@@ -3115,12 +4334,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ generated: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/click-reconcile:
     post:
       summary: POST /api/cron/click-reconcile (tenant) — auth=cron
@@ -3141,12 +4366,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ success_count: number; failure_count: number; alert: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/commission-ingest:
     post:
       summary: POST /api/cron/commission-ingest (tenant) — auth=cron
@@ -3167,12 +4398,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ ingested: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/access-review:
     post:
       summary: POST /api/cron/access-review (tenant) — auth=cron
@@ -3193,12 +4430,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ ok: boolean; totalUsers: number; findings: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/data-retention:
     post:
       summary: POST /api/cron/data-retention (tenant) — auth=cron
@@ -3219,12 +4462,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ purged: number; archived: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/epc-recompute:
     post:
       summary: POST /api/cron/epc-recompute (tenant) — auth=cron
@@ -3245,12 +4494,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ recomputed: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/expire-deals:
     post:
       summary: POST /api/cron/expire-deals (tenant) — auth=cron
@@ -3271,12 +4526,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ expired: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/homepage-synthetic-check:
     post:
       summary: POST /api/cron/homepage-synthetic-check (tenant) — auth=cron
@@ -3297,12 +4558,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ ok: boolean; alerted: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/price-scrape:
     post:
       summary: POST /api/cron/price-scrape (tenant) — auth=cron
@@ -3323,12 +4590,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ scraped: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/publish:
     post:
       summary: POST /api/cron/publish (tenant) — auth=cron
@@ -3349,12 +4622,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ published: number; archived: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/sitemap-refresh:
     post:
       summary: POST /api/cron/sitemap-refresh (tenant) — auth=cron
@@ -3375,12 +4654,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ pinged: string[] })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/stripe-sync:
     post:
       summary: POST /api/cron/stripe-sync (tenant) — auth=cron
@@ -3401,12 +4686,18 @@ paths:
       responses:
         200:
           description: "Successful response ({ synced: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/csp-report:
     post:
       summary: POST /api/csp-report (global) — public
@@ -3425,12 +4716,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/gift-finder:
     post:
       summary: POST /api/gift-finder (site) — public
@@ -3449,12 +4746,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/health:
     get:
       summary: GET /api/health (global) — public
@@ -3472,13 +4775,32 @@ paths:
       security: []
       responses:
         200:
-          description: Successful response
+          description: Healthy service
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
-                type: object
+                $ref: "#/components/schemas/HealthResponse"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        503:
+          description: Degraded service
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
   /api/internal/resolve-site:
     get:
       summary: GET /api/internal/resolve-site (global) — auth=internal
@@ -3499,12 +4821,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/newsletter:
     post:
       summary: POST /api/newsletter (site) — public
@@ -3520,15 +4848,67 @@ paths:
       x-responseSchema: Ok
       x-notes: null
       security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewsletterSignupRequest"
       responses:
         200:
-          description: Successful response
+          description: Signup accepted
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
-                type: object
+                $ref: "#/components/schemas/NewsletterSignupResponse"
+        400:
+          description: Invalid signup request
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        403:
+          description: Captcha verification failed
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        500:
+          description: Signup failed
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        503:
+          description: Email service unavailable
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /api/newsletter/confirm:
     get:
       summary: GET /api/newsletter/confirm (site) — auth=token
@@ -3548,14 +4928,23 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/newsletter/unsubscribe:
     get:
       summary: GET /api/newsletter/unsubscribe (site) — auth=token
@@ -3575,14 +4964,23 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
     post:
       summary: POST /api/newsletter/unsubscribe (site) — auth=token
       operationId: postApiNewsletterUnsubscribe
@@ -3601,14 +4999,23 @@ paths:
       responses:
         200:
           description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/products/{productId}/price-alert:
     post:
       summary: "POST /api/products/[productId]/price-alert (site) — public"
@@ -3627,12 +5034,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: productId
           in: path
@@ -3657,12 +5070,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: productId
           in: path
@@ -3689,12 +5108,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/revalidate:
     post:
       summary: POST /api/revalidate (global) — auth=internal
@@ -3715,12 +5140,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/quiz/{slug}:
     get:
       summary: "GET /api/quiz/[slug] (site) — public"
@@ -3739,12 +5170,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: slug
           in: path
@@ -3769,12 +5206,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
       parameters:
         - name: slug
           in: path
@@ -3799,12 +5242,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/track/impression:
     post:
       summary: POST /api/track/impression (site) — public
@@ -3823,12 +5272,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/vitals:
     post:
       summary: POST /api/vitals (global) — public
@@ -3847,12 +5302,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/consent/log:
     post:
       summary: POST /api/consent/log (global) — public
@@ -3871,12 +5332,18 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/user/data-export:
     get:
       summary: GET /api/user/data-export (site) — public
@@ -3895,13 +5362,146 @@ paths:
       responses:
         200:
           description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
 components:
+  schemas:
+    ApiError:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          pattern: "^[A-Z][A-Z0-9_]*$"
+        details: {}
+    CsrfTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - csrfToken
+      properties:
+        csrfToken:
+          type: string
+    AuthMeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+        - email
+        - activeSite
+      properties:
+        role:
+          type: string
+        email:
+          oneOf:
+            - type: string
+            - type: "null"
+        activeSite:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - id
+                - name
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+            - type: "null"
+    NewsletterSignupRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - turnstileToken
+      properties:
+        email:
+          type: string
+          format: email
+        turnstileToken:
+          type: string
+        website:
+          type: string
+          description: Honeypot field; clients should leave it empty.
+    NewsletterSignupResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - message
+      properties:
+        ok:
+          type: boolean
+          const: true
+        message:
+          type: string
+    HealthResponse:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              const: healthy
+        - type: object
+          additionalProperties: false
+          required:
+            - status
+            - timestamp
+            - checks
+          properties:
+            status:
+              type: string
+              enum:
+                - healthy
+                - degraded
+            timestamp:
+              type: string
+              format: date-time
+            checks:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: false
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                      - warn
+                      - error
+                  latencyMs:
+                    type: integer
+                    minimum: 0
+                  error:
+                    type: string
+  headers:
+    API-Version:
+      description: Numeric major version of the served API contract.
+      schema:
+        type: string
+        pattern: "^[1-9][0-9]*$"
+        example: "1"
   securitySchemes:
     bearerAuth:
       type: http

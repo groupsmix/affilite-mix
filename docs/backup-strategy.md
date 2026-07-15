@@ -65,18 +65,96 @@ echo "Backup completed: ${BACKUP_DIR}"
 
 1. If PITR is enabled, restore to a point just before the deletion via the Supabase Dashboard
 2. Otherwise, restore from the most recent daily backup
-3. For table-level recovery, use `pg_restore` with the manual backup dumps:
+3. For table-level recovery, use `pg_restore` with the manual backup dumps. A
+   single table with no inbound foreign keys can be restored directly:
    ```bash
    pg_restore --data-only --table=products -d "$DATABASE_URL" backups/YYYYMMDD/products.dump
    ```
+   When restoring **multiple** tables, always follow the dependency-ordered,
+   transactional procedure in [§3.1](#31-fk-safe-multi-table-restore-f-3) so
+   foreign keys are not violated mid-restore.
 
 ### Scenario B: Complete database loss
 
 1. Create a new Supabase project
 2. Apply all migrations in order (see `supabase/migrations/README.md`)
-3. Restore data from the most recent backup
+3. Restore data from the most recent backup using the FK-safe procedure in
+   [§3.1](#31-fk-safe-multi-table-restore-f-3) — a whole-database restore is the
+   case most exposed to referential-integrity failures
 4. Update environment variables to point to the new project
 5. Verify RLS policies are applied correctly
+
+### 3.1 FK-safe multi-table restore (F-3)
+
+> **Why this matters:** per-table `pg_dump --data-only` dumps carry no schema
+> and no dependency ordering. Restoring them in an arbitrary order violates
+> foreign keys — e.g. `content_products` rows arriving before their parent
+> `content` / `products` rows, or `products.category_id` before `categories`.
+> A restore that fails partway leaves referential gaps precisely during an
+> incident.
+
+Two controls make the restore safe and deterministic:
+
+1. **Dependency ordering** — restore parents before children. The canonical
+   order is derived from the schema's foreign keys and is machine-checked in
+   `scripts/backup-restore-order.ts` (guarded by
+   `__tests__/backup-restore-order.test.ts`; self-check via
+   `npm run verify:backup-order`):
+
+   ```
+   sites, admin_users → categories → products, content → content_products
+     → newsletter_subscribers, affiliate_clicks, audit_log
+   ```
+
+2. **Transactional, deferred-enforcement restore** — wrap the whole restore in
+   one transaction, disable FK/trigger enforcement during the load, and
+   re-validate before COMMIT. Any failure rolls the entire restore back instead
+   of leaving dangling references:
+
+   ```sql
+   -- restore.sql  (run: psql -v ON_ERROR_STOP=1 -f restore.sql)
+   BEGIN;
+   SET session_replication_role = replica;  -- defer FK/trigger enforcement
+
+   \! pg_restore --data-only --disable-triggers --table=sites            -d "$DATABASE_URL" backups/YYYYMMDD/sites.dump
+   \! pg_restore --data-only --disable-triggers --table=admin_users      -d "$DATABASE_URL" backups/YYYYMMDD/admin_users.dump
+   \! pg_restore --data-only --disable-triggers --table=categories       -d "$DATABASE_URL" backups/YYYYMMDD/categories.dump
+   \! pg_restore --data-only --disable-triggers --table=products         -d "$DATABASE_URL" backups/YYYYMMDD/products.dump
+   \! pg_restore --data-only --disable-triggers --table=content          -d "$DATABASE_URL" backups/YYYYMMDD/content.dump
+   \! pg_restore --data-only --disable-triggers --table=content_products -d "$DATABASE_URL" backups/YYYYMMDD/content_products.dump
+   \! pg_restore --data-only --disable-triggers --table=newsletter_subscribers -d "$DATABASE_URL" backups/YYYYMMDD/newsletter_subscribers.dump
+   \! pg_restore --data-only --disable-triggers --table=affiliate_clicks -d "$DATABASE_URL" backups/YYYYMMDD/affiliate_clicks.dump
+   \! pg_restore --data-only --disable-triggers --table=audit_log        -d "$DATABASE_URL" backups/YYYYMMDD/audit_log.dump
+
+   SET session_replication_role = origin;    -- re-enable enforcement
+   COMMIT;
+   ```
+
+   `scripts/backup-restore-order.ts` can emit this ordered wrapper
+   programmatically (`buildRestoreSql()`), so the order never drifts from the
+   FK graph.
+
+3. **Post-restore FK validation** — after COMMIT, confirm no orphans remain:
+
+   ```sql
+   SELECT 'content_products→content' AS check, COUNT(*) AS orphans
+     FROM content_products cp LEFT JOIN content c ON c.id = cp.content_id
+    WHERE c.id IS NULL
+   UNION ALL
+   SELECT 'content_products→products', COUNT(*)
+     FROM content_products cp LEFT JOIN products p ON p.id = cp.product_id
+    WHERE p.id IS NULL
+   UNION ALL
+   SELECT 'products→categories', COUNT(*)
+     FROM products p LEFT JOIN categories c ON c.id = p.category_id
+    WHERE p.category_id IS NOT NULL AND c.id IS NULL;
+   -- All rows must report orphans = 0.
+   ```
+
+> **Prefer a full logical dump / PITR** for whole-database recovery whenever
+> possible: `pg_dump` (without `--table`) preserves dependency order and
+> constraints, and PITR restores a consistent snapshot. The per-table procedure
+> above is the fallback when only the manual dumps exist.
 
 ### Scenario C: Schema corruption
 
