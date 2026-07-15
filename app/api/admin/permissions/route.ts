@@ -29,7 +29,7 @@ import { isUsableUuid } from "@/lib/security/uuid";
  *   - site_id: optional — if provided, returns user-role assignments for that site
  */
 export async function GET(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -40,7 +40,12 @@ export async function GET(request: NextRequest) {
   const rlError = await enforceAdminRateLimit("permissions", session);
   if (rlError) return rlError;
 
-  const siteId = request.nextUrl.searchParams.get("site_id");
+  // F-5: permissions are scoped to the active site; reject a client-supplied
+  // site_id that does not match the server-derived site context.
+  const requestedSiteId = request.nextUrl.searchParams.get("site_id");
+  if (requestedSiteId && requestedSiteId !== dbSiteId) {
+    return NextResponse.json({ error: "Invalid site_id" }, { status: 400 });
+  }
 
   try {
     const getPrivileged = () => getPrivilegedSupabaseClient("admin-permissions-read");
@@ -55,8 +60,8 @@ export async function GET(request: NextRequest) {
       site_user_roles?: Awaited<ReturnType<typeof listSiteUserRoles>>;
     } = { roles, permissions };
 
-    if (siteId) {
-      response.site_user_roles = await listSiteUserRoles(siteId, getPrivileged);
+    if (dbSiteId) {
+      response.site_user_roles = await listSiteUserRoles(dbSiteId, getPrivileged);
     }
 
     return NextResponse.json(response);
@@ -68,7 +73,7 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/admin/permissions — assign a role to a user for a site */
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -100,7 +105,11 @@ export async function POST(request: NextRequest) {
   if (!isUsableUuid(user_id)) {
     return NextResponse.json({ error: "user_id must be a valid UUID" }, { status: 400 });
   }
-  if (!isUsableUuid(site_id)) {
+
+  // F-5: assignments must target the server-derived active site; ignore any
+  // site_id supplied by the client if it does not match the authenticated
+  // admin's active site context.
+  if (!isUsableUuid(site_id) || site_id !== dbSiteId) {
     return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
   }
 
@@ -115,7 +124,7 @@ export async function POST(request: NextRequest) {
     const assignment = await assignUserSiteRole(
       {
         user_id,
-        site_id,
+        site_id: dbSiteId,
         role_id: role.id,
       },
       () => getPrivilegedSupabaseClient("admin-permissions-assign"),
@@ -123,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     // G-06: Await audit for privilege-escalation action.
     await recordAuditEvent({
-      site_id,
+      site_id: dbSiteId,
       actor: session.email ?? "admin",
       action: "assign_role",
       entity_type: "user_site_role",
@@ -140,7 +149,7 @@ export async function POST(request: NextRequest) {
 
 /** DELETE /api/admin/permissions?user_id=<uuid>&site_id=<uuid> — remove role assignment */
 export async function DELETE(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -152,9 +161,9 @@ export async function DELETE(request: NextRequest) {
   if (rlError) return rlError;
 
   const userId = request.nextUrl.searchParams.get("user_id");
-  const siteId = request.nextUrl.searchParams.get("site_id");
+  const requestedSiteId = request.nextUrl.searchParams.get("site_id");
 
-  if (!userId || !siteId) {
+  if (!userId || !requestedSiteId) {
     return NextResponse.json({ error: "user_id and site_id are required" }, { status: 400 });
   }
 
@@ -162,18 +171,20 @@ export async function DELETE(request: NextRequest) {
   if (!isUsableUuid(userId)) {
     return NextResponse.json({ error: "user_id must be a valid UUID" }, { status: 400 });
   }
-  if (!isUsableUuid(siteId)) {
+
+  // F-5: enforce the server-derived active site for privilege revocation.
+  if (!isUsableUuid(requestedSiteId) || requestedSiteId !== dbSiteId) {
     return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
   }
 
   try {
-    await removeUserSiteRole(userId, siteId, () =>
+    await removeUserSiteRole(userId, dbSiteId, () =>
       getPrivilegedSupabaseClient("admin-permissions-remove"),
     );
 
     // G-06: Await audit for privilege-revocation action.
     await recordAuditEvent({
-      site_id: siteId,
+      site_id: dbSiteId,
       actor: session.email ?? "admin",
       action: "remove_role",
       entity_type: "user_site_role",

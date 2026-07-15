@@ -4,7 +4,7 @@ import { getPageById, updatePage, deletePage } from "@/lib/dal/pages";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
-import { parseJsonBody } from "@/lib/api-error";
+import { apiError, parseJsonBody } from "@/lib/api-error";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { getTenantClientForSite } from "@/lib/supabase-server";
 
@@ -24,12 +24,12 @@ export const GET = withAuthzDynamic(
         getTenantClientForSite(dbSiteId, session.userId),
       );
       if (!page) {
-        return NextResponse.json({ error: "Page not found" }, { status: 404 });
+        return apiError(404, "Page not found", undefined, undefined, "NOT_FOUND");
       }
       return NextResponse.json(page);
     } catch (err) {
       captureException(err, { context: "[api/admin/pages] GET by id failed:" });
-      return NextResponse.json({ error: "Failed to get page" }, { status: 500 });
+      return apiError(500, "Failed to get page", undefined, undefined, "INTERNAL_ERROR");
     }
   },
 );
@@ -90,7 +90,7 @@ export const PATCH = withAuthzDynamic(
       return NextResponse.json(page);
     } catch (err) {
       captureException(err, { context: "[api/admin/pages] PATCH failed:" });
-      return NextResponse.json({ error: "Failed to update page" }, { status: 500 });
+      return apiError(500, "Failed to update page", undefined, undefined, "INTERNAL_ERROR");
     }
   },
 );
@@ -132,7 +132,7 @@ export const DELETE = withAuthzDynamic(
       return NextResponse.json({ ok: true });
     } catch (err) {
       captureException(err, { context: "[api/admin/pages] DELETE failed:" });
-      return NextResponse.json({ error: "Failed to delete page" }, { status: 500 });
+      return apiError(500, "Failed to delete page", undefined, undefined, "INTERNAL_ERROR");
     }
   },
 );

@@ -11,7 +11,7 @@ import { getTenantClientForSite } from "@/lib/supabase-server";
 import { validateCreateCategory, validateUpdateCategory } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
-import { parseJsonBody } from "@/lib/api-error";
+import { apiError, parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
@@ -26,7 +26,7 @@ export const GET = withAuthz("categories", "view", async (_request, { session, s
     return NextResponse.json(categories);
   } catch (err) {
     captureException(err, { context: "[api/admin/categories] GET failed:" });
-    return NextResponse.json({ error: "Failed to list categories" }, { status: 500 });
+    return apiError(500, "Failed to list categories", undefined, undefined, "INTERNAL_ERROR");
   }
 });
 
@@ -41,10 +41,7 @@ export const POST = withAuthz(
     if (rawOrError instanceof NextResponse) return rawOrError;
     const parsed = validateCreateCategory(rawOrError);
     if (parsed.errors) {
-      return NextResponse.json(
-        { error: "Validation failed", details: parsed.errors },
-        { status: 400 },
-      );
+      return apiError(400, "Validation failed", parsed.errors, undefined, "VALIDATION_ERROR");
     }
 
     try {
@@ -77,7 +74,7 @@ export const POST = withAuthz(
       return NextResponse.json(category, { status: 201 });
     } catch (err) {
       captureException(err, { context: "[api/admin/categories] POST create failed:" });
-      return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
+      return apiError(500, "Failed to create category", undefined, undefined, "INTERNAL_ERROR");
     }
   },
 );
@@ -93,10 +90,7 @@ export const PATCH = withAuthz(
     if (rawOrError instanceof NextResponse) return rawOrError;
     const parsed = validateUpdateCategory(rawOrError);
     if (parsed.errors) {
-      return NextResponse.json(
-        { error: "Validation failed", details: parsed.errors },
-        { status: 400 },
-      );
+      return apiError(400, "Validation failed", parsed.errors, undefined, "VALIDATION_ERROR");
     }
 
     const { id, ...updates } = parsed.data;
@@ -116,7 +110,7 @@ export const PATCH = withAuthz(
       return NextResponse.json(category);
     } catch (err) {
       captureException(err, { context: "[api/admin/categories] PATCH update failed:" });
-      return NextResponse.json({ error: "Failed to update category" }, { status: 500 });
+      return apiError(500, "Failed to update category", undefined, undefined, "INTERNAL_ERROR");
     }
   },
 );
@@ -137,7 +131,7 @@ export const DELETE = withAuthz(
       id = request.nextUrl.searchParams.get("id");
     }
     if (!id) {
-      return NextResponse.json({ error: "id is required" }, { status: 400 });
+      return apiError(400, "id is required", undefined, undefined, "BAD_REQUEST");
     }
 
     try {
@@ -154,7 +148,7 @@ export const DELETE = withAuthz(
       return NextResponse.json({ ok: true });
     } catch (err) {
       captureException(err, { context: "[api/admin/categories] DELETE failed:" });
-      return NextResponse.json({ error: "Failed to delete category" }, { status: 500 });
+      return apiError(500, "Failed to delete category", undefined, undefined, "INTERNAL_ERROR");
     }
   },
 );

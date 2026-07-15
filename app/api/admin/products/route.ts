@@ -12,7 +12,7 @@ import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { saveErrorResponse } from "@/lib/save-error";
-import { parseJsonBody } from "@/lib/api-error";
+import { apiError, parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
@@ -282,13 +282,12 @@ export const PATCH = withAuthz(
           siteId,
           level: "warning",
         });
-        return NextResponse.json(
-          {
-            error: err.message,
-            code: "CONFLICT",
-            hint: "Refresh the product and retry with the latest version.",
-          },
-          { status: 409, headers: { "Retry-After": "0" } },
+        return apiError(
+          409,
+          err.message,
+          "Refresh the product and retry with the latest version.",
+          { "Retry-After": "0" },
+          "CONFLICT",
         );
       }
       // F-010: actionable message + error reference id for non-conflict failures.

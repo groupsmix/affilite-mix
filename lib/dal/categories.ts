@@ -2,7 +2,7 @@ import { getTenantClient } from "@/lib/supabase-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
-import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
+import { assertRows, assertRow, rowOrNull, hasStringProp, untypedRpc } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
@@ -188,20 +188,20 @@ export async function listCategoriesWithProductCount(
   const catsResult = await queryCategoriesWithFallback(sb, siteId);
   if (catsResult.error) return [];
 
-  const { data: counts, error: countError } = await sb
-    .from("products")
-    .select("category_id")
-    .eq("site_id", siteId)
-    .eq("status", "active")
-    .not("category_id", "is", null);
+  // PERF-2: push product-count aggregation down to PostgreSQL instead of
+  // loading every active product row and counting in application memory.
+  const { data: counts, error: countError } = await untypedRpc(sb, "get_category_product_counts", {
+    p_site_id: siteId,
+  });
 
-  if (countError)
+  if (countError) {
     return normalizeCategoryRows(catsResult.data).map((cat) => ({ ...cat, product_count: 0 }));
+  }
 
   const countMap = new Map<string, number>();
-  for (const row of counts ?? []) {
-    if (hasStringProp(row, "category_id")) {
-      countMap.set(row.category_id, (countMap.get(row.category_id) ?? 0) + 1);
+  for (const row of assertRows<Record<string, unknown>>(counts)) {
+    if (typeof row.category_id === "string" && typeof row.product_count === "number") {
+      countMap.set(row.category_id, row.product_count);
     }
   }
 

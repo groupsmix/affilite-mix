@@ -2,7 +2,6 @@ import type { SiteDefinition, NavItem, LayoutVariant } from "@/config/site-defin
 import Link from "next/link";
 import { MobileMenu } from "./mobile-menu";
 import { ActiveNavLinks } from "./active-nav-links";
-import { DarkModeToggle } from "./dark-mode-toggle";
 import { SiteHeaderCompare } from "./site-header-compare";
 
 interface SiteHeaderProps {
@@ -92,11 +91,6 @@ export function SiteHeader({ site, dbNavItems, layoutVariant = "standard" }: Sit
               />
             </svg>
           </Link>
-
-          {/* Dark mode toggle — muted tint on dark bg */}
-          <div className="text-gray-400 [&_button]:hover:bg-white/10 [&_button]:hover:text-white">
-            <DarkModeToggle />
-          </div>
 
           {/* Mobile nav */}
           <div className="md:hidden">

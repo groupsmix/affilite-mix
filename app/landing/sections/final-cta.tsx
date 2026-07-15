@@ -40,9 +40,12 @@ export function FinalCtaSection() {
         viewport={{ once: true }}
         transition={{ delay: 0.3, duration: 0.6 }}
       >
-        <button className="cta-glow interactive-cursor rounded-lg bg-ultraviolet px-10 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.03]">
+        <a
+          href="#ship-command"
+          className="cta-glow interactive-cursor inline-block rounded-lg bg-ultraviolet px-10 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
+        >
           Spin up a tenant →
-        </button>
+        </a>
       </motion.div>
     </section>
   );

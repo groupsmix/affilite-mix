@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Affilite Mix API
-  version: 1.0.0
+  version: "1"
   description: |
     Multi-tenant affiliate marketing platform API.
     All endpoints require the `x-site-id` header for tenant scoping
@@ -179,17 +179,6 @@ paths:
           description: CAPTCHA verification failed
         "429":
           description: Rate limited (3 per 15 min)
-
-  /api/membership/checkout:
-    post:
-      summary: Create Stripe checkout session
-      operationId: postCheckout
-      tags: [Membership]
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Checkout session URL
 
   /api/community/comments:
     get:

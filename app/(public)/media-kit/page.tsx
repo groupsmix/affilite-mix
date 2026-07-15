@@ -1,9 +1,9 @@
-import { getCurrentSite } from "@/lib/site-context";
+import { requireSiteFeature } from "@/lib/site-features";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const site = await getCurrentSite();
+  const site = await requireSiteFeature("mediaKit");
   const isAr = site.language === "ar";
   return staticPageMetadata({
     site,
@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function MediaKitPage() {
-  const site = await getCurrentSite();
+  const site = await requireSiteFeature("mediaKit");
   const isAr = site.language === "ar";
 
   const stats = [

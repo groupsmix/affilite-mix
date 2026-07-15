@@ -26,6 +26,7 @@
 
 import { cronJobs, type CronJob } from "@/lib/cron-registry";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 import { getAppCacheKV, readGlobalBinding } from "@/lib/runtime-env";
 
 /** KV key prefix for liveness timestamps. */
@@ -75,9 +76,13 @@ export async function recordCronLiveness(jobName: string): Promise<void> {
     await kv.put(`${KV_PREFIX}${jobName}`, String(Date.now()), {
       expirationTtl: 86400 * 7, // 7 days — enough for weekly jobs
     });
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    // Non-critical — liveness tracking must not break the cron job itself
+  } catch (err) {
+    // Liveness tracking must not break the cron job itself, but a persistent
+    // KV failure should still be alerted so missed-cron detection is not blind.
+    captureException(err, {
+      context: "[cron-liveness] Failed to record cron liveness",
+      extra: { job: jobName },
+    });
   }
 }
 
@@ -118,6 +123,7 @@ export async function checkCronLiveness(): Promise<void> {
 
       if (elapsed > maxSkewSec) {
         const msg = `Cron job "${job.name}" has not reported for ${Math.round(elapsed / 60)}min (expected every ${Math.round(expectedIntervalSec / 60)}min)`;
+        const livenessError = new Error(msg);
         logger.error(`[cron-liveness] ${msg}`, {
           job: job.name,
           schedule: job.schedule,
@@ -129,6 +135,17 @@ export async function checkCronLiveness(): Promise<void> {
           schedule: job.schedule,
           last_run_ago_sec: Math.round(elapsed),
           expected_interval_sec: expectedIntervalSec,
+        });
+        // SRE-1: surface missed cron runs to the configured alert destination
+        // (Sentry / Logpush) instead of relying only on log-based detection.
+        captureException(livenessError, {
+          context: "[cron-liveness] Cron job missed expected window",
+          extra: {
+            job: job.name,
+            schedule: job.schedule,
+            last_run_ago_sec: Math.round(elapsed),
+            expected_interval_sec: expectedIntervalSec,
+          },
         });
       }
     } catch {

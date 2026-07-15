@@ -170,6 +170,10 @@ export interface FeatureFlags {
   cookieConsent?: boolean;
   taxonomyPages?: boolean;
   customHomepage?: boolean;
+  /** Enable membership checkout and lifecycle pages for this tenant. */
+  membership?: boolean;
+  /** Enable public media-kit page with real analytics only. */
+  mediaKit?: boolean;
 }
 
 export interface ContentTypeConfig {

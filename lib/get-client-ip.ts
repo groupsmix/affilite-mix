@@ -81,9 +81,12 @@ function isProxyHeaderTrusted(): boolean {
  */
 function isCfConnectingIpTrusted(): boolean {
   const flag = process.env.TRUST_CF_CONNECTING_IP;
-  if (flag === undefined) return true;
+  // F8: default to false so non-Cloudflare origins are not vulnerable to
+  // `cf-connecting-ip` spoofing. Cloudflare-fronted deployments must set
+  // TRUST_CF_CONNECTING_IP=true explicitly.
+  if (flag === undefined) return false;
   const normalized = flag.toLowerCase();
-  return !(normalized === "false" || normalized === "0");
+  return normalized === "true" || normalized === "1";
 }
 
 /**
