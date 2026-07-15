@@ -24,7 +24,8 @@ export type ApiErrorCode =
   | "INTERNAL_ERROR"
   | "CAPTCHA_FAILED"
   | "TOTP_REQUIRED"
-  | "QUOTA_EXCEEDED";
+  | "QUOTA_EXCEEDED"
+  | "COMMISSION_INGEST_ALL_NETWORKS_FAILED";
 
 /** Map HTTP status codes to default error codes when no explicit code is given. */
 function defaultCodeForStatus(status: number): ApiErrorCode {

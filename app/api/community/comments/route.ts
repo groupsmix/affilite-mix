@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { parseJsonBody } from "@/lib/api-error";
-import { getSiteIdFromHeader } from "@/lib/site-context";
+import { apiError, parseJsonBody } from "@/lib/api-error";
+import { getCurrentSite, getSiteIdFromHeader } from "@/lib/site-context";
+import { hasSiteFeature } from "@/lib/site-features";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createComment, listApprovedComments } from "@/lib/dal/community";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -26,6 +27,11 @@ import { isUsableUuid } from "@/lib/security/uuid";
  * with a 400 before they reach the DB.
  */
 export async function GET(request: NextRequest) {
+  const site = await getCurrentSite();
+  if (!hasSiteFeature(site, "community")) {
+    return apiError(404, "Not found", undefined, undefined, "NOT_FOUND");
+  }
+
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`comments-get:${ip}`, {
     maxRequests: 120,
@@ -86,6 +92,11 @@ export async function GET(request: NextRequest) {
  * Body: { target_type, target_id, parent_id?, user_email, user_name, body, turnstileToken }
  */
 export async function POST(request: NextRequest) {
+  const site = await getCurrentSite();
+  if (!hasSiteFeature(site, "community")) {
+    return apiError(404, "Not found", undefined, undefined, "NOT_FOUND");
+  }
+
   const ip = getClientIp(request);
 
   // Rate limit: 10 comments per hour per IP

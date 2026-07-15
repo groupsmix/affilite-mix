@@ -180,41 +180,6 @@ paths:
         "429":
           description: Rate limited (3 per 15 min)
 
-  /api/community/comments:
-    get:
-      summary: List comments
-      operationId: getComments
-      tags: [Community]
-      parameters:
-        - name: target_type
-          in: query
-          required: true
-          schema: { type: string, enum: [product, content] }
-        - name: target_id
-          in: query
-          required: true
-          schema: { type: string, format: uuid }
-        - name: limit
-          in: query
-          required: false
-          description: "A46-03: Max comments to return (1-100, default 50)."
-          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
-        - name: offset
-          in: query
-          required: false
-          description: "A46-03: Number of comments to skip for pagination."
-          schema: { type: integer, minimum: 0, default: 0 }
-      responses:
-        "200":
-          description: Comments list with pagination metadata
-    post:
-      summary: Post a comment
-      operationId: postComment
-      tags: [Community]
-      responses:
-        "201":
-          description: Comment created
-
 components:
   securitySchemes:
     bearerAuth:

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { parseJsonBody } from "@/lib/api-error";
-import { getSiteIdFromHeader } from "@/lib/site-context";
+import { apiError, parseJsonBody } from "@/lib/api-error";
+import { getCurrentSite, getSiteIdFromHeader } from "@/lib/site-context";
+import { hasSiteFeature } from "@/lib/site-features";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createWristShot, listApprovedWristShots } from "@/lib/dal/community";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -30,6 +31,11 @@ function stripBidi(str: string): string {
  * Postgres rejects.
  */
 export async function GET(request: NextRequest) {
+  const site = await getCurrentSite();
+  if (!hasSiteFeature(site, "community")) {
+    return apiError(404, "Not found", undefined, undefined, "NOT_FOUND");
+  }
+
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`wrist-shots-get:${ip}`, {
     maxRequests: 120,
@@ -71,6 +77,11 @@ export async function GET(request: NextRequest) {
  * Body: { product_id?: string, user_email: string, user_name: string, image_url: string, caption?: string }
  */
 export async function POST(request: NextRequest) {
+  const site = await getCurrentSite();
+  if (!hasSiteFeature(site, "community")) {
+    return apiError(404, "Not found", undefined, undefined, "NOT_FOUND");
+  }
+
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`wrist-shot:${ip}`, {
     maxRequests: 5,
