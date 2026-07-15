@@ -28,20 +28,15 @@ vi.mock("@/lib/supabase-server", () => ({
 type Report = Parameters<typeof ingestCommissions>[0][number];
 type GetClient = Parameters<typeof ingestCommissions>[1];
 
-interface QueryResult {
-  data: unknown;
-  error: { code?: string; message: string } | null;
-}
-
 interface UpsertCall {
-  payload: Record<string, unknown>;
+  payload: Record<string, unknown>[];
   options: { onConflict?: string } | undefined;
 }
 
 /**
  * Records upsert calls and answers the two chains ingestCommissions uses:
- *   .from(t).select("id").eq("site_id", s).eq("network", n).eq("order_id", o).maybeSingle()
- *   .from(t).upsert(row, { onConflict }).select("id").single()
+ *   .from(t).select(...).in("site_id", ...).in("network", ...).in("order_id", ...)
+ *   .from(t).upsert(rows, { onConflict }).select("id")
  *
  * The dedup key mirrors the (site_id, network, order_id) unique index, so the
  * fake distinguishes tenants exactly as the database does.
@@ -49,6 +44,7 @@ interface UpsertCall {
 class FakeSupabase {
   readonly upserts: UpsertCall[] = [];
   error: { code?: string; message: string } | null = null;
+  lookupError: { code?: string; message: string } | null = null;
   private readonly present: Set<string>;
 
   constructor(present: Iterable<string> = []) {
@@ -61,38 +57,65 @@ class FakeSupabase {
 
   from(_table: string) {
     const self = this;
-    let siteId: string | undefined;
-    let network: string | undefined;
-    let orderId: string | undefined;
-    let upsertPayload: Record<string, unknown> | undefined;
+    const filters = new Map<string, string[]>();
+    let upsertPayload: Record<string, unknown>[] | undefined;
+    let isUpsert = false;
 
     const builder = {
       select(_cols?: string) {
         return builder;
       },
-      eq(column: string, value: string) {
-        if (column === "site_id") siteId = value;
-        if (column === "network") network = value;
-        if (column === "order_id") orderId = value;
+      in(column: string, value: string[]) {
+        filters.set(column, value);
         return builder;
       },
-      upsert(payload: Record<string, unknown>, options?: { onConflict?: string }) {
+      upsert(payload: Record<string, unknown>[], options?: { onConflict?: string }) {
+        isUpsert = true;
         upsertPayload = payload;
         self.upserts.push({ payload, options });
         return builder;
       },
-      maybeSingle(): Promise<QueryResult> {
-        const exists = self.present.has(FakeSupabase.key(siteId, network, orderId));
-        return Promise.resolve({ data: exists ? { id: "existing" } : null, error: null });
-      },
-      single(): Promise<QueryResult> {
-        if (self.error) return Promise.resolve({ data: null, error: self.error });
-        if (upsertPayload) {
-          self.present.add(
-            FakeSupabase.key(upsertPayload.site_id, upsertPayload.network, upsertPayload.order_id),
-          );
-        }
-        return Promise.resolve({ data: { id: "row" }, error: null });
+      then<TResult1 = unknown, TResult2 = never>(
+        onFulfilled?:
+          | ((value: {
+              data: unknown;
+              error: { code?: string; message: string } | null;
+            }) => TResult1)
+          | null,
+        onRejected?: ((reason: unknown) => TResult2) | null,
+      ): Promise<TResult1 | TResult2> {
+        const resolveResult = () => {
+          if (isUpsert) {
+            if (self.error) return { data: null, error: self.error };
+            for (const row of upsertPayload ?? []) {
+              self.present.add(FakeSupabase.key(row.site_id, row.network, row.order_id));
+            }
+            return {
+              data: (upsertPayload ?? []).map((_row, index) => ({ id: `row-${index}` })),
+              error: null,
+            };
+          }
+
+          if (self.lookupError) return { data: null, error: self.lookupError };
+          const data = Array.from(self.present)
+            .map((key) => {
+              const parts = key.split("\u0000");
+              return {
+                site_id: parts[0] ?? "",
+                network: parts[1] ?? "",
+                order_id: parts[2] ?? "",
+              };
+            })
+            .filter(
+              (row) =>
+                filters.get("site_id")?.includes(row.site_id) &&
+                filters.get("network")?.includes(row.network) &&
+                filters.get("order_id")?.includes(row.order_id),
+            );
+          return { data, error: null };
+        };
+
+        return Promise.resolve(resolveResult()).then(onFulfilled, onRejected);
       },
     };
     return builder;
@@ -152,7 +175,7 @@ describe("ingestCommissions", () => {
       asGetter(fake),
     );
     expect(res).toEqual({ inserted: 2, skipped: 0 });
-    expect(fake.upserts).toHaveLength(2);
+    expect(fake.upserts).toHaveLength(1);
     for (const u of fake.upserts) {
       expect(u.options?.onConflict).toBe("site_id,network,order_id");
     }
@@ -162,8 +185,8 @@ describe("ingestCommissions", () => {
     const fake = new FakeSupabase();
     const report = makeReport({ order_id: undefined });
     await ingestCommissions([report], asGetter(fake));
-    expect(fake.upserts[0]!.payload.order_id).toBe(syntheticOrderId(report));
-    expect(String(fake.upserts[0]!.payload.order_id)).toMatch(/^syn_/);
+    expect(fake.upserts[0]!.payload[0]!.order_id).toBe(syntheticOrderId(report));
+    expect(String(fake.upserts[0]!.payload[0]!.order_id)).toMatch(/^syn_/);
   });
 
   it("dedups a re-ingested keyless report instead of duplicating it", async () => {
@@ -173,7 +196,7 @@ describe("ingestCommissions", () => {
     const second = await ingestCommissions([report], asGetter(fake));
     expect(first).toEqual({ inserted: 1, skipped: 0 });
     expect(second).toEqual({ inserted: 0, skipped: 1 });
-    expect(fake.upserts[0]!.payload.order_id).toBe(fake.upserts[1]!.payload.order_id);
+    expect(fake.upserts[0]!.payload[0]!.order_id).toBe(fake.upserts[1]!.payload[0]!.order_id);
   });
 
   it("keeps a colliding synthetic order_id isolated per site (Finding #3 regression)", async () => {
@@ -187,7 +210,7 @@ describe("ingestCommissions", () => {
     expect(syntheticOrderId(a)).toBe(syntheticOrderId(b)); // collision precondition
     const res = await ingestCommissions([a, b], asGetter(fake));
     expect(res).toEqual({ inserted: 2, skipped: 0 }); // both recorded, no overwrite
-    expect(fake.upserts).toHaveLength(2);
+    expect(fake.upserts).toHaveLength(1);
   });
 
   it("counts an already-present row as skipped (refreshed) but still upserts it", async () => {
@@ -195,6 +218,29 @@ describe("ingestCommissions", () => {
     const res = await ingestCommissions([makeReport({ order_id: "dup" })], asGetter(fake));
     expect(res).toEqual({ inserted: 0, skipped: 1 });
     expect(fake.upserts).toHaveLength(1);
+  });
+
+  it("deduplicates duplicate rows within one fetched batch", async () => {
+    const fake = new FakeSupabase();
+    const res = await ingestCommissions(
+      [
+        makeReport({ order_id: "dup", status: "pending" }),
+        makeReport({ order_id: "dup", status: "approved" }),
+      ],
+      asGetter(fake),
+    );
+
+    expect(res).toEqual({ inserted: 1, skipped: 1 });
+    expect(fake.upserts[0]!.payload).toHaveLength(1);
+    expect(fake.upserts[0]!.payload[0]!.status).toBe("approved");
+  });
+
+  it("throws when the existing-row lookup errors", async () => {
+    const fake = new FakeSupabase();
+    fake.lookupError = { code: "PGRST000", message: "lookup failed" };
+    await expect(
+      ingestCommissions([makeReport({ order_id: "o1" })], asGetter(fake)),
+    ).rejects.toMatchObject({ code: "PGRST000" });
   });
 
   it("throws when the upsert errors", async () => {

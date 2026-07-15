@@ -13,16 +13,16 @@ const NETWORK_RETRY = {
   maxRetries: 3,
   baseDelayMs: 1_000,
   maxDelayMs: 10_000,
-  retryableStatuses: [429, 502, 503, 504],
+  retryableStatuses: [429, 500, 502, 503, 504],
 } satisfies NonNullable<Parameters<typeof fetchWithTimeout>[1]>["retry"];
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
-export interface PaginatedFetchOptions<T> {
+export interface PaginatedFetchOptions {
   /** Build the URL for a given 1-based page number. */
   buildUrl: (page: number) => string;
-  /** Extract an array of raw items from the decoded response body. */
-  extractItems: (data: unknown) => unknown[];
+  /** Extract the raw items field from the decoded response body. */
+  extractItems: (data: unknown) => unknown;
   /** Maximum pages to fetch before giving up to avoid runaway pagination. */
   maxPages?: number;
   requestInit?: Omit<Parameters<typeof fetchWithTimeout>[1], "retry" | "timeoutMs">;
@@ -32,16 +32,16 @@ export interface PaginatedFetchOptions<T> {
 /**
  * Fetch all pages from a network API, applying retry with jittered backoff.
  *
- * Stops when a page returns zero items, the response body cannot be parsed, or
- * `maxPages` is reached. Non-2xx responses after all retries will throw.
+ * Stops when a page returns zero items or `maxPages` is reached. Invalid
+ * response bodies and non-2xx responses after all retries throw.
  */
-export async function fetchPaginatedReports<T>({
+export async function fetchPaginatedReports({
   buildUrl,
   extractItems,
   maxPages = 100,
   requestInit,
   label,
-}: PaginatedFetchOptions<T>): Promise<unknown[]> {
+}: PaginatedFetchOptions): Promise<unknown[]> {
   const items: unknown[] = [];
 
   for (let page = 1; page <= maxPages; page++) {
@@ -73,10 +73,63 @@ export async function fetchPaginatedReports<T>({
 
     items.push(...pageItems);
 
-    // Most affiliate-network APIs omit a next cursor once the final page is
-    // reached; an empty page is the universal stop signal. We also cap pages.
-    if (pageItems.length === 0) break;
+    if (page === maxPages) {
+      throw new Error(`${label} API pagination reached the ${maxPages}-page safety limit`);
+    }
   }
 
   return items;
+}
+
+function recordOrNull(input: unknown): Record<string, unknown> | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  return input as Record<string, unknown>;
+}
+
+export function normalizeCjCommission(input: unknown): unknown {
+  const raw = recordOrNull(input);
+  if (!raw) return input;
+
+  return {
+    tracking_key: raw.shopperId,
+    order_id: raw.actionId,
+    network: "cj",
+    commission_amount: raw.pubCommissionAmountUsd,
+    sale_amount: raw.saleAmountUsd,
+    status: raw.actionStatus,
+    event_date: raw.eventDate,
+    raw_data: raw,
+  };
+}
+
+export function normalizeAdmitadCommission(input: unknown): unknown {
+  const raw = recordOrNull(input);
+  if (!raw) return input;
+
+  return {
+    tracking_key: raw.subid,
+    order_id: typeof raw.id === "number" ? String(raw.id) : raw.id,
+    network: "admitad",
+    commission_amount: raw.payment,
+    currency: raw.currency,
+    status: raw.status,
+    event_date: raw.action_date,
+    raw_data: raw,
+  };
+}
+
+export function normalizePartnerStackCommission(input: unknown): unknown {
+  const raw = recordOrNull(input);
+  if (!raw) return input;
+
+  return {
+    tracking_key: raw.customer_key,
+    order_id: raw.key,
+    network: "partnerstack",
+    commission_amount: raw.amount,
+    currency: raw.currency,
+    status: raw.status,
+    event_date: raw.created_at,
+    raw_data: raw,
+  };
 }
