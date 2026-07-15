@@ -9,7 +9,7 @@ function makeProduct(overrides: Partial<ProductRow> = {}): ProductRow {
     name: "Test Product",
     slug: "test-product",
     description: "",
-    affiliate_url: "https://example.com/buy",
+    affiliate_url: "https://amazon.com/dp/buy",
     image_url: "",
     image_alt: "",
     price: "$10",
@@ -44,7 +44,7 @@ describe("injectProductLinks", () => {
   it("links the first occurrence of a product name with direct URL by default", () => {
     const html = "<p>Check out Test Product today.</p>";
     const result = injectProductLinks(html, [makeProduct()]);
-    expect(result).toContain('href="https://example.com/buy"');
+    expect(result).toContain('href="https://amazon.com/dp/buy"');
     expect(result).toContain(">Test Product</a>");
   });
 

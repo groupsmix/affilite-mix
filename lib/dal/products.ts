@@ -18,7 +18,7 @@ const TABLE = "products";
 // translated by toProductDbWrite() below. Selecting a literal `price` here would
 // 400 ("column products.price does not exist") on any DB where 00089 has run.
 const LIST_COLUMNS =
-  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at" as const;
+  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, category_ids, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at" as const;
 
 /**
  * Translate the app-facing `price` field to the real DB column `price_label`

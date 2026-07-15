@@ -11,6 +11,7 @@ import { PriceHistoryChart } from "../../components/price-history-chart";
 import { PriceAlertForm } from "../../components/price-alert-form";
 import type { ProductRow } from "@/types/database";
 import type { SiteDefinition } from "@/config/site-definition";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 // This route handles two URL shapes under `/p/<slug>`:
 //
@@ -47,7 +48,7 @@ async function getProducts(siteId: string, slugA: string, slugB: string) {
     // eslint-disable-next-line no-restricted-syntax -- Audited: server component uses site-scoped getTenantClient() (RLS-enforced)
     .from("products")
     .select(
-      "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at",
+      "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, category_ids, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at",
     )
     .eq("site_id", siteId)
     .in("slug", [slugA, slugB])
@@ -295,7 +296,7 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
                 {product.score}/10
               </div>
             )}
-            {product.affiliate_url && (
+            {hasUsableAffiliateUrl(product.affiliate_url) && (
               <a
                 href={`/r/${product.slug}`}
                 target="_blank"

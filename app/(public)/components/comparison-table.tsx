@@ -4,6 +4,7 @@ import type { ProductRow } from "@/types/database";
 import { useCookieConsent } from "./cookie-consent";
 import { getTrackingUrl } from "@/lib/tracking-url";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface ComparisonTableProps {
   products: ProductRow[];
@@ -48,7 +49,7 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
                 </div>
               )}
             </dl>
-            {p.affiliate_url && (
+            {hasUsableAffiliateUrl(p.affiliate_url) && (
               <a
                 href={getTrackingUrl(p.slug, "comparison", p.affiliate_url, hasConsent)}
                 target="_blank"
@@ -137,7 +138,7 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
               <td className="border-t border-gray-200 px-4 py-3 font-medium text-gray-600" />
               {products.map((p) => (
                 <td key={p.id} className="border-t border-gray-200 px-4 py-3 text-center">
-                  {p.affiliate_url && (
+                  {hasUsableAffiliateUrl(p.affiliate_url) && (
                     <a
                       href={getTrackingUrl(p.slug, "comparison", p.affiliate_url, hasConsent)}
                       target="_blank"

@@ -6,6 +6,7 @@ import { ArrowUpRight } from "lucide-react";
 import type { ProductRow, CategoryRow } from "@/types/database";
 import { cn } from "@/lib/utils";
 import { ScrollReveal } from "./showcase-ui";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface ShowcaseProductCardProps {
   product: ProductRow;
@@ -47,15 +48,17 @@ function ShowcaseProductCard({ product, categoryName }: ShowcaseProductCardProps
           {product.description}
         </p>
 
-        <a
-          href={product.affiliate_url}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          className="mt-5 inline-flex items-center justify-center gap-2 border border-primary/50 text-primary text-xs uppercase tracking-[0.2em] px-4 py-3 hover:bg-primary hover:text-primary-foreground transition-colors duration-300"
-        >
-          {product.cta_text || `Shop on ${product.merchant || "retailer"}`}
-          <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-        </a>
+        {hasUsableAffiliateUrl(product.affiliate_url) && (
+          <a
+            href={product.affiliate_url}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            className="mt-5 inline-flex items-center justify-center gap-2 border border-primary/50 text-primary text-xs uppercase tracking-[0.2em] px-4 py-3 hover:bg-primary hover:text-primary-foreground transition-colors duration-300"
+          >
+            {product.cta_text || `Shop on ${product.merchant || "retailer"}`}
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </a>
+        )}
       </div>
     </article>
   );
@@ -72,12 +75,19 @@ export function CollectionGrid({ products, categories, productLabelPlural }: Col
 
   // Only offer filters for categories that actually have a featured product
   const filterableCategories = useMemo(
-    () => categories.filter((c) => products.some((p) => p.category_id === c.id)),
+    () =>
+      categories.filter((c) =>
+        products.some((p) => p.category_id === c.id || p.category_ids?.includes(c.id)),
+      ),
     [categories, products],
   );
 
   const filtered =
-    activeCategory === "all" ? products : products.filter((p) => p.category_id === activeCategory);
+    activeCategory === "all"
+      ? products
+      : products.filter(
+          (p) => p.category_id === activeCategory || p.category_ids?.includes(activeCategory),
+        );
 
   if (products.length === 0) return null;
 
@@ -129,7 +139,11 @@ export function CollectionGrid({ products, categories, productLabelPlural }: Col
             <ScrollReveal key={product.id} delay={(i % 3) * 100}>
               <ShowcaseProductCard
                 product={product}
-                categoryName={categories.find((c) => c.id === product.category_id)?.name}
+                categoryName={
+                  categories.find(
+                    (c) => c.id === product.category_id || product.category_ids?.includes(c.id),
+                  )?.name
+                }
               />
             </ScrollReveal>
           ))}

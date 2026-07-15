@@ -5,6 +5,7 @@ import type { Element, Text, ChildNode } from "domhandler";
 import { headers } from "next/headers";
 import { NONCE_HEADER } from "@/lib/csp";
 import { safeJsonLdString } from "@/lib/safe-json-ld";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface JsonLdProps {
   data: Record<string, unknown>;
@@ -238,7 +239,7 @@ export function productJsonLd(site: SiteDefinition, product: ProductRow) {
         price: numericPrice,
         priceCurrency: product.price_currency || "USD",
         availability: "https://schema.org/InStock",
-        ...(product.affiliate_url ? { url: product.affiliate_url } : {}),
+        ...(hasUsableAffiliateUrl(product.affiliate_url) ? { url: product.affiliate_url } : {}),
         // `merchant` is the retailer we link to (e.g. "Amazon"), which is
         // the schema.org Offer *seller* — NOT the product's manufacturer
         // brand. Emitting it as `brand` produced incorrect rich results

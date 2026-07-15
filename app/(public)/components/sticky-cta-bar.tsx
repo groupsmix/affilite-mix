@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import type { ProductRow } from "@/types/database";
 import { useCookieConsent } from "./cookie-consent";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface StickyCtaBarProps {
   product: ProductRow;
@@ -28,6 +29,8 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
 
   if (!visible) return null;
 
+  if (!hasUsableAffiliateUrl(product.affiliate_url)) return null;
+
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();
     // Only track clicks when cookie consent has been accepted
@@ -44,7 +47,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
         // Tracking failure should never block navigation
       }
     }
-    if (product.affiliate_url) {
+    if (hasUsableAffiliateUrl(product.affiliate_url)) {
       window.open(product.affiliate_url, "_blank", "noopener,noreferrer");
     }
   }
@@ -66,7 +69,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
           </div>
         </div>
         <a
-          href={product.affiliate_url || "#"}
+          href={product.affiliate_url}
           onClick={handleClick}
           target="_blank"
           rel="noopener noreferrer nofollow"

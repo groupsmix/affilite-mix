@@ -1,5 +1,6 @@
 import type { ProductRow } from "@/types/database";
 import { getTrackingUrl } from "@/lib/tracking-url";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 /* -------------------------------------------------------------------------- */
 /* CA-306: automated contextual "related links" builder                        */
@@ -179,7 +180,7 @@ export function injectProductLinks(
     if (!name || name.length < 3) continue;
 
     // Skip products without an affiliate URL — no tracking link to generate
-    if (!product.affiliate_url) continue;
+    if (!hasUsableAffiliateUrl(product.affiliate_url)) continue;
 
     // Escape special regex characters in product name
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

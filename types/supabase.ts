@@ -1779,6 +1779,7 @@ export type Database = {
         Row: {
           affiliate_url: string | null;
           category_id: string | null;
+          category_ids: string[] | null;
           cons: string | null;
           created_at: string | null;
           cta_text: string | null;
@@ -1805,6 +1806,7 @@ export type Database = {
         Insert: {
           affiliate_url?: string | null;
           category_id?: string | null;
+          category_ids?: string[] | null;
           cons?: string | null;
           created_at?: string | null;
           cta_text?: string | null;
@@ -1831,6 +1833,7 @@ export type Database = {
         Update: {
           affiliate_url?: string | null;
           category_id?: string | null;
+          category_ids?: string[] | null;
           cons?: string | null;
           created_at?: string | null;
           cta_text?: string | null;

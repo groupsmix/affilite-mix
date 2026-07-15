@@ -10,6 +10,7 @@ import {
   CopyIcon,
   LinkIcon,
   MoreHorizontalIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ import { ProductBulkActions } from "./bulk-actions";
 import { ProductDeleteDialog } from "./product-delete-button";
 import type { CategoryRow } from "@/types/database";
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 export interface ProductsTableRow {
   id: string;
@@ -124,6 +126,24 @@ function ProductThumbnail({ row }: { row: ProductsTableRow }) {
 
 function AffiliateUrlIcon({ row }: { row: ProductsTableRow }) {
   const hasUrl = Boolean(row.affiliate_url && row.affiliate_url.trim().length > 0);
+  const isPlaceholder = hasUrl && isPlaceholderAffiliateUrl(row.affiliate_url);
+  if (isPlaceholder) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className="inline-flex items-center text-amber-500"
+              aria-label="Affiliate URL is a placeholder"
+            >
+              <TriangleAlertIcon className="size-4" aria-hidden="true" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Affiliate URL looks like a placeholder</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
   if (hasUrl) {
     return (
       <TooltipProvider>

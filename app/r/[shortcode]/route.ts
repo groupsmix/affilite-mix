@@ -12,6 +12,7 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
 import { isHttpsUrl } from "@/lib/validation";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 /** 60 outbound redirects per minute per IP */
 const REDIRECT_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -56,7 +57,7 @@ export async function GET(
     const bestLink = await pickBestAffiliateLink(product.id, geo);
     const destinationUrl = bestLink?.url ?? product.affiliate_url;
 
-    if (!destinationUrl) {
+    if (!destinationUrl || isPlaceholderAffiliateUrl(destinationUrl)) {
       return apiError(404, "No affiliate link available for this product");
     }
 

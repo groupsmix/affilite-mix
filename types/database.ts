@@ -86,7 +86,7 @@ type HomepageTemplate =
   | "showcase";
 type ProductCardStyle = "standard" | "compact" | "detailed";
 
-export type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
+export type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand" | "style";
 
 export interface CategoryRow {
   id: string;
@@ -115,6 +115,7 @@ export interface ProductRow {
   featured: boolean;
   status: "draft" | "active" | "archived";
   category_id: string | null;
+  category_ids?: string[] | null;
   cta_text: string;
   deal_text: string;
   deal_expires_at: string | null;

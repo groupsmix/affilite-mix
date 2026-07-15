@@ -12,6 +12,7 @@ import { CategoryTree } from "./components/category-tree";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 import { autoSlug } from "@/lib/auto-slug";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 import { toast } from "sonner";
 
@@ -81,7 +82,13 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
   const [status, setStatus] = useState(product?.status ?? "active");
 
-  const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
+  const [categoryIds, setCategoryIds] = useState<string[]>(
+    product?.category_ids?.length
+      ? product.category_ids
+      : product?.category_id
+        ? [product.category_id]
+        : [],
+  );
 
   const [ctaText, setCtaText] = useState(product?.cta_text ?? "");
 
@@ -105,8 +112,10 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     // F-011: an active product with no affiliate URL earns nothing. Block
     // submission and surface a clear inline error rather than letting a blank
     // URL silently reach the DB.
-    if (status === "active" && !affiliateUrl.trim()) {
-      setError("An affiliate URL is required before setting a product to Active.");
+    if (status === "active" && (!affiliateUrl.trim() || isPlaceholderAffiliateUrl(affiliateUrl))) {
+      setError(
+        "A real, non-placeholder affiliate URL is required before setting a product to Active.",
+      );
       return;
     }
 
@@ -141,7 +150,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
       status,
 
-      category_id: categoryId || null,
+      category_id: categoryIds[0] ?? null,
+      category_ids: categoryIds,
 
       cta_text: ctaText,
 
@@ -279,7 +289,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 <Label htmlFor="prod-affiliate-url">
                   Affiliate URL{" "}
                   <span className="font-normal text-muted-foreground text-xs">
-                    (required for active products)
+                    (required for active products; no placeholders)
                   </span>
                 </Label>
 
@@ -379,9 +389,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
               <CategoryTree
                 categories={categories}
-                value={categoryId}
+                value={categoryIds}
                 onChange={(value) => {
-                  setCategoryId(value);
+                  setCategoryIds(value);
 
                   markDirty();
                 }}
