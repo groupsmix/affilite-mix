@@ -1,0 +1,14 @@
+[
+  "no interactive elements found",
+  "admin login route not reachable",
+  "admin login form not present",
+  "submit button disabled",
+  "mobile menu only mounted",
+  "mobile menu toggle not visible",
+  "newsletter signup form not found",
+  "returned (\\d{3}|no response)",
+  "Expected 404 but got",
+  "Requires real Supabase backend",
+  "skipped because the preview",
+  "E2E_BASE_URL is set"
+]

@@ -1097,11 +1097,24 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Run integration tests
-        run: npm run test:integration
+      - name: Run integration tests (fail-closed execution gate)
+        # scripts/ci/integration-gate.sh runs the real Supabase integration/RLS
+        # suite when staging secrets are present and enforces an executed-count
+        # floor + mandatory RLS execution. When secrets are absent it fails
+        # closed in trusted contexts (push / same-repo PR) and skips green on
+        # fork PRs where secrets are unavailable. See docs/test-gate-integrity.md.
+        run: bash scripts/ci/integration-gate.sh
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          # Isolated staging Supabase project — never production. Configure
+          # these as repo secrets to make the gate execute real DB/RLS tests.
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          # Trusted context (push / same-repo non-dependabot PR) => missing
+          # secrets fail loudly. Fork PRs cannot read secrets, so they skip
+          # green. Mirrors the db-audit / db-types gating policy (N-005).
+          REQUIRE_STAGING_SUPABASE: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
+          INTEGRATION_MIN_EXECUTED: "40"
           JWT_SECRET: ci-test-secret
           INTERNAL_API_TOKEN: ci-test-internal-token
           CRON_SECRET: ci-test-cron-secret
@@ -1200,6 +1213,14 @@ jobs:
           E2E_BASE_URL: http://localhost:3000
           # A87: Zero retries in CI — flake must be fixed, not retried
           PLAYWRIGHT_RETRIES: "0"
+      - name: Enforce E2E execution & skip honesty
+        # Fail if too few E2E tests executed (hollow green) or if any test
+        # skipped for a reason not on the reviewed allow-list. Authenticated
+        # admin journeys are allowed to skip only while E2E_ADMIN_AUTH_PROVISIONED
+        # is unset; provision a staging admin storage state to make them
+        # non-skippable (see docs/test-gate-integrity.md).
+        if: always()
+        run: bash scripts/ci/e2e-gate.sh
 
   # ── Load test gate (A86) ───────────────────────────────────────────
   # k6 load tests to validate critical paths under 100x traffic.
@@ -1302,7 +1323,8 @@ jobs:
   # Removed from PR CI to cut ~30 min of wall time per push.
 
   # ── Cross-workflow required gates ──────────────────────────────────
-  # Branch protection should require ALL of the following check names:
+  # Branch protection should require ALL of the following check names
+  # (context name = job display name; keep in sync with CONTRIBUTING.md):
   #
   #   1. "Required checks"    (this workflow — lint/test/typecheck/build)
   #   2. "Integration tests"  (integration job above)
@@ -1310,14 +1332,21 @@ jobs:
   #   4. "Load tests"         (load job above)
   #   5. "Chaos tests"        (chaos job above)
   #   6. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
-  #   7. "npm audit (high / critical)"  (security.yml)
-  #   8. "License compliance"           (security.yml)
-  #   9. "Dependency review"            (security.yml, PRs only)
+  #   7. "npm audit (moderate+)"  (security.yml)
+  #   8. "License compliance"     (security.yml)
+  #   9. "Dependency review"      (security.yml, PRs only)
   #
   # GitHub Actions `needs` cannot cross workflow boundaries, so each
   # workflow exposes its own gate job with a stable name.  Configure
   # all nine names as required status checks in repo Settings →
   # Branches → Branch protection rules → Require status checks.
+  #
+  # NOTE ON EXECUTION QUALITY (audit P1-2): a "success" job result is not, by
+  # itself, proof that meaningful tests ran. Execution quality is enforced
+  # INSIDE each tier — the integration job (scripts/ci/integration-gate.sh) and
+  # the e2e job (scripts/ci/e2e-gate.sh) both fail on a hollow/all-skipped run.
+  # This aggregation therefore only needs to confirm every required job
+  # actually reached "success" (a "skipped" or "failure" result fails here).
 
   required-checks:
     name: Required checks

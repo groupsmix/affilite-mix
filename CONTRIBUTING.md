@@ -115,12 +115,24 @@ refactor(dal): extract common query builder
    - Screenshots for UI changes
 7. **CI must pass** — the pipeline runs lint, typecheck, tests, security audit, and build.
 
-   The following GitHub Actions **must be marked required** in branch protection for `main`:
-   - `CI / Required checks` (from `.github/workflows/ci.yml` — aggregates lint + typecheck + tests + build + audit)
-   - `E2E Tests / Playwright E2E` (from `.github/workflows/e2e.yml` — runs Playwright + RLS isolation tests against a local Supabase)
-   - `Preview Deployment / preview` (from `.github/workflows/preview.yml` — deploys to Cloudflare Workers staging and re-runs Playwright against the preview URL)
+   The following status checks **must be marked required** in branch protection
+   for `main`. The context name is the job's display name; the owning workflow
+   is shown in parentheses:
 
-   When adding new required workflows, update this list.
+   - `Required checks` (`.github/workflows/ci.yml` — aggregates lint + typecheck + unit tests + build + audit)
+   - `Integration tests` (`ci.yml` — real Supabase integration/RLS suite; fail-closed when staging secrets are missing in a trusted context)
+   - `E2E tests` (`ci.yml` — Playwright against a locally built app, with an execution + skip-honesty gate)
+   - `Load tests` (`ci.yml` — k6 load tests)
+   - `Chaos tests` (`ci.yml` — AZ/KV/cache failure simulations)
+   - `Preview E2E gate` (`.github/workflows/preview.yml` — deploys to Cloudflare Workers staging and re-runs Playwright against the preview URL; fails closed when preview E2E is skipped for a PR into `main` unless the `skip-preview-e2e` exception label is applied)
+   - `npm audit (moderate+)` (`.github/workflows/security.yml`)
+   - `License compliance` (`security.yml`)
+   - `Dependency review` (`security.yml`, PRs only)
+
+   There is no `.github/workflows/e2e.yml`; E2E runs inside `ci.yml` (local
+   build) and `preview.yml` (preview URL). When adding new required workflows,
+   update this list and the canonical list in the `required-checks` job comment
+   in `ci.yml`.
 
 8. **Request a review** from a maintainer.
 9. **Squash and merge** is the default merge strategy.
@@ -167,7 +179,14 @@ npm run test:integration   # uses vitest.integration.config.ts
 Use the default unit config (`vitest.config.ts`, run via `npm test`) for fast,
 isolated tests with mocked dependencies. Use the integration config for tests
 that exercise real wiring (e.g. RLS-isolation suites that hit a live Supabase
-instance); those skip automatically when the required env vars are absent.
+instance); those skip automatically when the required env vars are absent, which
+keeps local `npm run test:integration` green offline.
+
+In CI the `Integration tests` job runs `scripts/ci/integration-gate.sh`. When
+the `STAGING_SUPABASE_*` secrets are configured it runs the suite against the
+isolated staging project and enforces an executed-count floor plus mandatory RLS
+execution; when they are missing it **fails closed** in trusted contexts (push /
+same-repo PR) and skips green only for fork PRs (which cannot read secrets).
 
 ### E2E Tests (Playwright)
 
@@ -188,7 +207,7 @@ npm run test:e2e -- accessibility.spec.ts
 
 ### RLS isolation tests
 
-`__tests__/rls-isolation.test.ts` verifies that the Supabase anon key cannot insert/update/delete rows in tenant tables and cannot read draft/non-active rows. The suite auto-skips when `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are unset or use placeholder values, so local `npm test` stays green. It runs as a required step inside `.github/workflows/e2e.yml`, which spins up a local Supabase with migrations applied before invoking it.
+`__tests__/rls-isolation.test.ts` (unit-level, mocked) and `__tests__/rls-isolation.integration.test.ts` (real backend) verify that the Supabase anon key cannot insert/update/delete rows in tenant tables and cannot read draft/non-active rows. The suites auto-skip when `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are unset or use placeholder values, so local runs stay green. The real-backend RLS suite runs in CI via the `Integration tests` job (`ci.yml` → `scripts/ci/integration-gate.sh`), which requires the `STAGING_SUPABASE_*` secrets and enforces that RLS actually executes.
 
 ### DAL site-scoping tests
 
