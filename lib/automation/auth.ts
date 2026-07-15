@@ -20,7 +20,6 @@ import {
   isServiceAccountActive,
   type AutomationServiceAccountRow,
 } from "@/lib/dal/automation-service-accounts";
-import { hasScope, type AutomationScope } from "./scopes";
 import type { AutomationErrorCode } from "./envelope";
 
 export interface AutomationAuthContext {
@@ -117,9 +116,4 @@ export async function authenticateAutomationRequest(
       scopes: account.scopes,
     },
   };
-}
-
-/** True when the authenticated account holds the required scope. */
-export function contextHasScope(ctx: AutomationAuthContext, scope: AutomationScope): boolean {
-  return hasScope(ctx.scopes, scope);
 }

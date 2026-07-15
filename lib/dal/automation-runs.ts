@@ -68,35 +68,6 @@ export async function getAutomationRunById(
   return rowOrNull<AutomationRunRow>(data);
 }
 
-export async function updateAutomationRun(
-  siteId: string,
-  id: string,
-  patch: Partial<
-    Pick<
-      AutomationRunRow,
-      | "status"
-      | "planned_actions"
-      | "succeeded_actions"
-      | "failed_actions"
-      | "manual_actions"
-      | "finished_at"
-      | "summary"
-      | "error_code"
-    >
-  >,
-  getClient: DalClientGetter = getAutomationDbClient,
-): Promise<AutomationRunRow | null> {
-  const sb = await getClient();
-  const { data, error } = await untypedFrom(sb, TABLE)
-    .update(patch)
-    .eq("site_id", siteId)
-    .eq("id", id)
-    .select(ALL_COLUMNS)
-    .maybeSingle();
-  if (error) throw error;
-  return rowOrNull<AutomationRunRow>(data);
-}
-
 /** Count actions this account has created since the given ISO timestamp. */
 export async function countActionsSince(
   serviceAccountId: string,

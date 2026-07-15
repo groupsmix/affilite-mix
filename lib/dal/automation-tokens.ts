@@ -77,19 +77,6 @@ export async function touchAutomationToken(
   if (error) throw error;
 }
 
-export async function revokeAutomationToken(
-  id: string,
-  getClient: DalClientGetter = getAutomationDbClient,
-): Promise<void> {
-  const sb = await getClient();
-  const { error } = await untypedFrom(sb, TABLE)
-    .update({ revoked_at: new Date().toISOString() })
-    .eq("id", id)
-    // SAFE: single row by primary key; no site_id column exists.
-    .unsafeNoSiteFilter();
-  if (error) throw error;
-}
-
 /** A token is usable when it is unrevoked and unexpired. */
 export function isAutomationTokenUsable(
   token: AutomationTokenRow | null,

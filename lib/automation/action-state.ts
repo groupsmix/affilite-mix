@@ -42,9 +42,6 @@ const TRANSITIONS: Record<ActionState, readonly ActionState[]> = {
   cancelled: [],
 };
 
-/** Terminal states cannot transition further (except succeeded -> rolled_back). */
-export const TERMINAL_STATES: readonly ActionState[] = ["rolled_back", "cancelled"];
-
 export function isActionState(value: string): value is ActionState {
   return (ACTION_STATES as readonly string[]).includes(value);
 }

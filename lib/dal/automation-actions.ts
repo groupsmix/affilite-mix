@@ -96,21 +96,6 @@ export async function getActionByIdempotencyKey(
   return rowOrNull<AutomationActionRow>(data);
 }
 
-export async function getAutomationActionById(
-  siteId: string,
-  id: string,
-  getClient: DalClientGetter = getAutomationDbClient,
-): Promise<AutomationActionRow | null> {
-  const sb = await getClient();
-  const { data, error } = await untypedFrom(sb, TABLE)
-    .select(ALL_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw error;
-  return rowOrNull<AutomationActionRow>(data);
-}
-
 export async function updateAutomationAction(
   siteId: string,
   id: string,

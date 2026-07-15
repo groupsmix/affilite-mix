@@ -47,34 +47,3 @@ export async function listPoliciesForSite(
   if (error) throw error;
   return (data ?? []) as AutomationPolicyRow[];
 }
-
-export async function upsertPolicyForAction(
-  values: {
-    site_id: string;
-    action_type: string;
-    mode: PolicyMode;
-    constraints: Record<string, unknown>;
-    is_active: boolean;
-    updated_by: string;
-  },
-  getClient: DalClientGetter = getAutomationDbClient,
-): Promise<AutomationPolicyRow | null> {
-  const sb = await getClient();
-  const { data, error } = await untypedFrom(sb, TABLE)
-    .upsert(
-      {
-        site_id: values.site_id,
-        action_type: values.action_type,
-        mode: values.mode,
-        constraints: values.constraints,
-        is_active: values.is_active,
-        updated_by: values.updated_by,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "site_id,action_type" },
-    )
-    .select(ALL_COLUMNS)
-    .maybeSingle();
-  if (error) throw error;
-  return rowOrNull<AutomationPolicyRow>(data);
-}
