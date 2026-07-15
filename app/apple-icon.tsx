@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
 import { getCurrentSite } from "@/lib/site-context";
-import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
+import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { isStaticConfigSite } from "@/lib/site-config-authority";
 
 import { safeFetch } from "@/lib/ssrf-guard";
 
@@ -12,7 +13,10 @@ export default async function AppleIcon() {
   const site = await getCurrentSite();
 
   // Single DB call for both favicon and theme color (was two separate calls).
-  const dbSite = !shouldSkipDbCall() ? await resolveDbSiteBySlug(site.id).catch(() => null) : null;
+  const dbSite =
+    !shouldSkipDbCall() && !isStaticConfigSite(site)
+      ? await getSiteRowByDomain(site.domain).catch(() => null)
+      : null;
 
   // Check for custom favicon_url from DB (used for apple-icon too)
   if (dbSite?.favicon_url) {

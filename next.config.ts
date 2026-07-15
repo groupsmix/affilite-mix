@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { allSites } from "./config/sites";
+import { API_VERSION_HEADER, CURRENT_API_VERSION } from "./lib/api-version";
 
 // G-03 / G-04: pin remotePatterns to the exact Supabase subdomain + exact
 // R2 public host rather than the historical `*.supabase.co` / `*.r2.dev`
@@ -86,6 +87,10 @@ const nextConfig: NextConfig = {
   ],
   // Cloudflare Pages deployment via @opennextjs/cloudflare
   headers: async () => [
+    {
+      source: "/api/:path*",
+      headers: [{ key: API_VERSION_HEADER, value: CURRENT_API_VERSION }],
+    },
     {
       // FP-01: stricter Referrer-Policy on the password-reset route so the
       // reset token in the query string cannot leak via the Referer header.

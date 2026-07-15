@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getRateLimitKV, getRateLimiterDO, getAppCacheKV, getClickQueue } from "@/lib/runtime-env";
+import { apiError } from "@/lib/api-error";
 
 /** 10 health check requests per minute per IP */
 const HEALTH_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000, failPolicy: "open" as const };
@@ -23,9 +24,12 @@ export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT);
   if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    return apiError(
+      429,
+      "Too many requests",
+      undefined,
+      { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      "RATE_LIMITED",
     );
   }
 

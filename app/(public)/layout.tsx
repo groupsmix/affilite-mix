@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
-import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
+import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { isStaticConfigSite } from "@/lib/site-config-authority";
 import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
 import { AdSlot } from "./components/ads/ad-slot";
@@ -20,9 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
   let metaDescription: string | undefined;
   let ogImageUrl: string | undefined;
   let dbFaviconUrl: string | undefined;
-  if (!shouldSkipDbCall()) {
+  if (!shouldSkipDbCall() && !isStaticConfigSite(site)) {
     try {
-      const dbSite = await resolveDbSiteBySlug(site.id);
+      const dbSite = await getSiteRowByDomain(site.domain);
       if (dbSite) {
         metaTitle = dbSite.meta_title ?? undefined;
         metaDescription = dbSite.meta_description ?? undefined;
@@ -59,14 +60,15 @@ export default async function PublicLayout({ children }: { children: React.React
   // ThemeProvider CSS-var injection, cookie consent, and React hydration.
   // Script injection IS nonce-locked via script-src. See lib/csp.ts:109-117.
 
-  // Read DB row for dynamic theme overrides, nav items, and footer nav
+  // Database-managed tenants read runtime theme/navigation from their row.
+  // Sites registered in config/sites remain code-authoritative.
   let dbTheme: Partial<SiteThemeConfig> = {};
   let dbLayoutVariant: string | null = null;
   let dbNavItems: { label: string; href: string; icon?: string }[] = [];
   let dbFooterNav: { label: string; href: string; icon?: string }[] = [];
-  if (!shouldSkipDbCall()) {
+  if (!shouldSkipDbCall() && !isStaticConfigSite(site)) {
     try {
-      const dbSite = await resolveDbSiteBySlug(site.id);
+      const dbSite = await getSiteRowByDomain(site.domain);
       if (dbSite) {
         const t = dbSite.theme as Record<string, string> | null;
         dbTheme = {
@@ -93,10 +95,7 @@ export default async function PublicLayout({ children }: { children: React.React
     }
   }
 
-  // Merge: DB theme overrides config theme.
-  // layoutVariant priority: a valid DB value → site config → "standard".
-  // resolveLayoutVariant() guards against a missing/invalid DB value being
-  // coerced to "standard" and shadowing the site's configured layout.
+  // Database values apply only to database-managed tenants.
   const resolvedLayoutVariant: LayoutVariant = resolveLayoutVariant(
     dbLayoutVariant,
     site.layoutVariant,

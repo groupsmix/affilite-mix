@@ -5,6 +5,7 @@ import { getSiteById } from "@/config/sites";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { logger } from "@/lib/logger";
+import { apiError } from "@/lib/api-error";
 
 /** 60 auth/me requests per minute per IP.
  * F-006: failPolicy: "closed" — auth endpoints must never silently skip
@@ -24,15 +25,18 @@ export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`auth-me:${ip}`, AUTH_ME_RATE_LIMIT);
   if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    return apiError(
+      429,
+      "Too many requests",
+      undefined,
+      { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      "RATE_LIMITED",
     );
   }
 
   const session = await getAdminSession();
   if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return apiError(401, "Not authenticated", undefined, undefined, "UNAUTHORIZED");
   }
 
   const activeSiteSlug = await getActiveSiteSlug();

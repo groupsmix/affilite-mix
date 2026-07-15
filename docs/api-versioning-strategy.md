@@ -1,53 +1,55 @@
 # API Versioning Strategy
 
-## Current State
+## Current Contract
 
-The API currently has **no versioning**. All routes live under `/api/*` with no
-version prefix. This is acceptable for the current stage (single consumer: our
-own admin UI + cron jobs), but becomes a liability when:
+All existing unversioned `/api/*` routes are the implicit **v1** contract.
+Responses include:
 
-- Third-party integrations consume the API directly
-- Mobile apps ship with baked-in API expectations
-- Breaking changes need to coexist with old client versions
-
-## Recommended Approach: URL Path Versioning
-
-When API versioning becomes necessary, adopt **URL path versioning**:
-
-```
-/api/v1/q7m-k4j9/sites
-/api/v1/q7m-k4j9/content
-/api/v2/q7m-k4j9/sites  ← breaking change
+```http
+API-Version: 1
 ```
 
-### Why path versioning (not headers)
+Versions are numeric major versions (`1`, `2`, …), not dates. Dates are used
+only for `Deprecation` and `Sunset` policy timestamps.
 
-- **Cloudflare Workers routing**: Workers route by URL pattern. Header-based
-  versioning requires custom middleware to inspect `Accept-Version` headers,
-  adding latency and complexity.
-- **Cache friendliness**: Cloudflare's CDN caches by URL by default. Different
-  versions of the same resource get separate cache entries automatically.
-- **Debuggability**: The version is visible in logs, error reports, and
-  `curl` commands without needing to remember to set headers.
+`API-Version` is applied centrally:
 
-## Migration Plan (When Needed)
+- `next.config.ts` covers every `/api/*` response, including internal routes
+  excluded from middleware.
+- The middleware finalizer covers matched routes and middleware short-circuit
+  responses.
 
-1. **Create `app/api/v1/` directory** mirroring current routes
-2. **Add version middleware** that sets a `x-api-version` header on responses
-3. **Keep unversioned routes** as aliases to the latest version during transition
-4. **Deprecation timeline**: Announce deprecation 90 days before removing a
-   version. Return `Sunset` and `Deprecation` headers per RFC 8594.
+Internal consumers may send `Accept-Version: 1` as a compatibility assertion.
+The request header does not negotiate or select a different contract.
 
-## Internal API Contracts
+## Breaking Changes
 
-Even without versioning, internal API contracts should be tested. See the
-contract tests in `__tests__/contract/` which validate response shapes for
-critical endpoints.
+Breaking changes use URL path versioning:
 
-## When to Version
+```text
+/api/track/click       # implicit v1
+/api/v2/track/click    # breaking v2 contract
+```
 
-Trigger API versioning when any of these occur:
+Do not retroactively move existing routes under `/api/v1/`; that would itself
+break current consumers.
 
-- An external party (not our admin UI) consumes the API
-- A mobile app ships with hardcoded API calls
-- A breaking change to response shape is required for a deployed endpoint
+## Deprecation
+
+1. Keep the old numeric path available for at least 90 days.
+2. Return `Deprecation` and RFC 8594 `Sunset` headers from the deprecated path.
+3. Alert when deprecated endpoints still receive traffic.
+4. Remove the old path only after the published sunset.
+
+## Contract Source of Truth
+
+- `lib/api-route-metadata.ts` enumerates every route and its governance
+  metadata.
+- `lib/api-contract-schema.ts` defines reusable machine-readable request and
+  response schemas for high-value routes.
+- `npm run generate:openapi` generates `openapi.yaml` from those models.
+- `__tests__/api-routes-metadata.test.ts` prevents route/registry drift.
+
+Established success payloads remain unchanged unless a versioned route is
+introduced. New or touched error paths should use `apiError()` so clients can
+rely on `{ error, code, details? }` without requiring broad endpoint churn.
