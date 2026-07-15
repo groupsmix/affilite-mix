@@ -27,7 +27,10 @@ type AuthRequirement =
   /** Stripe-signed webhook (HMAC on raw body, no cookie auth). */
   | "stripe-webhook"
   /** Endpoint validates a signed single-use token instead of a session. */
-  | "token";
+  | "token"
+  /** Machine automation: `Authorization: Bearer <automation-token>`, scoped
+   *  to one site by the token's service account (no cookie, no CSRF). */
+  | "automation";
 
 type TenantScope =
   /** Scoped to the admin's active site (cookie + membership check). */
@@ -207,6 +210,27 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     responseSchema: "{ ok: true }",
     sensitiveFields: [],
     notes: "Revoking an API token is super_admin-only.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/automation/service-accounts",
+    methods: ["GET", "POST"],
+    requestSchema: "AutomationServiceAccountInput",
+    responseSchema: "AutomationServiceAccount | AutomationServiceAccount[]",
+    sensitiveFields: ["plain_token", "token"],
+    notes:
+      "super_admin-only. Provisions a site-bound automation service account and issues its first bearer token (raw token returned once).",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/automation/service-accounts/[id]",
+    methods: ["DELETE"],
+    requestSchema: null,
+    responseSchema: "{ ok: true }",
+    sensitiveFields: [],
+    notes: "super_admin-only kill switch: revokes an automation service account.",
   },
   {
     ...ADMIN_DEFAULTS,
@@ -1065,6 +1089,87 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     responseSchema: "DataExportPayload",
     sensitiveFields: ["email"],
     notes: "S3-004: GDPR Art. 20 self-service data portability.",
+  },
+
+  // --- Automation control plane (machine-to-machine) -----------------------
+  {
+    path: "/api/automation/v1/health",
+    methods: ["GET"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Authenticated liveness probe; returns the token's bound site.",
+  },
+  {
+    path: "/api/automation/v1/context",
+    methods: ["GET"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Requires scope site:read. Site identity, scopes, limits, counts, policies.",
+  },
+  {
+    path: "/api/automation/v1/analytics/summary",
+    methods: ["GET"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Requires scope analytics:read. Deterministic click/content/product summary.",
+  },
+  {
+    path: "/api/automation/v1/content",
+    methods: ["GET"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Requires scope content:read. Site-scoped content list with keyset pagination.",
+  },
+  {
+    path: "/api/automation/v1/content/drafts",
+    methods: ["POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: "AutomationDraftInput",
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization", "idempotency-key"],
+    notes:
+      "Requires scope content:draft. Idempotent (Idempotency-Key). Creates a pending AI draft via the durable action model; publishing stays approval-gated.",
+  },
+  {
+    path: "/api/automation/v1/runs",
+    methods: ["POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: "AutomationRunInput",
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Requires scope site:read. Opens a durable run grouping subsequent actions.",
   },
 ];
 

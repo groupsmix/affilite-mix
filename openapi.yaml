@@ -870,6 +870,137 @@ paths:
           required: true
           schema:
             type: string
+  /api/admin/automation/service-accounts:
+    get:
+      summary: GET /api/admin/automation/service-accounts (site) — auth=super_admin
+      operationId: getApiAdminAutomationServiceaccounts
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AutomationServiceAccountInput
+      x-responseSchema: "AutomationServiceAccount | AutomationServiceAccount[]"
+      x-notes: super_admin-only. Provisions a site-bound automation service account and issues its first bearer token (raw token returned once).
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (AutomationServiceAccount | AutomationServiceAccount[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/automation/service-accounts (site) — auth=super_admin
+      operationId: postApiAdminAutomationServiceaccounts
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AutomationServiceAccountInput
+      x-responseSchema: "AutomationServiceAccount | AutomationServiceAccount[]"
+      x-notes: super_admin-only. Provisions a site-bound automation service account and issues its first bearer token (raw token returned once).
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (AutomationServiceAccount | AutomationServiceAccount[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/automation/service-accounts/{id}:
+    delete:
+      summary: "DELETE /api/admin/automation/service-accounts/[id] (site) — auth=super_admin"
+      operationId: deleteApiAdminAutomationServiceaccountsId
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: "{ ok: true }"
+      x-notes: "super_admin-only kill switch: revokes an automation service account."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ ok: true })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
   /api/admin/audit-log/export:
     get:
       summary: GET /api/admin/audit-log/export (site) — auth=super_admin
@@ -5371,6 +5502,192 @@ paths:
                 type: object
         429:
           description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/health:
+    get:
+      summary: GET /api/automation/v1/health (site) — auth=automation
+      operationId: getApiAutomationV1Health
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Authenticated liveness probe; returns the token's bound site."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/context:
+    get:
+      summary: GET /api/automation/v1/context (site) — auth=automation
+      operationId: getApiAutomationV1Context
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope site:read. Site identity, scopes, limits, counts, policies."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/analytics/summary:
+    get:
+      summary: GET /api/automation/v1/analytics/summary (site) — auth=automation
+      operationId: getApiAutomationV1AnalyticsSummary
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope analytics:read. Deterministic click/content/product summary."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/content:
+    get:
+      summary: GET /api/automation/v1/content (site) — auth=automation
+      operationId: getApiAutomationV1Content
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope content:read. Site-scoped content list with keyset pagination."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/content/drafts:
+    post:
+      summary: POST /api/automation/v1/content/drafts (site) — auth=automation
+      operationId: postApiAutomationV1ContentDrafts
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationDraftInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope content:draft. Idempotent (Idempotency-Key). Creates a pending AI draft via the durable action model; publishing stays approval-gated."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/runs:
+    post:
+      summary: POST /api/automation/v1/runs (site) — auth=automation
+      operationId: postApiAutomationV1Runs
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationRunInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope site:read. Opens a durable run grouping subsequent actions."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
           headers:
             API-Version:
               $ref: "#/components/headers/API-Version"

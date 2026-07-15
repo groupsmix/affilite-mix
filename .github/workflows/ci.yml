@@ -617,7 +617,25 @@ jobs:
           # cross-tenant; all create/list/get/delete/touch queries need the privileged
           # client without a site_id filter. Each call is annotated with a `// SAFE:`
           # comment and the module is on the SERVICE_ROLE_IMPORT_ALLOWLIST.
-          BASELINE=101
+          # then 101 -> 107 (automation control plane, PR #1045): +6 audited opt-outs
+          # in the machine-to-machine automation DALs. These tables are reached only
+          # after Bearer auth resolves a site-bound service account; the queries key on
+          # a globally-unique/primary-key column rather than site_id:
+          #   (1) lib/dal/automation-tokens.ts createAutomationToken() — INSERT returns
+          #       the row; automation_tokens has no site_id (binding is on the account).
+          #   (2) lib/dal/automation-tokens.ts getAutomationTokenByHash() — auth lookup
+          #       by globally-unique token_hash (site is derived from the account).
+          #   (3) lib/dal/automation-tokens.ts touchAutomationToken() — last_used_at
+          #       bump by primary key; no site_id column exists.
+          #   (4) lib/dal/automation-actions.ts getActionByIdempotencyKey() — unique
+          #       (service_account_id, idempotency_key); the account is site-bound.
+          #   (5) lib/dal/automation-runs.ts countActionsSince() — quota aggregate
+          #       scoped by service_account_id, which is itself site-bound.
+          #   (6) lib/dal/automation-service-accounts.ts get/set by id — PK lookups from
+          #       the auth resolver and the super_admin kill switch (cross-site by role).
+          # Each call is annotated with a `// SAFE:` comment; lib/automation/db.ts is the
+          # single sanctioned importer on the SERVICE_ROLE_IMPORT_ALLOWLIST.
+          BASELINE=107
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
