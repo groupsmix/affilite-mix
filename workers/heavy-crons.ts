@@ -16,6 +16,7 @@
 
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
 import { logger } from "../lib/logger";
+import { captureException } from "@sentry/cloudflare";
 
 interface CloudflareScheduledController {
   cron: string;
@@ -46,20 +47,24 @@ const worker = {
       typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
     if (!cronHost) {
-      logger.error(
+      const err = new Error(
         "[heavy-crons] CRON_HOST is not configured — skipping dispatch. " +
           "Set it with: wrangler secret put CRON_HOST",
       );
-      return;
+      logger.error(err.message);
+      captureException(err);
+      throw err;
     }
 
     const job = getCronJobBySchedule(controller.cron);
     if (!job) {
-      logger.error(
+      const err = new Error(
         `[heavy-crons] Unknown cron schedule "${controller.cron}". ` +
           "Add it to lib/cron-registry.ts.",
       );
-      return;
+      logger.error(err.message);
+      captureException(err);
+      throw err;
     }
 
     if (!job.heavy) {
@@ -80,8 +85,13 @@ const worker = {
           : null;
 
     if (!cronSecret) {
-      logger.error(`[heavy-crons] No secret configured for "${job.name}" — skipping dispatch.`);
-      return;
+      const err = new Error(
+        `[heavy-crons] No secret configured for "${job.name}" — skipping dispatch. ` +
+          `Set it with: wrangler secret put ${job.secretEnvVar}`,
+      );
+      logger.error(err.message);
+      captureException(err);
+      throw err;
     }
 
     const url = `${cronHost}${job.path}`;
