@@ -45,14 +45,21 @@ jobs:
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
           DR_DATABASE_URL: ${{ inputs.environment == 'production' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
+          # P0-3: keep the restored dr_test schema so the validation step below
+          # asserts against the RESTORED data, not the live public schema.
+          DR_KEEP_SCHEMA: "1"
 
       - name: Validate restored schema
-        if: always()
         env:
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
-          echo "Validating restored schema..."
+          set -euo pipefail
+          # P0-3: validate the RESTORED schema (dr_test), not the live public
+          # schema. The previous version queried information_schema/pg_tables
+          # without a schema filter, so it verified the live DB — which always
+          # passes — instead of proving the backup restored correctly.
+          echo "Validating RESTORED schema (dr_test)..."
 
           # Check critical tables exist
           TABLES=(
@@ -77,43 +84,63 @@ jobs:
             echo "::error::Database URL not set for environment ${{ inputs.environment || 'staging' }}"
             exit 1
           fi
+          DB_URL="${DB_URL%%\?*}"
 
           FAILED=0
           for table in "${TABLES[@]}"; do
-            if psql "$DB_URL" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '$table')" 2>/dev/null | grep -q "t"; then
-              echo "  ✓ Table $table exists"
+            if psql "$DB_URL" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'dr_test' AND table_name = '$table')" | grep -q "t"; then
+              echo "  ✓ Table $table exists in dr_test"
             else
-              echo "  ✗ Table $table MISSING"
+              echo "  ✗ Table $table MISSING from restored schema"
               FAILED=$((FAILED + 1))
             fi
           done
 
-          # Check RLS is enabled on tenant-scoped tables
+          # Check RLS is enabled on tenant-scoped tables IN THE RESTORED schema
           RLS_TABLES=("sites" "content" "products" "affiliate_clicks")
           for table in "${RLS_TABLES[@]}"; do
-            if psql "$DB_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE tablename = '$table'" 2>/dev/null | grep -q "t"; then
-              echo "  ✓ RLS enabled on $table"
+            if psql "$DB_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE schemaname = 'dr_test' AND tablename = '$table'" | grep -q "t"; then
+              echo "  ✓ RLS enabled on restored $table"
             else
-              echo "  ✗ RLS NOT enabled on $table"
+              echo "  ✗ RLS NOT enabled on restored $table"
               FAILED=$((FAILED + 1))
             fi
           done
 
-          # Check migration count matches
-          MIGRATION_COUNT=$(ls supabase/migrations/*.sql 2>/dev/null | wc -l)
-          DB_MIGRATION_COUNT=$(psql "$DB_URL" -tAc "SELECT count(*) FROM _migrations_applied" 2>/dev/null | tr -d '[:space:]' || echo "0")
-          echo "  Migrations on disk: $MIGRATION_COUNT, in DB: $DB_MIGRATION_COUNT"
+          # Check migration count matches in the restored schema
+          MIGRATION_COUNT=$(find supabase/migrations -maxdepth 1 -name '*.sql' 2>/dev/null | wc -l | tr -d '[:space:]')
+          DB_MIGRATION_COUNT=$(psql "$DB_URL" -tAc "SELECT count(*) FROM dr_test._migrations_applied" | tr -d '[:space:]')
+          echo "  Migrations on disk: $MIGRATION_COUNT, in restored dr_test: $DB_MIGRATION_COUNT"
           if [ "$DB_MIGRATION_COUNT" != "$MIGRATION_COUNT" ]; then
             echo "  ✗ Migration count mismatch"
             FAILED=$((FAILED + 1))
           fi
 
           if [ "$FAILED" -gt 0 ]; then
-            echo "::error::Schema validation failed: $FAILED checks failed"
+            echo "::error::Restored-schema validation failed: $FAILED checks failed"
             exit 1
           fi
 
-          echo "Schema validation passed"
+          echo "Restored-schema validation passed"
+
+      - name: Drop restored dr_test schema
+        if: always()
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.environment || 'staging' }}" = "production" ]; then
+            DB_URL="$PRODUCTION_DATABASE_URL"
+          else
+            DB_URL="$STAGING_DATABASE_URL"
+          fi
+          if [ -z "$DB_URL" ]; then
+            echo "::notice::No DB URL available — nothing to clean up."
+            exit 0
+          fi
+          DB_URL="${DB_URL%%\?*}"
+          psql "$DB_URL" -c "DROP SCHEMA IF EXISTS dr_test CASCADE;" || true
 
       - name: Record drill result
         if: always()
