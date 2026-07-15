@@ -16,20 +16,20 @@ interface SiteFooterProps {
   /** Optional dynamic footer nav items from DB (renders as a flat list alongside config nav) */
   dbFooterNav?: { label: string; href: string; icon?: string }[];
   /**
-   * Resolved layout variant — DB value takes precedence over site config.
-   * Passed from the public layout so footers don't need to re-read the DB.
+   * Resolved footer variant — independent of the header variant. Passed from
+   * the public layout so footers don't need to re-read the DB.
    */
-  layoutVariant?: LayoutVariant;
+  footerVariant?: LayoutVariant;
 }
 
 export function SiteFooter({
   site,
   hideNewsletter,
   dbFooterNav,
-  layoutVariant = "standard",
+  footerVariant = "standard",
 }: SiteFooterProps) {
   // Dispatch to per-variant footer implementations.
-  if (layoutVariant === "compare") {
+  if (footerVariant === "compare") {
     return (
       <SiteFooterCompare site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />
     );

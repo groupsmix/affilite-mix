@@ -31,11 +31,51 @@ export function resolveLayoutVariant(
   dbValue: string | null | undefined,
   configValue: LayoutVariant | null | undefined,
 ): LayoutVariant {
-  if (dbValue && VALID_LAYOUT_VARIANTS.has(dbValue)) {
-    return dbValue as LayoutVariant;
-  }
-  if (configValue && VALID_LAYOUT_VARIANTS.has(configValue)) {
-    return configValue;
+  return firstValidVariant(dbValue, configValue);
+}
+
+/** Return the first recognized variant among the candidates, else "standard". */
+export function firstValidVariant(...candidates: (string | null | undefined)[]): LayoutVariant {
+  for (const candidate of candidates) {
+    if (candidate && VALID_LAYOUT_VARIANTS.has(candidate)) {
+      return candidate as LayoutVariant;
+    }
   }
   return "standard";
+}
+
+/**
+ * Resolve the header variant independently of the footer. Precedence:
+ * DB header override → DB shared layout → config header override → config
+ * shared layout → "standard". This lets a site (or the dashboard/AI) change
+ * the header design without also changing the footer, which the single
+ * `layoutVariant` field could not express.
+ */
+export function resolveHeaderVariant(input: {
+  dbHeaderVariant?: string | null;
+  dbLayoutVariant?: string | null;
+  configHeaderVariant?: LayoutVariant | null;
+  configLayoutVariant?: LayoutVariant | null;
+}): LayoutVariant {
+  return firstValidVariant(
+    input.dbHeaderVariant,
+    input.dbLayoutVariant,
+    input.configHeaderVariant,
+    input.configLayoutVariant,
+  );
+}
+
+/** Footer counterpart of {@link resolveHeaderVariant}. */
+export function resolveFooterVariant(input: {
+  dbFooterVariant?: string | null;
+  dbLayoutVariant?: string | null;
+  configFooterVariant?: LayoutVariant | null;
+  configLayoutVariant?: LayoutVariant | null;
+}): LayoutVariant {
+  return firstValidVariant(
+    input.dbFooterVariant,
+    input.dbLayoutVariant,
+    input.configFooterVariant,
+    input.configLayoutVariant,
+  );
 }
