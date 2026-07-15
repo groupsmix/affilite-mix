@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
 import { headers } from "next/headers";
 import { getCurrentSite } from "@/lib/site-context";
-import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
+import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { isStaticConfigSite } from "@/lib/site-config-authority";
 import { PATHNAME_HEADER } from "@/lib/request-path";
 import { WebVitals } from "./web-vitals";
 import { logger } from "@/lib/logger";
@@ -36,7 +37,8 @@ export async function generateMetadata(): Promise<Metadata> {
     // (e.g. during `next build` without env vars set). This prevents the
     // noisy "Failed to generate metadata from DB" warn that floods local build
     // output even though the fallback is completely correct.
-    const dbSite = shouldSkipDbCall() ? null : await resolveDbSiteBySlug(site.id);
+    const dbSite =
+      shouldSkipDbCall() || isStaticConfigSite(site) ? null : await getSiteRowByDomain(site.domain);
 
     const title = dbSite?.meta_title || site.name;
     const description =

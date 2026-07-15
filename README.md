@@ -226,6 +226,12 @@ npm run test:e2e      # End-to-end tests (Playwright)
 
 ## Adding a New Site
 
+Sites registered in `config/sites/` are code-authoritative: domain, branding,
+theme, navigation, and feature flags are changed in code and are read-only in
+the admin site manager. Their matching database row supplies the UUID used by
+tenant-scoped data. Sites created only through the admin/database are
+database-authoritative and remain editable there.
+
 1. Create a new site config in `config/sites/` (copy an existing one as a template)
 2. Add it to the `allSites` array in `config/sites/index.ts`
 3. Insert a matching row into the `sites` database table
