@@ -241,4 +241,16 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // admin/auth handlers (super_admin-gated routes and the rate-limited login path)
   // that have already gated the caller. Mirrors the audit reader entry above.
   "lib/audit-log.ts",
+
+  // Automation control plane: the automation_* tables (service accounts,
+  // tokens, runs, actions, policies — migration 2026071505) are
+  // service_role-only, and the automation API gateway has no browser cookie,
+  // no x-site-id header and no admin session (it authenticates a bearer
+  // token, then operates on behalf of a single site). This module is the
+  // ONLY automation file that touches the privileged gateway; every
+  // automation DAL + route reaches the privileged client through it, after
+  // the route layer has authenticated + scope-checked the token. Site
+  // scoping is enforced in app code via the token's bound site_id (never
+  // request input). Mirrors lib/dal/admin-api-tokens.ts.
+  "lib/automation/db.ts",
 ] as const;

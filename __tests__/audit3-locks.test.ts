@@ -219,7 +219,14 @@ describe("Audit-3 regression locks", () => {
       // service_role-only (migrations 00033 / 00040); the tenant client returns zero
       // rows. The route is requireSuperAdmin-gated and scopes all queries to the
       // active site_id. Rationale recorded in the allowlist.
-      expect(count).toBeLessThanOrEqual(45);
+      // Bumped 45 -> 46: lib/automation/db.ts is the single sanctioned importer
+      // of the privileged gateway for the automation control plane. The
+      // automation_* tables (migration 2026071505) are service_role-only and the
+      // automation API gateway has no browser cookie / admin session — it
+      // authenticates a bearer token, then operates on behalf of one site. Every
+      // automation DAL reaches the privileged client through this one module.
+      // Rationale recorded in lib/security/service-role-allowlist.ts.
+      expect(count).toBeLessThanOrEqual(46);
     });
   });
 
