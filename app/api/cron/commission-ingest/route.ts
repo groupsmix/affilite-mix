@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestCommissions } from "@/lib/dal/commissions";
-import { resolveSiteByTrackingKey } from "@/lib/dal/affiliate-tracking-keys";
+import { resolveSitesByTrackingKeys } from "@/lib/dal/affiliate-tracking-keys";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { logger } from "@/lib/logger";
 import { verifyCronAuth } from "@/lib/cron-auth";
@@ -127,8 +127,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  void recordCronLiveness("commission-ingest");
-
   if (configuredNetworks > 0 && successfulNetworks === 0) {
     const failure = new Error("All configured commission networks failed");
     captureException(failure, { context: "[commission-ingest] all networks failed", results });
@@ -141,6 +139,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  void recordCronLiveness("commission-ingest");
+
   return NextResponse.json({
     message: "Commission ingest complete",
     partial: configuredNetworks > 0 && successfulNetworks < configuredNetworks,
@@ -148,9 +148,7 @@ export async function POST(request: NextRequest) {
   });
 }
 
-// ── Network adapter stubs ──────────────────────────────────────────
-// These return the normalized commission format.
-// Replace with real API calls when network credentials are configured.
+// ── Network API adapters ───────────────────────────────────────────
 
 type ResolvedCommission = {
   site_id: string;
@@ -172,9 +170,28 @@ async function resolveCommissions(
 ): Promise<{ resolved: ResolvedCommission[]; discarded: number }> {
   const resolved: ResolvedCommission[] = [];
   let discarded = 0;
+  const reportsByNetwork = new Map<string, CommissionReport[]>();
 
   for (const report of reports) {
-    const siteId = await resolveSiteByTrackingKey(report.network, report.tracking_key, () => sb);
+    const networkReports = reportsByNetwork.get(report.network) ?? [];
+    networkReports.push(report);
+    reportsByNetwork.set(report.network, networkReports);
+  }
+
+  const sitesByNetworkKey = new Map<string, string>();
+  for (const [network, networkReports] of reportsByNetwork) {
+    const sites = await resolveSitesByTrackingKeys(
+      network,
+      networkReports.map((report) => report.tracking_key),
+      () => sb,
+    );
+    for (const [trackingKey, siteId] of sites) {
+      sitesByNetworkKey.set(`${network}\u0000${trackingKey}`, siteId);
+    }
+  }
+
+  for (const report of reports) {
+    const siteId = sitesByNetworkKey.get(`${report.network}\u0000${report.tracking_key}`);
     if (siteId) {
       resolved.push({ ...report, site_id: siteId });
     } else {
