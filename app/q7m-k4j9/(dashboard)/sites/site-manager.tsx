@@ -356,10 +356,26 @@ function SiteCardView({
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
-                  <DropdownMenuItem onSelect={() => onEdit(site)}>
-                    <PencilIcon />
-                    Edit
-                  </DropdownMenuItem>
+                  {isConfigSite ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <DropdownMenuItem disabled>
+                            <PencilIcon />
+                            Edit
+                          </DropdownMenuItem>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">
+                        Static-config sites are resolved from code, not the database.
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <DropdownMenuItem onSelect={() => onEdit(site)}>
+                      <PencilIcon />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
 
                   {!isActive && (
                     <DropdownMenuItem onSelect={() => onSetActive(site)} disabled={selecting}>
@@ -368,7 +384,7 @@ function SiteCardView({
                     </DropdownMenuItem>
                   )}
 
-                  {isNotProvisioned && (
+                  {isNotProvisioned && !isConfigSite && (
                     <DropdownMenuItem onSelect={() => onProvision(site)} disabled={provisioning}>
                       <AlertTriangleIcon />
                       Run site provisioning

@@ -174,6 +174,8 @@ export interface FeatureFlags {
   membership?: boolean;
   /** Enable public media-kit page with real analytics only. */
   mediaKit?: boolean;
+  /** Enable public community APIs (comments, wrist-shots) and moderation surface. */
+  community?: boolean;
 }
 
 export interface ContentTypeConfig {

@@ -84,6 +84,7 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
       captchaOnLogin: features.captchaOnLogin ?? false,
       membership: features.membership ?? false,
       mediaKit: features.mediaKit ?? false,
+      community: features.community ?? false,
     },
 
     pages: {

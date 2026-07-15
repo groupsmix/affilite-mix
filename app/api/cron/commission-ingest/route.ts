@@ -3,105 +3,156 @@ import { ingestCommissions } from "@/lib/dal/commissions";
 import { resolveSiteByTrackingKey } from "@/lib/dal/affiliate-tracking-keys";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { logger } from "@/lib/logger";
-import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { recordCronLiveness } from "@/lib/cron-liveness";
+import { captureException } from "@/lib/sentry";
+import { apiError } from "@/lib/api-error";
+import { fetchPaginatedReports } from "@/lib/commission-adapters";
+import { validateCommissionReport, type CommissionReport } from "@/lib/commission-validation";
 
 /**
  * GET /api/cron/commission-ingest
  * Nightly cron: pulls commission reports from affiliate networks
  * and ingests them into the commissions table.
  *
- * Currently supports placeholder adapters for CJ, Admitad, PartnerStack.
- * Real API integration requires network API keys configured in env.
+ * Hardening applied:
+ * - Retry with exponential backoff for transient network failures.
+ * - Pagination support for CJ, Admitad, and PartnerStack (stops on empty page).
+ * - Schema validation of each raw report before ingestion.
+ * - Per-network accounting (fetched, valid, discarded, inserted, skipped).
+ * - 502 response when every configured network fails, so the cron is marked
+ *   failed and alerting fires instead of swallowing errors in a 200 body.
  */
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/commission-ingest"))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError(401, "Unauthorized", undefined, undefined, "UNAUTHORIZED");
   }
 
-  // F-019 & F-026 (Scale Risk): Process network ingestions concurrently using Promise.allSettled
-  // to avoid hitting Worker execution limits when traffic scales 10x.
-  const results: Record<
-    string,
-    { inserted: number; skipped: number; discarded: number; error?: string }
-  > = {};
-
   const sb = getPrivilegedSupabaseClient();
+
+  type NetworkResult = {
+    fetched: number;
+    valid: number;
+    discarded: number;
+    inserted: number;
+    skipped: number;
+    error?: string;
+  };
+
+  const results: Record<string, NetworkResult> = {};
+  let configuredNetworks = 0;
+  let successfulNetworks = 0;
 
   const networks: {
     name: string;
     envVar: string;
-    fetcher: () => Promise<NormalizedCommission[]>;
+    fetcher: () => Promise<CommissionReport[]>;
   }[] = [
     { name: "cj", envVar: "CJ_API_KEY", fetcher: fetchCjReports },
     { name: "admitad", envVar: "ADMITAD_API_KEY", fetcher: fetchAdmitadReports },
     { name: "partnerstack", envVar: "PARTNERSTACK_API_KEY", fetcher: fetchPartnerStackReports },
   ];
 
-  const tasks = networks.map((network) =>
-    (async () => {
-      if (!process.env[network.envVar]) {
-        results[network.name] = {
-          inserted: 0,
-          skipped: 0,
-          discarded: 0,
-          error: `${network.envVar} not configured`,
-        };
-        return;
-      }
-      try {
-        const reports = await network.fetcher();
-        const { resolved, discarded } = await resolveCommissions(reports, sb);
-        const ingest = await ingestCommissions(resolved, () => sb);
-        results[network.name] = { ...ingest, discarded };
-        logger.info(`${network.name} commission ingest complete`, results[network.name]);
-      } catch (err) {
-        results[network.name] = {
-          inserted: 0,
-          skipped: 0,
-          discarded: 0,
-          error: err instanceof Error ? err.message : String(err),
-        };
-        logger.error(`${network.name} commission ingest failed`, {
-          error: results[network.name]!.error,
-        });
-      }
-    })(),
-  );
+  for (const network of networks) {
+    results[network.name] = {
+      fetched: 0,
+      valid: 0,
+      discarded: 0,
+      inserted: 0,
+      skipped: 0,
+    };
 
-  await Promise.allSettled(tasks);
+    const apiKey = process.env[network.envVar];
+    if (!apiKey) {
+      results[network.name]!.error = `${network.envVar} not configured`;
+      continue;
+    }
+
+    configuredNetworks++;
+
+    let reports: CommissionReport[];
+    try {
+      reports = await network.fetcher();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      results[network.name]!.error = message;
+      logger.error(`[commission-ingest] ${network.name} fetch failed`, { error: message });
+      captureException(err instanceof Error ? err : new Error(message), {
+        context: "[commission-ingest] network fetch failed",
+        network: network.name,
+      });
+      continue;
+    }
+
+    const validated: CommissionReport[] = [];
+    for (const raw of reports) {
+      const parsed = validateCommissionReport(raw);
+      if (parsed.errors) {
+        logger.warn("[commission-ingest] discarding invalid report", {
+          network: network.name,
+          errors: parsed.errors,
+          raw,
+        });
+      } else {
+        validated.push(parsed.data);
+      }
+    }
+
+    results[network.name]!.fetched = reports.length;
+    results[network.name]!.valid = validated.length;
+
+    try {
+      const { resolved, discarded } = await resolveCommissions(validated, sb);
+      const ingest = await ingestCommissions(resolved, () => sb);
+      results[network.name]!.discarded = discarded;
+      results[network.name]!.inserted = ingest.inserted;
+      results[network.name]!.skipped = ingest.skipped;
+      successfulNetworks++;
+      logger.info(`[commission-ingest] ${network.name} ingest complete`, results[network.name]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      results[network.name]!.error = message;
+      logger.error(`[commission-ingest] ${network.name} ingest failed`, { error: message });
+      captureException(err instanceof Error ? err : new Error(message), {
+        context: "[commission-ingest] network ingest failed",
+        network: network.name,
+      });
+    }
+  }
 
   void recordCronLiveness("commission-ingest");
-  return NextResponse.json({ message: "Commission ingest complete", results });
+
+  if (configuredNetworks > 0 && successfulNetworks === 0) {
+    const failure = new Error("All configured commission networks failed");
+    captureException(failure, { context: "[commission-ingest] all networks failed", results });
+    return apiError(
+      502,
+      "All configured commission networks failed",
+      results,
+      undefined,
+      "COMMISSION_INGEST_ALL_NETWORKS_FAILED",
+    );
+  }
+
+  return NextResponse.json({
+    message: "Commission ingest complete",
+    partial: configuredNetworks > 0 && successfulNetworks < configuredNetworks,
+    results,
+  });
 }
 
 // ── Network adapter stubs ──────────────────────────────────────────
 // These return the normalized commission format.
 // Replace with real API calls when network credentials are configured.
 
-interface NormalizedCommission {
-  tracking_key: string;
-  product_id?: string;
-  network: string;
-  order_id?: string;
-  commission_amount: number;
-  currency?: string;
-  status?: string;
-  sale_amount?: number;
-  event_date: string;
-  raw_data?: Record<string, unknown>;
-  // B-F4: response_hmac has been removed. The field was computed in each
-  // network fetcher via computeResponseHmac() but was dropped by
-  // ResolvedCommission and never stored or verified — a dead integrity
-  // control. Removing it prevents false assurance from the F-034 claim.
-}
+interface NormalizedCommission extends CommissionReport {}
 
 type ResolvedCommission = {
   site_id: string;
   product_id?: string;
+  click_id?: string;
   network: string;
   order_id?: string;
   commission_amount: number;
@@ -113,7 +164,7 @@ type ResolvedCommission = {
 };
 
 async function resolveCommissions(
-  reports: NormalizedCommission[],
+  reports: CommissionReport[],
   sb: ReturnType<typeof getPrivilegedSupabaseClient>,
 ): Promise<{ resolved: ResolvedCommission[]; discarded: number }> {
   const resolved: ResolvedCommission[] = [];
@@ -161,34 +212,36 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
   const endDate = new Date().toISOString().split("T")[0];
   const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  const response = await fetchWithTimeout(
-    `https://commission-detail.api.cj.com/v3/commissions?date-type=event&start-date=${startDate}&end-date=${endDate}`,
-    {
+  const items = await fetchPaginatedReports({
+    label: "CJ",
+    buildUrl: (page) =>
+      `https://commission-detail.api.cj.com/v3/commissions?date-type=event&start-date=${startDate}&end-date=${endDate}&page-number=${page}`,
+    extractItems: (data: unknown) => {
+      if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
+      const commissions = (data as Record<string, unknown>).commissions;
+      return Array.isArray(commissions) ? commissions : [];
+    },
+    requestInit: {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
-      timeoutMs: 30000,
     },
-  );
+  });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`CJ API failed (${response.status}): ${errorText}`);
-  }
-
-  // F-034: Capture raw body for HMAC before JSON parsing
-  const rawBody = await response.text();
-  const data = JSON.parse(rawBody);
-  return (data.commissions || []).map((c: Record<string, unknown>) => ({
-    tracking_key: typeof c.shopperId === "string" ? c.shopperId : "",
-    order_id: typeof c.actionId === "string" ? c.actionId : undefined,
-    network: "cj",
-    commission_amount: typeof c.pubCommissionAmountUsd === "number" ? c.pubCommissionAmountUsd : 0,
-    sale_amount: typeof c.saleAmountUsd === "number" ? c.saleAmountUsd : undefined,
-    status: typeof c.actionStatus === "string" ? c.actionStatus : undefined,
-    event_date: typeof c.eventDate === "string" ? c.eventDate : new Date().toISOString(),
-    raw_data: c,
-  }));
+  return items.map((c: unknown) => {
+    const raw = c as Record<string, unknown>;
+    return {
+      tracking_key: typeof raw.shopperId === "string" ? raw.shopperId : "",
+      order_id: typeof raw.actionId === "string" ? raw.actionId : undefined,
+      network: "cj",
+      commission_amount:
+        typeof raw.pubCommissionAmountUsd === "number" ? raw.pubCommissionAmountUsd : 0,
+      sale_amount: typeof raw.saleAmountUsd === "number" ? raw.saleAmountUsd : undefined,
+      status: typeof raw.actionStatus === "string" ? raw.actionStatus : undefined,
+      event_date: typeof raw.eventDate === "string" ? raw.eventDate : new Date().toISOString(),
+      raw_data: raw,
+    };
+  });
 }
 
 async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
@@ -197,31 +250,43 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
     throw new Error("Admitad API credentials missing");
   }
 
-  const response = await fetchWithTimeout("https://api.admitad.com/statistics/actions/", {
-    timeoutMs: 30000,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  const items = await fetchPaginatedReports({
+    label: "Admitad",
+    buildUrl: (page) => {
+      const limit = 100;
+      const offset = (page - 1) * limit;
+      return `https://api.admitad.com/statistics/actions/?limit=${limit}&offset=${offset}`;
+    },
+    extractItems: (data: unknown) => {
+      if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
+      const results = (data as Record<string, unknown>).results;
+      return Array.isArray(results) ? results : [];
+    },
+    requestInit: {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
     },
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Admitad API failed (${response.status}): ${errorText}`);
-  }
-
-  // F-034: Capture raw body before JSON parsing
-  const rawBody = await response.text();
-  const data = JSON.parse(rawBody);
-  return (data.results || []).map((c: Record<string, unknown>) => ({
-    tracking_key: typeof c.subid === "string" ? c.subid : "",
-    order_id: typeof c.id === "string" ? c.id : typeof c.id === "number" ? String(c.id) : undefined,
-    network: "admitad",
-    commission_amount: typeof c.payment === "number" ? c.payment : 0,
-    currency: typeof c.currency === "string" ? c.currency : undefined,
-    status: typeof c.status === "string" ? c.status : undefined,
-    event_date: typeof c.action_date === "string" ? c.action_date : new Date().toISOString(),
-    raw_data: c,
-  }));
+  return items.map((c: unknown) => {
+    const raw = c as Record<string, unknown>;
+    return {
+      tracking_key: typeof raw.subid === "string" ? raw.subid : "",
+      order_id:
+        typeof raw.id === "string"
+          ? raw.id
+          : typeof raw.id === "number"
+            ? String(raw.id)
+            : undefined,
+      network: "admitad",
+      commission_amount: typeof raw.payment === "number" ? raw.payment : 0,
+      currency: typeof raw.currency === "string" ? raw.currency : undefined,
+      status: typeof raw.status === "string" ? raw.status : undefined,
+      event_date: typeof raw.action_date === "string" ? raw.action_date : new Date().toISOString(),
+      raw_data: raw,
+    };
+  });
 }
 
 async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
@@ -230,29 +295,32 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     throw new Error("PartnerStack API credentials missing");
   }
 
-  const response = await fetchWithTimeout("https://api.partnerstack.com/api/v2/transactions", {
-    timeoutMs: 30000,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  const items = await fetchPaginatedReports({
+    label: "PartnerStack",
+    buildUrl: (page) => `https://api.partnerstack.com/api/v2/transactions?page=${page}`,
+    extractItems: (data: unknown) => {
+      if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
+      const transactions = (data as Record<string, unknown>).transactions;
+      return Array.isArray(transactions) ? transactions : [];
+    },
+    requestInit: {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
     },
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`PartnerStack API failed (${response.status}): ${errorText}`);
-  }
-
-  // F-034: Capture raw body before JSON parsing
-  const rawBody = await response.text();
-  const data = JSON.parse(rawBody);
-  return (data.transactions || []).map((c: Record<string, unknown>) => ({
-    tracking_key: typeof c.customer_key === "string" ? c.customer_key : "",
-    order_id: typeof c.key === "string" ? c.key : undefined,
-    network: "partnerstack",
-    commission_amount: typeof c.amount === "number" ? c.amount : 0,
-    currency: typeof c.currency === "string" ? c.currency : undefined,
-    status: typeof c.status === "string" ? c.status : undefined,
-    event_date: typeof c.created_at === "string" ? c.created_at : new Date().toISOString(),
-    raw_data: c,
-  }));
+  return items.map((c: unknown) => {
+    const raw = c as Record<string, unknown>;
+    return {
+      tracking_key: typeof raw.customer_key === "string" ? raw.customer_key : "",
+      order_id: typeof raw.key === "string" ? raw.key : undefined,
+      network: "partnerstack",
+      commission_amount: typeof raw.amount === "number" ? raw.amount : 0,
+      currency: typeof raw.currency === "string" ? raw.currency : undefined,
+      status: typeof raw.status === "string" ? raw.status : undefined,
+      event_date: typeof raw.created_at === "string" ? raw.created_at : new Date().toISOString(),
+      raw_data: raw,
+    };
+  });
 }
