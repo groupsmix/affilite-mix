@@ -682,7 +682,17 @@ $$ LANGUAGE plpgsql;
 
 ### 3.4 Site Configuration System
 
-Each site is defined by a single TypeScript config file. This is the single source of truth for all site-specific behavior.
+Tenant configuration has one authority per tenant:
+
+- Sites registered in `config/sites/` are code-authoritative. Their database
+  row provides the stable UUID used by tenant data, but runtime branding,
+  domains, navigation, feature flags, and enabled state come from TypeScript.
+  The admin site manager exposes these records as read-only.
+- Sites absent from `config/sites/` are database-authoritative and can be
+  managed at runtime through the admin control plane.
+
+The two models must not be combined for one tenant. Strict drift checks verify
+that a static tenant's identity row exists and matches its configured domain.
 
 ```typescript
 // config/site-definition.ts — complete interface

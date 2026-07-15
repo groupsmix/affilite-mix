@@ -1,3 +1,5 @@
+import type { ApiSchemaName } from "@/lib/api-contract-schema";
+
 /**
  * Route-by-route API metadata registry.
  *
@@ -56,6 +58,19 @@ export interface RouteMetadata {
   responseSchema: string | null;
   /** Fields that must be redacted from logs/audit entries (passwords, tokens, PII). */
   sensitiveFields: ReadonlyArray<string>;
+  /** Machine-readable schemas for high-value routes included in generated OpenAPI. */
+  contract?: {
+    requestSchema?: ApiSchemaName;
+    responses: Readonly<
+      Record<
+        string,
+        {
+          description: string;
+          schema: ApiSchemaName;
+        }
+      >
+    >;
+  };
   /** Free-form notes. */
   notes?: string;
 }
@@ -521,6 +536,12 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "{ csrfToken: string }",
     sensitiveFields: ["csrfToken"],
+    contract: {
+      responses: {
+        "200": { description: "CSRF token issued", schema: "CsrfTokenResponse" },
+        "429": { description: "Rate limited", schema: "ApiError" },
+      },
+    },
     notes: "Issues a double-submit CSRF token; sets an httpOnly cookie.",
   },
   {
@@ -572,6 +593,13 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "AdminUser (self)",
     sensitiveFields: [],
+    contract: {
+      responses: {
+        "200": { description: "Current admin session", schema: "AuthMeResponse" },
+        "401": { description: "Not authenticated", schema: "ApiError" },
+        "429": { description: "Rate limited", schema: "ApiError" },
+      },
+    },
   },
   {
     path: "/api/auth/refresh",
@@ -793,6 +821,13 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "{ status: string; checks: HealthCheck[] }",
     sensitiveFields: [],
+    contract: {
+      responses: {
+        "200": { description: "Healthy service", schema: "HealthResponse" },
+        "429": { description: "Rate limited", schema: "ApiError" },
+        "503": { description: "Degraded service", schema: "HealthResponse" },
+      },
+    },
     notes: "Intentionally public so external uptime monitors can poll it.",
   },
 
@@ -850,6 +885,17 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: "{ email: string; turnstileToken: string }",
     responseSchema: "Ok",
     sensitiveFields: ["email"],
+    contract: {
+      requestSchema: "NewsletterSignupRequest",
+      responses: {
+        "200": { description: "Signup accepted", schema: "NewsletterSignupResponse" },
+        "400": { description: "Invalid signup request", schema: "ApiError" },
+        "403": { description: "Captcha verification failed", schema: "ApiError" },
+        "429": { description: "Rate limited", schema: "ApiError" },
+        "500": { description: "Signup failed", schema: "ApiError" },
+        "503": { description: "Email service unavailable", schema: "ApiError" },
+      },
+    },
   },
   {
     path: "/api/newsletter/confirm",

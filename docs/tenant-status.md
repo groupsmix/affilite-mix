@@ -140,7 +140,9 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
 **Possible Explanations:**
 
 1. **AI Compared (`compareai.site`)** may be a development/staging tenant not yet live in production
-2. **One site may be inactive** in the database (`is_active = false`)
+2. **One database-managed site may be inactive** (`is_active = false`).
+   For a site registered in `config/sites/`, the code configuration remains
+   authoritative and a conflicting DB status is drift, not a runtime kill switch.
 3. **The audit document is outdated** and doesn't reflect the current tenant count
 4. **One site may be a redirect** or alias rather than a standalone tenant
 
@@ -149,7 +151,8 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
 ## Required Actions
 
 1. **Verify production status** - Check DNS, HTTP responses, and Cloudflare Dashboard to confirm which tenants are live
-2. **Check database** - Query the `sites` table to see which sites have `is_active = true`
+2. **Check database** - Query the `sites` table and compare it with
+   `config/sites/`; only DB-managed tenants use `is_active` as the runtime switch
 3. **Resolve discrepancy** - Determine why the audit mentions 4 tenants when 5 are configured
 4. **Update documentation** - Once production status is confirmed, update this document with the actual live tenant count
 

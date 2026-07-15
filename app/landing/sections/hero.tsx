@@ -82,12 +82,6 @@ export function HeroSection() {
         >
           Spin up a tenant →
         </a>
-        <a
-          href="#walkthrough"
-          className="font-mono-accent text-sm text-white/40 transition-colors hover:text-white/70"
-        >
-          Watch a 90-second walkthrough
-        </a>
       </motion.div>
     </section>
   );
