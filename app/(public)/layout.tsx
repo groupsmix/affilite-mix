@@ -4,6 +4,7 @@ import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
+import { AdSlot } from "./components/ads/ad-slot";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig } from "./components/theme-provider";
 import type { LayoutVariant } from "@/config/site-definition";
@@ -126,9 +127,11 @@ export default async function PublicLayout({ children }: { children: React.React
           {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
         </a>
         <SiteHeader site={site} dbNavItems={dbNavItems} layoutVariant={resolvedLayoutVariant} />
+        <AdSlot placementType="header" className="pt-4" />
         <main id="main-content" className="flex-1">
           {children}
         </main>
+        <AdSlot placementType="footer" className="pb-4" />
         <SiteFooter site={site} dbFooterNav={dbFooterNav} layoutVariant={resolvedLayoutVariant} />
         <Toaster
           position="bottom-right"

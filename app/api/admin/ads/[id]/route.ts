@@ -4,6 +4,7 @@ import { updateAdPlacement, deleteAdPlacement } from "@/lib/dal/ad-placements";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { parseJsonBody } from "@/lib/api-error";
 import type { AdPlacementType, AdProvider } from "@/types/database";
+import { parseImageAdConfig } from "@/lib/ads/image-ad";
 import { captureException } from "@/lib/sentry";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { getTenantClientForSite } from "@/lib/supabase-server";
@@ -15,7 +16,7 @@ const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
   "footer",
   "between_posts",
 ];
-const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom"];
+const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom", "image"];
 
 export const PUT = withAuthzDynamic(
   "ads",
@@ -63,13 +64,30 @@ export const PUT = withAuthzDynamic(
       );
     }
 
+    // When switching to / saving an image ad, validate the creative +
+    // destination and force ad_code null (same rules as create).
+    let resolvedConfig = config;
+    let resolvedAdCode = ad_code;
+    if (provider === "image") {
+      const imageConfig = parseImageAdConfig(config);
+      if ("error" in imageConfig) {
+        return NextResponse.json({ error: imageConfig.error }, { status: 400 });
+      }
+      resolvedConfig = { ...(config ?? {}), ...imageConfig };
+      resolvedAdCode = undefined;
+    }
+
     try {
       const updates: Record<string, unknown> = {};
       if (name !== undefined) updates.name = name;
       if (placement_type !== undefined) updates.placement_type = placement_type;
       if (provider !== undefined) updates.provider = provider;
-      if (ad_code !== undefined) updates.ad_code = ad_code;
-      if (config !== undefined) updates.config = config;
+      if (provider === "image") {
+        updates.ad_code = null;
+      } else if (resolvedAdCode !== undefined) {
+        updates.ad_code = resolvedAdCode;
+      }
+      if (resolvedConfig !== undefined) updates.config = resolvedConfig;
       if (is_active !== undefined) updates.is_active = is_active;
       if (priority !== undefined) updates.priority = priority;
 

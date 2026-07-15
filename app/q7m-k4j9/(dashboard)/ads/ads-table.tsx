@@ -5,6 +5,7 @@ import {
   CodeIcon,
   GlobeIcon,
   HeartIcon,
+  ImageIcon,
   LeafIcon,
   MoreHorizontalIcon,
   type LucideIcon,
@@ -54,6 +55,11 @@ export interface AdsTableRow extends AdPlacementRow {
 export const ADS_TABLE_PAGE_SIZE = 50;
 
 const PROVIDER_META: Record<AdProvider, { label: string; icon: LucideIcon; className: string }> = {
+  image: {
+    label: "Image / banner",
+    icon: ImageIcon,
+    className: "bg-amber-100 text-amber-700 dark:text-amber-300 hover:bg-amber-100",
+  },
   adsense: {
     label: "Google AdSense",
     icon: GlobeIcon,

@@ -12,6 +12,10 @@ export const DEFAULT_CPM: Record<AdProvider, number> = {
   carbon: 3.0,
   ethicalads: 2.0,
   custom: 1.5,
+  // Self-served image/banner ads are typically sold on a flat sponsorship fee,
+  // not per-impression, so there is no meaningful default CPM. Estimated
+  // revenue for these is therefore 0 unless an `est_cpm` override is set.
+  image: 0,
 };
 
 /**
