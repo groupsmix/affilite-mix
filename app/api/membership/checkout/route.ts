@@ -83,6 +83,17 @@ function priceIdForTier(tier: string): string | undefined {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
+
+  // Capability gate (fail-closed): membership checkout must be unreachable
+  // on tenants that have not explicitly enabled the `membership` feature.
+  // This runs before rate limiting, Turnstile, DB lookups, and the KV
+  // checkout lock so a disabled tenant never performs any checkout work
+  // and the endpoint is indistinguishable from a non-existent route (404).
+  const currentSite = await getCurrentSite();
+  if (!hasSiteFeature(currentSite, "membership")) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   // F-006 / SEC-14: failPolicy: "closed" — checkout creates payment
   // sessions and must never silently skip rate limiting when KV/DO is
   // unavailable.
@@ -194,10 +205,6 @@ export async function POST(request: NextRequest) {
       // after checkout instead of always bouncing to the primary APP_URL host
       // (the cross-tenant redirect the audit flagged). In dev we keep honouring
       // APP_URL (typically http://localhost:3000) so local Stripe testing works.
-      const currentSite = await getCurrentSite();
-      if (!hasSiteFeature(currentSite, "membership")) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
       const tenantOrigin = currentSite.domain ? `https://${currentSite.domain}` : null;
       const baseUrl =
         process.env.NODE_ENV === "production"
