@@ -11,15 +11,19 @@
  * Tests the fix for Issue #5 (password reset URL security).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { hashPassword } from "@/lib/password";
 import { shouldRunSupabaseIntegration } from "./helpers/should-run";
 
 describe.skipIf(!shouldRunSupabaseIntegration)("Password Reset Flow Integration", () => {
-  const sb = getPrivilegedSupabaseClient();
+  let sb!: ReturnType<typeof getPrivilegedSupabaseClient>;
   let testUserId: string;
   const testEmail = `test-reset-${Date.now()}@example.com`;
+
+  beforeAll(() => {
+    sb = getPrivilegedSupabaseClient();
+  });
 
   beforeEach(async () => {
     // Create a test admin user

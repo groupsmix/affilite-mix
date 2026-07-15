@@ -284,10 +284,13 @@ jobs:
           path: playwright-report/
 
   # ── Aggregator: preview + E2E must both pass ──────────────────────
-  # R-10: When preview deploys are disabled, the gate now emits a visible
-  # warning and requires a labeled security exception (`skip-preview-e2e`)
-  # on protected branches (main). Only a real failure (preview or e2e ran
-  # and did not succeed) should fail the gate.
+  # R-10 / audit P1-7: A real failure (preview or e2e ran and did not
+  # succeed) always fails the gate. When BOTH jobs skip (preview deploys
+  # disabled or no preview URL), the gate now FAILS CLOSED for PRs targeting
+  # a protected base branch unless the PR carries the documented
+  # `skip-preview-e2e` exception label. Previously an all-skipped state
+  # exited 0, so branch protection could show a green "Preview E2E gate"
+  # without a preview or any preview tests ever running.
   preview-e2e-gate:
     name: Preview E2E gate
     needs: [preview, e2e]
@@ -299,11 +302,17 @@ jobs:
           PREVIEW_RESULT: ${{ needs.preview.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           PREVIEW_ENABLED: ${{ vars.ENABLE_PREVIEW_DEPLOYS }}
+          BASE_REF: ${{ github.base_ref }}
+          PROTECTED_BASES: "main"
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          SKIP_LABEL: "skip-preview-e2e"
         run: |
           set -euo pipefail
           echo "preview: $PREVIEW_RESULT"
           echo "e2e:     $E2E_RESULT"
           echo "preview_enabled: $PREVIEW_ENABLED"
+          echo "base_ref: $BASE_REF"
+          echo "labels:  $PR_LABELS"
           if [ "$PREVIEW_RESULT" = "failure" ] || [ "$PREVIEW_RESULT" = "cancelled" ]; then
             echo "::error::Preview deploy did not succeed"
             exit 1
@@ -312,9 +321,23 @@ jobs:
             echo "::error::Playwright E2E did not succeed"
             exit 1
           fi
-          # R-10: Warn when preview E2E is skipped so it's visible in PR checks
-          if [ "$PREVIEW_RESULT" = "skipped" ] && [ "$E2E_RESULT" = "skipped" ]; then
-            echo "::warning::Preview E2E was skipped (ENABLE_PREVIEW_DEPLOYS != true). For protected branches, ensure preview E2E runs or apply the 'skip-preview-e2e' label with owner and expiry."
+          # audit P1-7: an all-skipped preview E2E is not evidence. Fail closed
+          # on protected base branches unless an explicit exception label is set.
+          if [ "$PREVIEW_RESULT" = "skipped" ] || [ "$E2E_RESULT" = "skipped" ]; then
+            base_protected=false
+            for b in $PROTECTED_BASES; do
+              [ "$BASE_REF" = "$b" ] && base_protected=true
+            done
+            has_exception=false
+            case ",$PR_LABELS," in
+              *",$SKIP_LABEL,"*) has_exception=true ;;
+            esac
+            if [ "$base_protected" = "true" ] && [ "$has_exception" != "true" ]; then
+              echo "::error::Preview E2E did not run (preview=$PREVIEW_RESULT, e2e=$E2E_RESULT) for a PR into '$BASE_REF'."
+              echo "::error::Enable preview deploys (ENABLE_PREVIEW_DEPLOYS=true) so preview E2E runs, or add the '$SKIP_LABEL' label to record a reviewed, time-bounded exception."
+              exit 1
+            fi
+            echo "::warning::Preview E2E was skipped (preview=$PREVIEW_RESULT, e2e=$E2E_RESULT). Allowed here (non-protected base or '$SKIP_LABEL' exception present)."
           fi
 
   cleanup:

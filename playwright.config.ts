@@ -54,7 +54,12 @@ export default defineConfig({
       : 0
     : Number(process.env.PLAYWRIGHT_RETRIES),
   workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? "github" : "html",
+  // In CI also emit a machine-readable JSON report so the E2E execution &
+  // skip-honesty gate (scripts/ci/e2e-gate.sh) can enforce a minimum executed
+  // count and an allow-list for skips. Locally, the HTML report is friendlier.
+  reporter: process.env.CI
+    ? [["github"], ["json", { outputFile: "playwright-report/results.json" }]]
+    : "html",
   // Create missing screenshot baselines on first run instead of failing.
   // Reviewers can approve the committed snapshots on the resulting PR.
   updateSnapshots: "missing",
