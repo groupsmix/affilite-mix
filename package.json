@@ -31,6 +31,7 @@
     "pause-site": "tsx scripts/pause-site.ts",
     "redesign-site": "tsx scripts/redesign-site.ts",
     "drain-dlq": "tsx scripts/drain-dlq.ts",
+    "generate:openapi": "tsx scripts/generate-openapi.ts",
     "seed": "tsx scripts/seed.ts",
     "seed:ai-compared": "tsx scripts/seed-ai-compared.ts",
     "setup-supabase-auth": "tsx scripts/setup-supabase-auth.ts",
