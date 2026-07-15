@@ -433,6 +433,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/presentations",
+    methods: ["GET", "PUT", "POST"],
+    requestSchema: "PresentationDraftInput",
+    responseSchema: "{ published: Presentation | null; draft: Presentation | null }",
+    sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/schedule",
     methods: ["GET", "POST", "DELETE"],
     requestSchema: "ScheduleInput",

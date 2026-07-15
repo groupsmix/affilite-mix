@@ -29,6 +29,11 @@ export function categoriesTag(siteId: string): string {
   return `categories:${siteId}`;
 }
 
+/** Tag for a site's published presentation (header/footer design). */
+export function presentationTag(siteId: string): string {
+  return `presentation:${siteId}`;
+}
+
 /** All site-scoped tags a single site uses. */
 export function allSiteTags(siteId: string): string[] {
   return [contentTag(siteId), productsTag(siteId), categoriesTag(siteId)];

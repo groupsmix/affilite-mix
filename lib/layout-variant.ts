@@ -34,6 +34,11 @@ export function resolveLayoutVariant(
   return firstValidVariant(dbValue, configValue);
 }
 
+/** True when `value` is one of the recognized layout variants. */
+export function isValidVariant(value: unknown): value is LayoutVariant {
+  return typeof value === "string" && VALID_LAYOUT_VARIANTS.has(value);
+}
+
 /** Return the first recognized variant among the candidates, else "standard". */
 export function firstValidVariant(...candidates: (string | null | undefined)[]): LayoutVariant {
   for (const candidate of candidates) {

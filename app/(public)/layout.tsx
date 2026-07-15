@@ -9,6 +9,7 @@ import { AdSlot } from "./components/ads/ad-slot";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig } from "./components/theme-provider";
 import { resolvePresentation, type PresentationSource } from "@/lib/presentation/resolve";
+import { getPublishedPresentationSource } from "@/lib/dal/site-presentations";
 import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
 
@@ -78,18 +79,25 @@ export default async function PublicLayout({ children }: { children: React.React
           fontHeading: t?.font_heading || site.theme.fontHeading,
           fontBody: t?.font_body || t?.font || site.theme.fontBody,
         };
-        // Presentation (variant + header/footer config + tokens) is read from
-        // the DB-managed tenant's theme blob. Every field is validated by
-        // resolvePresentation before it reaches a component.
-        const blob = dbSite.theme as Record<string, unknown> | null;
-        dbPresentation = {
-          layoutVariant: t?.layout_variant ?? null,
-          headerVariant: (blob?.header_variant as string | undefined) ?? null,
-          footerVariant: (blob?.footer_variant as string | undefined) ?? null,
-          headerConfig: blob?.header_config,
-          footerConfig: blob?.footer_config,
-          headerTokens: blob?.header_tokens,
-        };
+        // Presentation authority (Phase 2): the DB-authoritative source is the
+        // published `site_presentations` row, resolved + cached by site. Every
+        // field is validated by resolvePresentation before it reaches a
+        // component. When no published presentation exists we fall back to the
+        // legacy `sites.theme` blob so pre-migration tenants keep their design.
+        const publishedPresentation = await getPublishedPresentationSource(dbSite.id);
+        if (publishedPresentation) {
+          dbPresentation = publishedPresentation;
+        } else {
+          const blob = dbSite.theme as Record<string, unknown> | null;
+          dbPresentation = {
+            layoutVariant: t?.layout_variant ?? null,
+            headerVariant: (blob?.header_variant as string | undefined) ?? null,
+            footerVariant: (blob?.footer_variant as string | undefined) ?? null,
+            headerConfig: blob?.header_config,
+            footerConfig: blob?.footer_config,
+            headerTokens: blob?.header_tokens,
+          };
+        }
         // Dynamic navigation from DB
         if (Array.isArray(dbSite.nav_items) && dbSite.nav_items.length > 0) {
           dbNavItems = dbSite.nav_items;

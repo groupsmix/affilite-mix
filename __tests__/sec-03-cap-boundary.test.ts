@@ -39,15 +39,21 @@ import { SERVICE_ROLE_IMPORT_ALLOWLIST } from "../lib/security/service-role-allo
  * browser cookie / admin session; it authenticates a bearer token and then
  * operates on behalf of one site. Every automation DAL reaches the privileged
  * client through this one module. Rationale recorded in the allowlist.
+ * Bumped 46 -> 47: lib/dal/site-presentations.ts is the single sanctioned
+ * importer for the DB-authoritative presentation control plane. The
+ * site_presentations table (migration 2026071506) is service_role-only for
+ * writes and draft/history reads; every admin presentation DAL reaches the
+ * privileged client through this one module, after super_admin session gating
+ * at the route layer. Rationale recorded in the allowlist.
  */
-const SEC_03_CAP = 46;
+const SEC_03_CAP = 47;
 
 /** The SEC-03 control: passes iff the allowlist has at most SEC_03_CAP entries. */
 const sec03Passes = (entryCount: number): boolean => entryCount <= SEC_03_CAP;
 
 describe("SEC-03 allowlist cap (Task 5.4)", () => {
-  it("the SEC-03 cap is 46 (R10.5)", () => {
-    expect(SEC_03_CAP).toBe(46);
+  it("the SEC-03 cap is 47 (R10.5)", () => {
+    expect(SEC_03_CAP).toBe(47);
   });
 
   it("the live allowlist is at or below the cap (R10.6)", () => {
@@ -57,19 +63,19 @@ describe("SEC-03 allowlist cap (Task 5.4)", () => {
 });
 
 describe("SEC-03 boundary behavior (Task 5.4)", () => {
-  it("passes when the allowlist has fewer than 46 entries (R10.6)", () => {
+  it("passes when the allowlist has fewer than 47 entries (R10.6)", () => {
     expect(sec03Passes(0)).toBe(true);
-    expect(sec03Passes(43)).toBe(true);
     expect(sec03Passes(44)).toBe(true);
     expect(sec03Passes(45)).toBe(true);
-  });
-
-  it("passes at exactly 46 entries — the cap is inclusive (R10.6)", () => {
     expect(sec03Passes(46)).toBe(true);
   });
 
-  it("fails when the allowlist exceeds 46 entries (R10.7)", () => {
-    expect(sec03Passes(47)).toBe(false);
+  it("passes at exactly 47 entries — the cap is inclusive (R10.6)", () => {
+    expect(sec03Passes(47)).toBe(true);
+  });
+
+  it("fails when the allowlist exceeds 47 entries (R10.7)", () => {
+    expect(sec03Passes(48)).toBe(false);
     expect(sec03Passes(100)).toBe(false);
   });
 });
