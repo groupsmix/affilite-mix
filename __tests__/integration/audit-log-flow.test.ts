@@ -7,14 +7,18 @@
  * Tests the fix for Issue #3 (audit log schema alignment).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { shouldRunSupabaseIntegration } from "./helpers/should-run";
 
 describe.skipIf(!shouldRunSupabaseIntegration)("Audit Log Flow Integration", () => {
-  const sb = getPrivilegedSupabaseClient();
+  let sb!: ReturnType<typeof getPrivilegedSupabaseClient>;
   let testSiteId: string;
   let testAdminId: string;
+
+  beforeAll(() => {
+    sb = getPrivilegedSupabaseClient();
+  });
 
   beforeEach(async () => {
     // Create a test site

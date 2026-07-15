@@ -7,15 +7,19 @@
  * Tests the fix for Issue #4 (atomic impression aggregation).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAdImpression } from "@/lib/dal/ad-impressions";
 import { shouldRunSupabaseIntegration } from "./helpers/should-run";
 
 describe.skipIf(!shouldRunSupabaseIntegration)("Impression Tracking Integration", () => {
-  const sb = getPrivilegedSupabaseClient();
+  let sb!: ReturnType<typeof getPrivilegedSupabaseClient>;
   let testSiteId: string;
   let testPlacementId: string;
+
+  beforeAll(() => {
+    sb = getPrivilegedSupabaseClient();
+  });
 
   beforeEach(async () => {
     // Create a test site
