@@ -50,7 +50,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: Number.isNaN(Number(process.env.PLAYWRIGHT_RETRIES))
     ? process.env.CI
-      ? 2
+      ? 0
       : 0
     : Number(process.env.PLAYWRIGHT_RETRIES),
   workers: process.env.CI ? 2 : undefined,
