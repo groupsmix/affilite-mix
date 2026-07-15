@@ -1,6 +1,20 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useMemo } from "react";
+
+function currencySymbol(currency: string): string {
+  try {
+    const parts = new Intl.NumberFormat("en", {
+      style: "currency",
+      currency,
+      currencyDisplay: "narrowSymbol",
+    }).formatToParts(0);
+    const literal = parts.find((p) => p.type === "literal");
+    return literal?.value?.trim() ?? "$";
+  } catch {
+    return "$";
+  }
+}
 
 interface PriceAlertFormProps {
   productId: string;
@@ -24,6 +38,7 @@ export function PriceAlertForm({
   siteLanguage = "en",
 }: PriceAlertFormProps) {
   const isAr = siteLanguage === "ar";
+  const symbol = useMemo(() => currencySymbol(currency), [currency]);
   const [email, setEmail] = useState("");
   const [targetPrice, setTargetPrice] = useState(currentPrice ? Math.round(currentPrice * 0.9) : 0);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -95,7 +110,11 @@ export function PriceAlertForm({
       </p>
 
       <div className="flex gap-2">
+        <label htmlFor="price-alert-email" className="sr-only">
+          {isAr ? "بريدك الإلكتروني" : "Email address"}
+        </label>
         <input
+          id="price-alert-email"
           type="email"
           placeholder={isAr ? "بريدك الإلكتروني" : "your@email.com"}
           value={email}
@@ -104,10 +123,14 @@ export function PriceAlertForm({
           className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-            $
+          <label htmlFor="price-alert-target" className="sr-only">
+            {isAr ? "السعر المستهدف" : "Target price"}
+          </label>
+          <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+            {symbol}
           </span>
           <input
+            id="price-alert-target"
             type="number"
             min={1}
             step={1}
@@ -115,7 +138,7 @@ export function PriceAlertForm({
             onChange={(e) => setTargetPrice(Number(e.target.value))}
             required
             placeholder={isAr ? "السعر المستهدف" : "Target"}
-            className="w-28 rounded-md border border-gray-300 py-2 pl-7 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-28 rounded-md border border-gray-300 py-2 ps-7 pe-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
       </div>

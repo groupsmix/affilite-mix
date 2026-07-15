@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getKVNamespace } from "@/lib/rate-limit";
 import { getSiteIdFromHeader, getCurrentSite } from "@/lib/site-context";
+import { hasSiteFeature } from "@/lib/site-features";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getActiveMembership } from "@/lib/dal/memberships";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -194,6 +195,9 @@ export async function POST(request: NextRequest) {
       // (the cross-tenant redirect the audit flagged). In dev we keep honouring
       // APP_URL (typically http://localhost:3000) so local Stripe testing works.
       const currentSite = await getCurrentSite();
+      if (!hasSiteFeature(currentSite, "membership")) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
       const tenantOrigin = currentSite.domain ? `https://${currentSite.domain}` : null;
       const baseUrl =
         process.env.NODE_ENV === "production"

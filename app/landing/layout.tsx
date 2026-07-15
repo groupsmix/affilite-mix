@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "@/app/globals.css";
 import "./landing.css";
+import { LandingMotionConfig } from "./components/landing-motion-config";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,7 +35,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
   return (
     <html lang="en" className={`dark ${inter.variable} ${mono.variable}`} suppressHydrationWarning>
       <body className="landing-body bg-[#0a0b0f] text-[#e2e4e9] antialiased selection:bg-violet-500/30">
-        {children}
+        <LandingMotionConfig>{children}</LandingMotionConfig>
       </body>
     </html>
   );

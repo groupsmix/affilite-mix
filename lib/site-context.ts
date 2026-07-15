@@ -67,12 +67,23 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
     estRevenuePerClick: row.est_revenue_per_click,
 
     features: {
+      // Core features default to enabled so DB-only tenants are usable.
       newsletter: features.newsletter ?? true,
       searchModal: features.search ?? features.searchModal ?? true,
-      giftFinder: features.giftFinder ?? false,
       scheduling: features.scheduling ?? true,
-      blog: features.blog ? { source: "database" as const } : undefined,
       cookieConsent: features.cookieConsent ?? true,
+      blog: features.blog ? { source: "database" as const } : undefined,
+      // Optional surfaces default to disabled until explicitly enabled.
+      giftFinder: features.giftFinder ?? false,
+      comparisons: features.comparisons ?? false,
+      deals: features.deals ?? false,
+      rssFeed: features.rssFeed ?? false,
+      taxonomyPages: features.taxonomyPages ?? false,
+      brandSpotlights: features.brandSpotlights ?? false,
+      customHomepage: features.customHomepage ?? false,
+      captchaOnLogin: features.captchaOnLogin ?? false,
+      membership: features.membership ?? false,
+      mediaKit: features.mediaKit ?? false,
     },
 
     pages: {

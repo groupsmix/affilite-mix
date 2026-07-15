@@ -85,34 +85,31 @@ const worker = {
     }
 
     const url = `${cronHost}${job.path}`;
-    ctx.waitUntil(
-      fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${cronSecret}`,
-          "Content-Type": "application/json",
-        },
-      })
-        .then(async (res: Response) => {
-          const body = await res.text();
-          if (res.ok) {
-            logger.info("[heavy-crons] dispatch responded", {
-              job: job.name,
-              status: res.status,
-              body,
-            });
-          } else {
-            logger.error("[heavy-crons] dispatch failed", {
-              job: job.name,
-              status: res.status,
-              body,
-            });
-          }
-        })
-        .catch((err: unknown) => {
-          logger.error("[heavy-crons] dispatch fetch error", { job: job.name, error: err });
-        }),
-    );
+    // A-018: await the dispatch and throw on failure so Cloudflare marks the
+    // cron as failed and applies its retry/back-off policy. Previously we used
+    // ctx.waitUntil, which swallowed failures and left missed jobs unalerted.
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cronSecret}`,
+        "Content-Type": "application/json",
+        "Accept-Version": "1",
+      },
+    });
+    const body = await res.text();
+    if (!res.ok) {
+      logger.error("[heavy-crons] dispatch failed", {
+        job: job.name,
+        status: res.status,
+        body,
+      });
+      throw new Error(`Heavy cron dispatch failed for ${job.name}: ${res.status}`);
+    }
+    logger.info("[heavy-crons] dispatch responded", {
+      job: job.name,
+      status: res.status,
+      body,
+    });
   },
 };
 

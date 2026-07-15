@@ -29,6 +29,7 @@ describe("getClientIp", () => {
 
   it("prefers cf-connecting-ip over x-forwarded-for", () => {
     process.env.TRUST_PROXY_HEADERS = "true";
+    process.env.TRUST_CF_CONNECTING_IP = "true";
     const req = makeRequest({
       "cf-connecting-ip": "203.0.113.1",
       "x-forwarded-for": "10.0.0.1",
@@ -69,11 +70,11 @@ describe("getClientIp", () => {
     expect(getClientIp(req)).toBe("unknown");
   });
 
-  // F8: opt-out for directly-reachable (non-Cloudflare-only) origins where a
-  // client could spoof cf-connecting-ip.
-  it("trusts cf-connecting-ip by default (Cloudflare-only deployment model)", () => {
+  // F8: cf-connecting-ip is now disabled by default; deployments that are
+  // exclusively behind Cloudflare must opt in with TRUST_CF_CONNECTING_IP=true.
+  it("ignores cf-connecting-ip by default (direct-origin safe default)", () => {
     const req = makeRequest({ "cf-connecting-ip": "203.0.113.5" });
-    expect(getClientIp(req)).toBe("203.0.113.5");
+    expect(getClientIp(req)).toBe("unknown");
   });
 
   it("ignores a spoofable cf-connecting-ip when TRUST_CF_CONNECTING_IP=false", () => {

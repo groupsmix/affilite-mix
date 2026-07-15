@@ -6,7 +6,7 @@
  *   - Two-tone wordmark: "AI" in white, "Compared" in cobalt
  *   - Pill-style nav links with hover highlight
  *   - "Compare AI" CTA button (cobalt fill, white text)
- *   - Search icon + dark-mode toggle on the right
+ *   - Search icon on the right
  *
  * All colours reference CSS vars injected by ThemeProvider so the DB
  * can override them at runtime without a code deploy.
@@ -15,7 +15,6 @@
 import type { SiteDefinition, NavItem } from "@/config/site-definition";
 import Link from "next/link";
 import { ActiveNavLinks } from "./active-nav-links";
-import { DarkModeToggle } from "./dark-mode-toggle";
 import { MobileMenu } from "./mobile-menu";
 
 interface SiteHeaderCompareProps {
@@ -98,11 +97,6 @@ export function SiteHeaderCompare({ site, dbNavItems }: SiteHeaderCompareProps) 
               />
             </svg>
           </Link>
-
-          {/* Dark mode toggle — muted tint on dark bg */}
-          <div className="text-gray-400 [&_button]:hover:bg-white/10 [&_button]:hover:text-white">
-            <DarkModeToggle />
-          </div>
 
           {/* CTA — hidden on very small screens, visible md+ */}
           <Link

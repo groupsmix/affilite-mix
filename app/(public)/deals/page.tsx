@@ -1,4 +1,4 @@
-import { getCurrentSite } from "@/lib/site-context";
+import { requireSiteFeature } from "@/lib/site-features";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { listActiveDeals } from "@/lib/dal/deals";
@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import type { DealRow } from "@/lib/dal/deals";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const site = await getCurrentSite();
+  const site = await requireSiteFeature("deals");
   const isAr = site.language === "ar";
   return staticPageMetadata({
     site,
@@ -104,7 +104,7 @@ function DealCard({ deal, isAr }: { deal: DealRow; isAr: boolean }) {
 }
 
 export default async function DealsPage() {
-  const site = await getCurrentSite();
+  const site = await requireSiteFeature("deals");
   const isAr = site.language === "ar";
 
   if (shouldSkipDbCall()) {

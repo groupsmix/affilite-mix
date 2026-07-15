@@ -121,41 +121,33 @@ const worker = {
     const path = job.path;
     const url = `${cronHost}${path}`;
 
-    ctx.waitUntil(
-      fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${cronSecret}`,
-          "Content-Type": "application/json",
-        },
-      })
-        .then(async (res: Response) => {
-          const body = await res.text();
-          if (res.ok) {
-            logger.info("[scheduled] cron dispatch responded", {
-              cron: controller.cron,
-              path,
-              status: res.status,
-              body,
-            });
-          } else {
-            logger.error("[scheduled] cron dispatch failed", {
-              cron: controller.cron,
-              path,
-              status: res.status,
-              body,
-            });
-          }
-        })
-        .catch((err: unknown) => {
-          logger.error("[scheduled] cron dispatch fetch error", {
-            cron: controller.cron,
-            path,
-            error: err,
-          });
-          captureException(err instanceof Error ? err : new Error(String(err)));
-        }),
-    );
+    // R-005/ADR-0008: pin the v1 API contract for all internal cron dispatches.
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cronSecret}`,
+        "Content-Type": "application/json",
+        "Accept-Version": "1",
+      },
+    });
+    const body = await res.text();
+    if (!res.ok) {
+      const dispatchErr = new Error(`Cron dispatch failed for ${controller.cron}: ${res.status}`);
+      logger.error("[scheduled] cron dispatch failed", {
+        cron: controller.cron,
+        path,
+        status: res.status,
+        body,
+      });
+      captureException(dispatchErr);
+      throw dispatchErr;
+    }
+    logger.info("[scheduled] cron dispatch responded", {
+      cron: controller.cron,
+      path,
+      status: res.status,
+      body,
+    });
   },
 
   /**
@@ -205,6 +197,7 @@ const worker = {
                 {
                   Authorization: `Bearer ${internalToken}`,
                   "Content-Type": "application/json",
+                  "Accept-Version": "1",
                 },
                 // audit #7: bind the exact operation we are about to POST,
                 // including ?dlq=true, so the signature can't be re-pointed.

@@ -562,7 +562,14 @@ export function GiftFinderQuiz({
       </div>
 
       {/* Progress bar */}
-      <div className="mb-8 flex items-center gap-2">
+      <div
+        className="mb-8 flex items-center gap-2"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={steps.length}
+        aria-valuenow={currentStep + 1}
+        aria-label={language === "ar" ? "تقدم الاختبار" : "Quiz progress"}
+      >
         {steps.map((_, i) => (
           <div
             key={i}
@@ -574,6 +581,8 @@ export function GiftFinderQuiz({
       </div>
 
       <div
+        aria-live="polite"
+        aria-atomic="true"
         className={`transition-all duration-200 ${animatingStep ? "translate-y-2 opacity-0" : "translate-y-0 opacity-100"}`}
       >
         <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-500">

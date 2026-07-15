@@ -17,7 +17,14 @@
  * `integration-nightly.yml` workflow wires these variables from the
  * `STAGING_SUPABASE_*` GitHub secrets.
  */
-export const shouldRunSupabaseIntegration: boolean =
-  process.env.TEST_WITH_SUPABASE === "1" &&
-  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+export const shouldRunSupabaseIntegration: boolean = (() => {
+  const optIn = process.env.TEST_WITH_SUPABASE === "1";
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+
+  // J-1: opt-in must be paired with a real, non-placeholder Supabase URL.
+  // If a caller explicitly opted in but did not provide a real URL, treat the
+  // suite as not runnable so `describe.skipIf` skips it cleanly. CI is
+  // expected to fail fast by asserting executed test counts rather than by
+  // letting an empty run report green.
+  return optIn && !!url && !url.includes("placeholder");
+})();

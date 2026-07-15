@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { shouldSkipDbCall } from "@/lib/db-available";
-import { NONCE_HEADER } from "@/lib/csp";
 import { PATHNAME_HEADER } from "@/lib/request-path";
 import { WebVitals } from "./web-vitals";
 import { logger } from "@/lib/logger";
@@ -116,7 +115,6 @@ const fontVarMap: Record<string, string> = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
   const headerList = await headers();
-  const nonce = headerList.get(NONCE_HEADER) ?? undefined;
 
   // The admin panel shares this root layout, but the public GDPR cookie-consent
   // banner must never render on admin routes. Detect the admin path prefix via
@@ -143,27 +141,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={Array.from(needed).join(" ")}
       suppressHydrationWarning
     >
-      <head>
-        {/* audit-etap1 #6: hand-controlled, hard-coded theme-init bootstrap.
-            Nonced. No user input. Any contributor editing this literal MUST
-            keep it free of template interpolation; if dynamic data is ever
-            required, route it through `safeJsonLdString` or `sanitizeHtml`
-            and remove the eslint-disable comment below.
-
-            FR-07 (open-items 2026-06-10): the empty `catch(e){}` inside the
-            literal is INTENTIONAL, not an oversight. This runs pre-hydration,
-            before any logger exists; `localStorage`/`matchMedia` can throw in
-            private browsing, sandboxed iframes, or when storage is blocked.
-            The only correct behavior is to fail open to the default theme.
-            Do not "fix" it by adding logging or re-throwing. */}
-        <script
-          nonce={nonce}
-          // eslint-disable-next-line no-restricted-syntax -- audit-etap1 #6: hand-controlled theme-init bootstrap, no user input
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("theme-preference");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
-          }}
-        />
-      </head>
       <body>
         <WebVitals />
         {site.features.cookieConsent && !isAdminRoute && (

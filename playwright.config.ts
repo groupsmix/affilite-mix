@@ -48,7 +48,11 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: Number.isNaN(Number(process.env.PLAYWRIGHT_RETRIES))
+    ? process.env.CI
+      ? 2
+      : 0
+    : Number(process.env.PLAYWRIGHT_RETRIES),
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? "github" : "html",
   // Create missing screenshot baselines on first run instead of failing.
