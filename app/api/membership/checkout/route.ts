@@ -82,6 +82,11 @@ function priceIdForTier(tier: string): string | undefined {
 }
 
 export async function POST(request: NextRequest) {
+  const currentSite = await getCurrentSite();
+  if (!hasSiteFeature(currentSite, "membership")) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const ip = getClientIp(request);
   // F-006 / SEC-14: failPolicy: "closed" — checkout creates payment
   // sessions and must never silently skip rate limiting when KV/DO is
@@ -194,10 +199,6 @@ export async function POST(request: NextRequest) {
       // after checkout instead of always bouncing to the primary APP_URL host
       // (the cross-tenant redirect the audit flagged). In dev we keep honouring
       // APP_URL (typically http://localhost:3000) so local Stripe testing works.
-      const currentSite = await getCurrentSite();
-      if (!hasSiteFeature(currentSite, "membership")) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
       const tenantOrigin = currentSite.domain ? `https://${currentSite.domain}` : null;
       const baseUrl =
         process.env.NODE_ENV === "production"
