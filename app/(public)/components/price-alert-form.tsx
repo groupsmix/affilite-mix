@@ -2,15 +2,15 @@
 
 import { useState, type FormEvent, useMemo } from "react";
 
-function currencySymbol(currency: string): string {
+export function currencySymbol(currency: string): string {
   try {
     const parts = new Intl.NumberFormat("en", {
       style: "currency",
       currency,
       currencyDisplay: "narrowSymbol",
     }).formatToParts(0);
-    const literal = parts.find((p) => p.type === "literal");
-    return literal?.value?.trim() ?? "$";
+    const symbol = parts.find((p) => p.type === "currency");
+    return symbol?.value?.trim() ?? "$";
   } catch {
     return "$";
   }
