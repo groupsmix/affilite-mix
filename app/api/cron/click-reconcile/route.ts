@@ -4,7 +4,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
-import { recordCronLiveness } from "@/lib/cron-liveness";
+import { recordCronLiveness, checkCronLiveness } from "@/lib/cron-liveness";
 
 /**
  * POST /api/cron/click-reconcile
@@ -73,6 +73,11 @@ export async function POST(request: NextRequest) {
     }
 
     void recordCronLiveness("click-reconcile");
+    // P1-5: run the liveness sweep from a SECOND frequent cron so a publish-cron
+    // outage cannot silently disable missed-cron detection for the whole fleet
+    // (shared-fate). The sweep is internally throttled, so a redundant caller is
+    // cheap and only takes over when publish stops reporting.
+    void checkCronLiveness();
     return NextResponse.json({
       ok: true,
       successes,
