@@ -64,7 +64,6 @@ function toYaml(value: unknown, indent = 0): string {
         }
         if (typeof val === "object" && val !== null) {
           const nested = toYaml(val, indent + 2);
-          const lines = nested.split("\n");
           return `${pad}${key}:\n${nested}`;
         }
         return `${pad}${key}: ${toYaml(val, 0).trimStart()}`;
