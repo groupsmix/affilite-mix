@@ -9,8 +9,8 @@ function currencySymbol(currency: string): string {
       currency,
       currencyDisplay: "narrowSymbol",
     }).formatToParts(0);
-    const literal = parts.find((p) => p.type === "literal");
-    return literal?.value?.trim() ?? "$";
+    const symbol = parts.find((p) => p.type === "currency");
+    return symbol?.value?.trim() || "$";
   } catch {
     return "$";
   }
