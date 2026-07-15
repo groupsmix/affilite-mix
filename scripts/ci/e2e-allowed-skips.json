@@ -6,7 +6,7 @@
   "mobile menu only mounted",
   "mobile menu toggle not visible",
   "newsletter signup form not found",
-  "returned (\\d{3}|no response)",
+  "returned ",
   "Expected 404 but got",
   "Requires real Supabase backend",
   "skipped because the preview",

@@ -148,14 +148,14 @@ describe("evaluateGate", () => {
   });
 
   it("flags skips not covered by the allow-list", () => {
-    const r = evaluateGate(tests, { allowSkipPatterns: [/no such reason/] });
+    const r = evaluateGate(tests, { allowSkipPatterns: ["no such reason"] });
     expect(r.ok).toBe(false);
     expect(r.unexpectedSkips).toHaveLength(1);
     expect(r.unexpectedSkips[0]?.name).toBe("needs backend");
   });
 
   it("accepts skips covered by the allow-list", () => {
-    const r = evaluateGate(tests, { allowSkipPatterns: [/needs backend/] });
+    const r = evaluateGate(tests, { allowSkipPatterns: ["needs backend"] });
     expect(r.ok).toBe(true);
     expect(r.unexpectedSkips).toHaveLength(0);
   });
@@ -171,8 +171,8 @@ describe("evaluateGate", () => {
         },
       ]),
     );
-    expect(evaluateGate(pw, { allowSkipPatterns: [/admin auth not provisioned/] }).ok).toBe(true);
-    expect(evaluateGate(pw, { allowSkipPatterns: [/unrelated/] }).ok).toBe(false);
+    expect(evaluateGate(pw, { allowSkipPatterns: ["admin auth not provisioned"] }).ok).toBe(true);
+    expect(evaluateGate(pw, { allowSkipPatterns: ["unrelated"] }).ok).toBe(false);
   });
 });
 
@@ -217,22 +217,20 @@ describe("shipped e2e allow-skip config", () => {
     "scripts/ci/e2e-allowed-skips-unauthenticated.json",
   ];
 
-  it("are valid JSON arrays of compilable regexes", () => {
+  it("are valid JSON arrays of non-empty substrings", () => {
     for (const f of files) {
       const patterns = parseAllowSkipFile(
         readFileSync(path.resolve(__dirname, "../../", f), "utf8"),
       );
       expect(patterns.length).toBeGreaterThan(0);
-      for (const p of patterns) expect(() => new RegExp(p)).not.toThrow();
+      for (const p of patterns) expect(p.trim()).not.toBe("");
     }
   });
 
   it("cover every current static e2e test.skip reason (skip-honesty allow-list stays complete)", () => {
-    const patterns = files
-      .flatMap((f) =>
-        parseAllowSkipFile(readFileSync(path.resolve(__dirname, "../../", f), "utf8")),
-      )
-      .map((p) => new RegExp(p));
+    const patterns = files.flatMap((f) =>
+      parseAllowSkipFile(readFileSync(path.resolve(__dirname, "../../", f), "utf8")),
+    );
 
     // Extract the literal reason strings passed to `.skip(true, "...")` across
     // the e2e specs. Any NEW static skip reason that is not covered by the
@@ -249,7 +247,7 @@ describe("shipped e2e allow-skip config", () => {
     }
 
     expect(reasons.length).toBeGreaterThan(0);
-    const uncovered = reasons.filter((r) => !patterns.some((re) => re.test(r)));
+    const uncovered = reasons.filter((r) => !patterns.some((pattern) => r.includes(pattern)));
     expect(uncovered).toEqual([]);
   });
 });

@@ -12,8 +12,8 @@
  *   --max-skips <N>        Fail if more than N tests were skipped.
  *   --require-suite <sub>  Fail unless at least one EXECUTED test belongs to a
  *                          file/name containing <sub> (repeatable).
- *   --allow-skip <regex>   When set, every skipped test must match at least one
- *                          allow pattern; any other skip is an "unexpected
+ *   --allow-skip <text>    When set, every skipped test must contain at least
+ *                          one allowed substring; any other skip is an "unexpected
  *                          skip" and fails the gate (repeatable). Vitest reports
  *                          have no skip reason, so the test's full name is
  *                          matched; Playwright reports match the skip
@@ -117,7 +117,7 @@ export function parsePlaywrightReport(report) {
  *   minExecuted?: number,
  *   maxSkips?: number | null,
  *   requiredSuites?: string[],
- *   allowSkipPatterns?: RegExp[],
+ *   allowSkipPatterns?: string[],
  * }} opts
  */
 export function evaluateGate(tests, opts = {}) {
@@ -149,7 +149,9 @@ export function evaluateGate(tests, opts = {}) {
   const unexpectedSkips = [];
   if (allowSkipPatterns.length > 0) {
     for (const t of skipped) {
-      const matched = allowSkipPatterns.some((re) => re.test(t.skipReason) || re.test(t.name));
+      const matched = allowSkipPatterns.some(
+        (pattern) => t.skipReason.includes(pattern) || t.name.includes(pattern),
+      );
       if (!matched) unexpectedSkips.push({ name: t.name, reason: t.skipReason });
     }
     if (unexpectedSkips.length > 0) {
@@ -249,13 +251,11 @@ function main() {
   for (const f of args.allowSkipFile) {
     patternStrings.push(...parseAllowSkipFile(readFileSync(f, "utf8")));
   }
-  const allowSkipPatterns = patternStrings.map((s) => new RegExp(s));
-
   const result = evaluateGate(tests, {
     minExecuted: Number.isFinite(args.minExecuted) ? args.minExecuted : 0,
     maxSkips: Number.isFinite(args.maxSkips) ? args.maxSkips : null,
     requiredSuites: args.requireSuite,
-    allowSkipPatterns,
+    allowSkipPatterns: patternStrings,
   });
 
   const summary =
