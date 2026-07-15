@@ -3,7 +3,7 @@ import { getCategoryBySlug } from "@/lib/dal/categories";
 import { listContent, countContent } from "@/lib/dal/content";
 import { listActiveProducts } from "@/lib/dal/products";
 import { getTenantClient } from "@/lib/supabase-server";
-import { ContentCard } from "../../components/content-card";
+import { ContentCardGrid } from "../../components/content-card-grid";
 import { ProductCard } from "../../components/product-card";
 import { Pagination, PaginationHead } from "../../components/pagination";
 import { Breadcrumbs } from "../../components/breadcrumbs";
@@ -129,11 +129,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
       {/* Content */}
       {content.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {content.map((item) => (
-            <ContentCard key={item.id} content={item} locale={locale} />
-          ))}
-        </div>
+        <ContentCardGrid items={content} locale={locale} />
       ) : products.length === 0 ? (
         <div className="py-16 text-center text-gray-500">
           <p className="text-lg">

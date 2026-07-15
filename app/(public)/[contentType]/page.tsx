@@ -1,6 +1,6 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { listPublishedContent, countPublishedContent } from "@/lib/dal/content";
-import { ContentCard } from "../components/content-card";
+import { ContentCardGrid } from "../components/content-card-grid";
 import { Pagination, PaginationHead } from "../components/pagination";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
@@ -117,11 +117,7 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
 
       {items.length > 0 ? (
         <>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item) => (
-              <ContentCard key={item.id} content={item} locale={locale} />
-            ))}
-          </div>
+          <ContentCardGrid items={items} locale={locale} />
           <PaginationHead
             currentPage={currentPage}
             totalItems={totalItems}

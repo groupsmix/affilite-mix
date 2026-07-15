@@ -264,6 +264,15 @@ export function NewAdPlacementDialog({
                 placeholder="Upload a banner/creative"
                 id="new-ad-image"
               />
+              <p className="-mt-2 text-xs text-muted-foreground">
+                For a CPA/affiliate offer, download the network&apos;s banner and upload it here
+                (creatives must be hosted on this site&apos;s own CDN to display), then paste the
+                offer&apos;s tracking link below as the click-through URL.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Renders in whichever slot you pick: header, footer, in-article, sidebar (article
+                pages), or between posts (listing pages).
+              </p>
               <div className="grid gap-2">
                 <Label htmlFor="new-ad-click-url">Click-through URL</Label>
                 <Input
