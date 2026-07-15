@@ -4,7 +4,13 @@ import path from "path";
 export default defineConfig({
   test: {
     globals: true,
-    exclude: ["e2e/**", "node_modules/**", "**/*.integration.test.ts"],
+    // Keep real-backend integration suites out of the default unit run. They
+    // live under __tests__/integration/** or are named *.integration.test.ts
+    // and run via vitest.integration.config.ts, where the fail-closed CI gate
+    // enforces real execution. Without the directory glob the newer
+    // integration-directory suites (audit-log-flow, newsletter-flow, etc.)
+    // leak into `npm test` and skip there, masking the real gate.
+    exclude: ["e2e/**", "node_modules/**", "**/*.integration.test.ts", "__tests__/integration/**"],
     env: {
       NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co",
       SUPABASE_SERVICE_ROLE_KEY: "placeholder",

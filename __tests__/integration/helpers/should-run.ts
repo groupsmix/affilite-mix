@@ -13,9 +13,10 @@
  * configured" and the suite is skipped via `describe.skipIf`.
  *
  * For local development use `docker-compose up -d` + the exports in
- * `scripts/integration-env.sh`.  For CI, the nightly
- * `integration-nightly.yml` workflow wires these variables from the
- * `STAGING_SUPABASE_*` GitHub secrets.
+ * `scripts/integration-env.sh`.  In CI, the `Integration tests` job in
+ * `.github/workflows/ci.yml` (via `scripts/ci/integration-gate.sh`) wires
+ * these variables from the `STAGING_SUPABASE_*` GitHub secrets and fails
+ * closed if the suite would otherwise skip in a trusted context.
  */
 export const shouldRunSupabaseIntegration: boolean = (() => {
   const optIn = process.env.TEST_WITH_SUPABASE === "1";
