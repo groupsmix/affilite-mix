@@ -12,6 +12,8 @@
 
 import { writeFileSync } from "fs";
 import { API_ROUTE_METADATA } from "@/lib/api-route-metadata";
+import { API_SCHEMA_COMPONENTS } from "@/lib/api-contract-schema";
+import { API_VERSION_HEADER, CURRENT_API_VERSION } from "@/lib/api-version";
 
 const OUTPUT = "openapi.yaml";
 
@@ -100,6 +102,25 @@ function summaryFor(meta: (typeof API_ROUTE_METADATA)[number], method: string): 
   return `${method.toUpperCase()} ${meta.path}${scope} — ${auth}`;
 }
 
+function versionedResponse(description: string, schema?: Record<string, unknown>) {
+  const response: Record<string, unknown> = {
+    description,
+    headers: {
+      [API_VERSION_HEADER]: {
+        $ref: `#/components/headers/${API_VERSION_HEADER}`,
+      },
+    },
+  };
+  if (schema) {
+    response.content = {
+      "application/json": {
+        schema,
+      },
+    };
+  }
+  return response;
+}
+
 function buildOperation(meta: (typeof API_ROUTE_METADATA)[number], method: string) {
   const op: Record<string, unknown> = {
     summary: summaryFor(meta, method),
@@ -132,25 +153,41 @@ function buildOperation(meta: (typeof API_ROUTE_METADATA)[number], method: strin
   }
 
   const responses: Record<string, unknown> = {};
-  responses["200"] = {
-    description: publicOrInternal
-      ? "Successful response"
-      : `Successful response (${meta.responseSchema || "object"})`,
-    content: {
-      "application/json": {
-        schema: { type: "object" },
-      },
-    },
-  };
+  if (meta.contract) {
+    for (const [status, response] of Object.entries(meta.contract.responses)) {
+      responses[status] = versionedResponse(response.description, {
+        $ref: `#/components/schemas/${response.schema}`,
+      });
+    }
+    if (meta.contract.requestSchema && method !== "GET" && method !== "HEAD") {
+      op.requestBody = {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              $ref: `#/components/schemas/${meta.contract.requestSchema}`,
+            },
+          },
+        },
+      };
+    }
+  } else {
+    responses["200"] = versionedResponse(
+      publicOrInternal
+        ? "Successful response"
+        : `Successful response (${meta.responseSchema || "object"})`,
+      { type: "object" },
+    );
 
-  if (meta.auth !== "public" && meta.auth !== "stripe-webhook") {
-    responses["401"] = { description: "Unauthorized" };
-  }
-  if (meta.auth === "admin" || meta.auth === "super_admin") {
-    responses["403"] = { description: "Forbidden — insufficient role or cross-tenant access" };
-  }
-  if (meta.rateLimit) {
-    responses["429"] = { description: "Rate limited" };
+    if (meta.auth !== "public" && meta.auth !== "stripe-webhook") {
+      responses["401"] = versionedResponse("Unauthorized");
+    }
+    if (meta.auth === "admin" || meta.auth === "super_admin") {
+      responses["403"] = versionedResponse("Forbidden — insufficient role or cross-tenant access");
+    }
+    if (meta.rateLimit) {
+      responses["429"] = versionedResponse("Rate limited");
+    }
   }
 
   op.responses = responses;
@@ -194,7 +231,7 @@ const doc = {
   openapi: "3.1.0",
   info: {
     title: "Affilite Mix API",
-    version: "1",
+    version: CURRENT_API_VERSION,
     description:
       "Multi-tenant affiliate marketing platform API. Routes marked x-internal: true are not part of the public consumer contract.",
     contact: { name: "Affilite Mix" },
@@ -206,6 +243,17 @@ const doc = {
   ],
   paths: buildPaths(),
   components: {
+    schemas: API_SCHEMA_COMPONENTS,
+    headers: {
+      [API_VERSION_HEADER]: {
+        description: "Numeric major version of the served API contract.",
+        schema: {
+          type: "string",
+          pattern: "^[1-9][0-9]*$",
+          example: CURRENT_API_VERSION,
+        },
+      },
+    },
     securitySchemes: {
       bearerAuth: {
         type: "http",
