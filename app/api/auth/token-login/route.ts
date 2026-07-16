@@ -79,6 +79,11 @@ export async function POST(request: NextRequest) {
     userId: user.id,
     email: user.email,
     role: user.role,
+    // Site-scoped tokens pin the session to a single tenant. requireAdmin()
+    // rejects any request that resolves to a different site, and the
+    // site-switch route refuses to move a scoped session. All-sites tokens
+    // (site_id === null) omit the claim and keep full cross-tenant access.
+    ...(tokenRow!.site_id ? { site_id: tokenRow!.site_id } : {}),
   };
 
   const token = await createToken(payload, request);

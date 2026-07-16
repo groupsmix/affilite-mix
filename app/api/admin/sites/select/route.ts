@@ -22,6 +22,15 @@ export async function POST(request: NextRequest) {
   const rlError = await enforceAdminRateLimit("sites-select", session);
   if (rlError) return rlError;
 
+  // A session minted from a site-scoped API token is pinned to one tenant and
+  // must not be able to switch sites, even if it is a super_admin session.
+  if (session.site_id) {
+    return NextResponse.json(
+      { error: "This token is scoped to a single site and cannot switch sites." },
+      { status: 403 },
+    );
+  }
+
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
   const { siteId } = bodyOrError as { siteId?: string };

@@ -229,6 +229,20 @@ export async function requireAdmin(): Promise<AdminResult> {
     }
   }
 
+  // Enforce token scope: a session minted from a site-scoped API token carries
+  // a `site_id` claim and may only act on that one site — even for a
+  // super_admin. A manually changed active-site cookie that resolves to a
+  // different tenant is rejected. Sessions without the claim (interactive
+  // logins, all-sites tokens) are unaffected.
+  if (session.site_id && session.site_id !== dbSiteId) {
+    return {
+      error: unauthorizedResponse(),
+      session: null,
+      dbSiteId: null,
+      siteSlug: null,
+    };
+  }
+
   return { error: null, session, dbSiteId, siteSlug };
 }
 
