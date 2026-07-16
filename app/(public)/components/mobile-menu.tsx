@@ -8,18 +8,21 @@ interface MobileMenuProps {
   searchLabel?: string;
   direction?: "ltr" | "rtl";
   /**
-   * When true, renders the hamburger icon and drawer in dark mode colors
-   * (white icon on transparent bg, dark navy drawer). Use inside dark-bg headers.
+   * Appearance of the hamburger icon and drawer. "dark" renders a white icon
+   * and a dark drawer (for dark-bg headers); "light" renders the default
+   * light treatment. Replaces the old `dark` boolean so each header variant
+   * can pick its own mobile treatment independently of desktop styling.
    */
-  dark?: boolean;
+  appearance?: "light" | "dark";
 }
 
 export function MobileMenu({
   nav,
   searchLabel = "Search",
   direction = "ltr",
-  dark = false,
+  appearance = "light",
 }: MobileMenuProps) {
+  const dark = appearance === "dark";
   const [open, setOpen] = useState(false);
   const isRtl = direction === "rtl";
   const hamburgerRef = useRef<HTMLButtonElement>(null);

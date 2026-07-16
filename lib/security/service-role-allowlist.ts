@@ -253,4 +253,16 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // scoping is enforced in app code via the token's bound site_id (never
   // request input). Mirrors lib/dal/admin-api-tokens.ts.
   "lib/automation/db.ts",
+
+  // Site presentations control plane: the `site_presentations` table
+  // (migration 2026071506) is service_role-only for writes and draft/history
+  // reads (public/anon may read only the published row). This module is the
+  // single sanctioned importer of the privileged gateway for presentations —
+  // every admin presentation DAL (save draft, publish, rollback, read
+  // draft/history) reaches the privileged client through here, after the
+  // route layer has authenticated a super_admin session + resolved the active
+  // site. Public rendering never uses this getter; it reads the published row
+  // via the anon client. Site scoping is enforced by explicit .eq("site_id").
+  // Mirrors lib/automation/db.ts.
+  "lib/dal/site-presentations.ts",
 ] as const;

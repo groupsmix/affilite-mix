@@ -324,3 +324,24 @@ export interface MediaRow {
   created_at: string;
   updated_at: string;
 }
+
+// ── Site Presentations (DB-authoritative header/footer design) ──────────
+
+export type SitePresentationStatus = "draft" | "published" | "archived";
+
+export interface SitePresentationRow {
+  id: string;
+  site_id: string;
+  status: SitePresentationStatus;
+  version: number | null;
+  header_variant: string | null;
+  footer_variant: string | null;
+  header_config: Record<string, unknown>;
+  footer_config: Record<string, unknown>;
+  header_tokens: Record<string, unknown>;
+  created_by: string | null;
+  published_by: string | null;
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
+}

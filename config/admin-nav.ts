@@ -22,6 +22,7 @@ import {
   type LucideIcon,
   Megaphone,
   Package,
+  Palette,
   Plug,
   ScrollText,
   Settings,
@@ -112,6 +113,13 @@ export const adminNavItems: AdminNavItem[] = [
         requiresActiveSite: true,
       },
     ],
+  },
+  {
+    href: adminRoute("/appearance"),
+    label: "Appearance",
+    iconKey: "appearance",
+    icon: Palette,
+    requiresActiveSite: true,
   },
   {
     href: adminRoute("/users"),

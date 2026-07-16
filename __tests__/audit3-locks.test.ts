@@ -226,7 +226,14 @@ describe("Audit-3 regression locks", () => {
       // authenticates a bearer token, then operates on behalf of one site. Every
       // automation DAL reaches the privileged client through this one module.
       // Rationale recorded in lib/security/service-role-allowlist.ts.
-      expect(count).toBeLessThanOrEqual(46);
+      // Bumped 46 -> 47: lib/dal/site-presentations.ts is the single sanctioned
+      // importer of the privileged gateway for the presentation control plane.
+      // The site_presentations table (migration 2026071506) is service_role-only
+      // for writes and draft/history reads (public/anon read the published row
+      // only). Every admin presentation DAL reaches the privileged client through
+      // this one module, after super_admin session gating at the route layer.
+      // Rationale recorded in lib/security/service-role-allowlist.ts.
+      expect(count).toBeLessThanOrEqual(47);
     });
   });
 

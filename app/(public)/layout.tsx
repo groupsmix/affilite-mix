@@ -8,8 +8,8 @@ import { SiteFooter } from "./components/site-footer";
 import { AdSlot } from "./components/ads/ad-slot";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig } from "./components/theme-provider";
-import type { LayoutVariant } from "@/config/site-definition";
-import { resolveLayoutVariant } from "@/lib/layout-variant";
+import { resolvePresentation, type PresentationSource } from "@/lib/presentation/resolve";
+import { getPublishedPresentationSource } from "@/lib/dal/site-presentations";
 import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
 
@@ -63,7 +63,7 @@ export default async function PublicLayout({ children }: { children: React.React
   // Database-managed tenants read runtime theme/navigation from their row.
   // Sites registered in config/sites remain code-authoritative.
   let dbTheme: Partial<SiteThemeConfig> = {};
-  let dbLayoutVariant: string | null = null;
+  let dbPresentation: PresentationSource | null = null;
   let dbNavItems: { label: string; href: string; icon?: string }[] = [];
   let dbFooterNav: { label: string; href: string; icon?: string }[] = [];
   if (!shouldSkipDbCall() && !isStaticConfigSite(site)) {
@@ -79,7 +79,25 @@ export default async function PublicLayout({ children }: { children: React.React
           fontHeading: t?.font_heading || site.theme.fontHeading,
           fontBody: t?.font_body || t?.font || site.theme.fontBody,
         };
-        dbLayoutVariant = t?.layout_variant ?? null;
+        // Presentation authority (Phase 2): the DB-authoritative source is the
+        // published `site_presentations` row, resolved + cached by site. Every
+        // field is validated by resolvePresentation before it reaches a
+        // component. When no published presentation exists we fall back to the
+        // legacy `sites.theme` blob so pre-migration tenants keep their design.
+        const publishedPresentation = await getPublishedPresentationSource(dbSite.id);
+        if (publishedPresentation) {
+          dbPresentation = publishedPresentation;
+        } else {
+          const blob = dbSite.theme as Record<string, unknown> | null;
+          dbPresentation = {
+            layoutVariant: t?.layout_variant ?? null,
+            headerVariant: (blob?.header_variant as string | undefined) ?? null,
+            footerVariant: (blob?.footer_variant as string | undefined) ?? null,
+            headerConfig: blob?.header_config,
+            footerConfig: blob?.footer_config,
+            headerTokens: blob?.header_tokens,
+          };
+        }
         // Dynamic navigation from DB
         if (Array.isArray(dbSite.nav_items) && dbSite.nav_items.length > 0) {
           dbNavItems = dbSite.nav_items;
@@ -95,11 +113,11 @@ export default async function PublicLayout({ children }: { children: React.React
     }
   }
 
-  // Database values apply only to database-managed tenants.
-  const resolvedLayoutVariant: LayoutVariant = resolveLayoutVariant(
-    dbLayoutVariant,
-    site.layoutVariant,
-  );
+  // Database values apply only to database-managed tenants. Presentation is
+  // resolved by layering: defaults -> variant defaults -> config -> DB. Site
+  // identity/domain stays code-authoritative; only visual presentation is
+  // DB-authoritative. A missing/malformed record falls back to safe defaults.
+  const presentation = resolvePresentation(site, dbPresentation);
 
   const themeConfig: Partial<SiteThemeConfig> = {
     primaryColor: site.theme.primaryColor,
@@ -113,7 +131,7 @@ export default async function PublicLayout({ children }: { children: React.React
     // Authoritative: set after the DB spread so the resolved variant (which
     // already accounts for any DB value) is what ThemeProvider renders as
     // data-layout, matching what SiteHeader/SiteFooter receive below.
-    layoutVariant: resolvedLayoutVariant,
+    layoutVariant: presentation.headerVariant,
   };
 
   return (
@@ -125,13 +143,18 @@ export default async function PublicLayout({ children }: { children: React.React
         >
           {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
         </a>
-        <SiteHeader site={site} dbNavItems={dbNavItems} layoutVariant={resolvedLayoutVariant} />
+        <SiteHeader site={site} dbNavItems={dbNavItems} presentation={presentation} />
         <AdSlot placementType="header" className="pt-4" />
         <main id="main-content" className="flex-1">
           {children}
         </main>
         <AdSlot placementType="footer" className="pb-4" />
-        <SiteFooter site={site} dbFooterNav={dbFooterNav} layoutVariant={resolvedLayoutVariant} />
+        <SiteFooter
+          site={site}
+          dbFooterNav={dbFooterNav}
+          footerVariant={presentation.footerVariant}
+          config={presentation.footer}
+        />
         <Toaster
           position="bottom-right"
           richColors

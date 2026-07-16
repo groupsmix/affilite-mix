@@ -3010,6 +3010,130 @@ paths:
           headers:
             API-Version:
               $ref: "#/components/headers/API-Version"
+  /api/admin/presentations:
+    get:
+      summary: GET /api/admin/presentations (site) — auth=admin
+      operationId: getApiAdminPresentations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PresentationDraftInput
+      x-responseSchema: "{ published: Presentation | null; draft: Presentation | null }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ published: Presentation | null; draft: Presentation | null })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    put:
+      summary: PUT /api/admin/presentations (site) — auth=admin
+      operationId: putApiAdminPresentations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PresentationDraftInput
+      x-responseSchema: "{ published: Presentation | null; draft: Presentation | null }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ published: Presentation | null; draft: Presentation | null })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/presentations (site) — auth=admin
+      operationId: postApiAdminPresentations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PresentationDraftInput
+      x-responseSchema: "{ published: Presentation | null; draft: Presentation | null }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ published: Presentation | null; draft: Presentation | null })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/schedule:
     get:
       summary: GET /api/admin/schedule (site) — auth=admin
