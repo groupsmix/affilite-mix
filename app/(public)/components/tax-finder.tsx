@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ProductCardCta } from "./product-card-client";
 
 /**
- * A tool in the recommendation set. `slug`/`affiliateUrl` come from the seeded
- * products so the finder's outbound clicks are the same tracked affiliate links
+ * A tool the finder can send the visitor to. `slug`/`affiliateUrl` come from the
+ * seeded products so the outbound clicks are the same tracked affiliate links
  * used everywhere else on the site.
  */
 export interface TaxFinderTool {
@@ -15,97 +16,76 @@ export interface TaxFinderTool {
   tagline: string;
 }
 
+export type TopicKey = "trade" | "defi" | "staking" | "airdrop" | "nft";
+
 interface TaxFinderProps {
   /** Software tools the finder can recommend (from seeded featured products). */
   tools: TaxFinderTool[];
-  /** Optional crypto-accountant referral, surfaced for complex/high-volume cases. */
+  /** Optional crypto-accountant referral, offered as a secondary route. */
   accountant?: TaxFinderTool | null;
+  /** Per-topic guide links (from seeded categories), keyed by topic. */
+  guideHrefs?: Partial<Record<TopicKey, string>>;
   /** Days until the 31 October self-lodgement deadline (computed server-side). */
   daysToDeadline: number;
   affiliateDisclosure: string;
   sourceType?: string;
 }
 
-type ActKey = "trade" | "defi" | "staking" | "airdrop" | "nft";
-type VolKey = "low" | "mid" | "high";
-type PriKey = "tax" | "simple" | "complex";
-
-const ACTS: { k: ActKey; label: string }[] = [
-  { k: "trade", label: "Bought & sold" },
-  { k: "defi", label: "DeFi (swaps, LPs, lending)" },
-  { k: "staking", label: "Staking rewards" },
-  { k: "airdrop", label: "Airdrops" },
-  { k: "nft", label: "NFTs" },
+/**
+ * One topic = one thing the visitor did with crypto. Each carries the plain ATO
+ * line and the software slug best suited to it. Single choice → straight to the
+ * tool + guide; no multi-step questionnaire.
+ */
+const TOPICS: {
+  k: TopicKey;
+  label: string;
+  ato: string;
+  toolSlug: string;
+}[] = [
+  {
+    k: "trade",
+    label: "Bought & sold",
+    ato: "Capital gains tax (CGT) on each disposal when you sell or swap.",
+    toolSlug: "koinly",
+  },
+  {
+    k: "defi",
+    label: "DeFi (swaps, LPs, lending)",
+    ato: "CGT on swaps and entering/exiting liquidity pools; ordinary income on some DeFi rewards and yield.",
+    toolSlug: "crypto-tax-calculator",
+  },
+  {
+    k: "staking",
+    label: "Staking rewards",
+    ato: "Rewards are ordinary income at their AUD value when received; CGT later when you dispose of them.",
+    toolSlug: "koinly",
+  },
+  {
+    k: "airdrop",
+    label: "Airdrops",
+    ato: "Established-project airdrops are ordinary income at market value on receipt; CGT on later disposal.",
+    toolSlug: "koinly",
+  },
+  {
+    k: "nft",
+    label: "NFTs",
+    ato: "CGT on NFT sales (possible personal-use-asset treatment); income if you mint or create as a business.",
+    toolSlug: "koinly",
+  },
 ];
-
-const VOLS: { k: VolKey; label: string }[] = [
-  { k: "low", label: "Under 100" },
-  { k: "mid", label: "100 – 1,000" },
-  { k: "high", label: "1,000+" },
-];
-
-const PRIS: { k: PriKey; label: string }[] = [
-  { k: "tax", label: "Pay the least tax" },
-  { k: "simple", label: "Keep it simple" },
-  { k: "complex", label: "Handle complex DeFi" },
-];
-
-/** ATO taxable-event language mapped to each activity. General info, not advice. */
-const EVENTS: Record<ActKey, string[]> = {
-  trade: ["Capital gains tax (CGT) on each disposal when you sell or swap"],
-  defi: [
-    "CGT on token swaps and entering/exiting liquidity pools",
-    "Possible ordinary income on DeFi rewards & yield",
-  ],
-  staking: [
-    "Ordinary income at the AUD value when rewards are received",
-    "CGT later when you dispose of those rewards",
-  ],
-  airdrop: [
-    "Ordinary income for established-project airdrops (market value at receipt)",
-    "CGT on later disposal",
-  ],
-  nft: [
-    "CGT on NFT sales; possible personal-use-asset treatment",
-    "Income if you mint/create NFTs as a business",
-  ],
-};
-
-/** Situation → best-fit tool. Returns the target product slug + the reasoning. */
-function recommend(acts: Set<ActKey>, vol: VolKey | null, pri: PriKey | null) {
-  if (pri === "tax") {
-    return {
-      slug: "syla",
-      why: "You want the smallest legal bill — Syla is built only for ATO rules and picks the lowest-tax parcels (LTFO) to reduce your CGT.",
-    };
-  }
-  if (acts.has("defi") && (vol === "high" || pri === "complex")) {
-    return {
-      slug: "crypto-tax-calculator",
-      why: "You've got heavy or complex DeFi — Crypto Tax Calculator has the strongest DeFi categorisation and handles messy on-chain activity across thousands of integrations.",
-    };
-  }
-  return {
-    slug: "koinly",
-    why: "For your mix of activity, Koinly is the safest all-rounder — ATO myTax-ready reports, wide exchange/wallet coverage, and solid DeFi, staking and NFT support.",
-  };
-}
 
 const chip =
-  "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer select-none";
-const seg =
-  "rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer select-none";
+  "rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer select-none";
 
 export function TaxFinder({
   tools,
   accountant,
+  guideHrefs,
   daysToDeadline,
   affiliateDisclosure,
   sourceType = "homepage",
 }: TaxFinderProps) {
-  const [acts, setActs] = useState<Set<ActKey>>(new Set());
-  const [vol, setVol] = useState<VolKey | null>(null);
-  const [pri, setPri] = useState<PriKey | null>(null);
+  const [topic, setTopic] = useState<TopicKey | null>(null);
 
   const bySlug = useMemo(() => {
     const m = new Map<string, TaxFinderTool>();
@@ -113,185 +93,94 @@ export function TaxFinder({
     return m;
   }, [tools]);
 
-  const events = useMemo(() => {
-    const out: string[] = [];
-    for (const a of acts) for (const e of EVENTS[a]) out.push(e);
-    return out;
-  }, [acts]);
-
-  const started = acts.size > 0 || pri !== null;
-  const rec = recommend(acts, vol, pri);
-  const pick = bySlug.get(rec.slug) ?? tools[0] ?? null;
-  const showAccountant = Boolean(accountant) && (vol === "high" || pri === "complex");
-
-  function toggleAct(k: ActKey) {
-    setActs((prev) => {
-      const next = new Set(prev);
-      if (next.has(k)) next.delete(k);
-      else next.add(k);
-      return next;
-    });
-  }
+  const selected = topic ? TOPICS.find((t) => t.k === topic) : null;
+  const pick = selected ? (bySlug.get(selected.toolSlug) ?? tools[0] ?? null) : null;
+  const guideHref = topic ? guideHrefs?.[topic] : undefined;
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
-      {/* ── Question panel ── */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
-        <fieldset className="pb-5">
-          <legend className="flex items-baseline gap-2 text-[15px] font-bold text-gray-900">
-            <Num n={1} /> What did you do with crypto this financial year?
-          </legend>
-          <p className="ms-8 mt-1 text-sm text-gray-500">
-            Pick everything that applies — it changes your taxable events.
-          </p>
-          <div className="ms-8 mt-3.5 flex flex-wrap gap-2.5">
-            {ACTS.map((a) => {
-              const on = acts.has(a.k);
-              return (
-                <button
-                  type="button"
-                  key={a.k}
-                  aria-pressed={on}
-                  onClick={() => toggleAct(a.k)}
-                  className={`${chip} ${
-                    on
-                      ? "border-[color:var(--color-accent,#16A34A)] bg-[color:var(--color-accent,#16A34A)]/10 text-[color:var(--color-accent-text,#15803D)]"
-                      : "border-gray-200 text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`grid size-4 place-items-center rounded border text-[10px] text-white ${
-                      on
-                        ? "border-[color:var(--color-accent,#16A34A)] bg-[color:var(--color-accent,#16A34A)]"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    {on ? "✓" : ""}
-                  </span>
-                  {a.label}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-[15px] font-bold text-gray-900">What did you do with crypto?</p>
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+          {daysToDeadline} days to 31 Oct
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-gray-500">
+        Pick one to see what the ATO taxes and the tool built for it.
+      </p>
 
-        <fieldset className="border-t border-gray-100 py-5">
-          <legend className="flex items-baseline gap-2 text-[15px] font-bold text-gray-900">
-            <Num n={2} /> Roughly how many transactions?
-          </legend>
-          <div className="ms-8 mt-3.5 flex flex-wrap gap-2.5">
-            {VOLS.map((v) => (
-              <Opt key={v.k} on={vol === v.k} onClick={() => setVol(v.k)} label={v.label} />
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset className="border-t border-gray-100 pt-5">
-          <legend className="flex items-baseline gap-2 text-[15px] font-bold text-gray-900">
-            <Num n={3} /> What matters most to you?
-          </legend>
-          <div className="ms-8 mt-3.5 flex flex-wrap gap-2.5">
-            {PRIS.map((p) => (
-              <Opt key={p.k} on={pri === p.k} onClick={() => setPri(p.k)} label={p.label} />
-            ))}
-          </div>
-        </fieldset>
+      <div className="mt-4 flex flex-wrap gap-2.5">
+        {TOPICS.map((t) => {
+          const on = topic === t.k;
+          return (
+            <button
+              type="button"
+              key={t.k}
+              aria-pressed={on}
+              onClick={() => setTopic(t.k)}
+              className={`${chip} ${
+                on
+                  ? "border-[color:var(--color-accent,#16A34A)] bg-[color:var(--color-accent,#16A34A)]/10 text-[color:var(--color-accent-text,#15803D)]"
+                  : "border-gray-200 text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── Result panel ── */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:sticky lg:top-[82px]">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <span className="text-xs font-bold uppercase tracking-[0.04em] text-gray-500">
-            Your result
-          </span>
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-            {daysToDeadline} days to 31 Oct
-          </span>
-        </div>
+      {selected && (
+        <div className="mt-5 grid items-start gap-4 border-t border-gray-100 pt-5 md:grid-cols-2">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-500">
+              What the ATO taxes
+            </p>
+            <p className="mt-2 text-[15px] leading-relaxed text-gray-700">{selected.ato}</p>
+            {guideHref && (
+              <Link
+                href={guideHref}
+                className="mt-3 inline-block text-sm font-semibold text-[color:var(--color-accent-text,#15803D)] hover:underline"
+              >
+                Read the {selected.label.toLowerCase()} tax guide →
+              </Link>
+            )}
+          </div>
 
-        <div className="px-5 py-5">
-          <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-500">
-            Your likely ATO taxable events
-          </p>
-          {events.length === 0 ? (
-            <p className="mt-2.5 text-sm text-gray-500">Select what you did above to see this.</p>
-          ) : (
-            <ul className="mt-2.5 flex flex-col gap-2">
-              {events.map((e) => (
-                <li key={e} className="flex items-start gap-2.5 text-sm text-gray-700">
-                  <span
-                    aria-hidden="true"
-                    className="mt-2 size-1.5 shrink-0 rounded-full bg-[color:var(--color-accent,#16A34A)]"
-                  />
-                  {e}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {started && pick && (
-            <div className="mt-5 border-t border-dashed border-gray-200 pt-4">
+          {pick && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.04em] text-[color:var(--color-accent-text,#15803D)]">
-                Recommended for you
+                Best tool for this
               </p>
-              <div className="mt-2.5">
-                <p className="text-lg font-extrabold text-gray-900">{pick.name}</p>
-                <p className="text-[13px] text-gray-500">{pick.tagline}</p>
-              </div>
-              <p className="mt-3 text-sm text-gray-700">{rec.why}</p>
-              <div className="mt-4 flex flex-col gap-2">
+              <p className="mt-2 text-lg font-extrabold text-gray-900">{pick.name}</p>
+              {pick.tagline && <p className="text-[13px] text-gray-500">{pick.tagline}</p>}
+              <div className="mt-3 flex flex-col gap-2">
                 <ProductCardCta
                   href={pick.affiliateUrl}
                   slug={pick.slug}
                   sourceType={sourceType}
-                  label={`Visit ${pick.name} →`}
+                  label={`Go to ${pick.name} →`}
                   className="block w-full rounded-lg px-4 py-2.5 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90"
                   style={{ backgroundColor: "var(--color-accent, #16A34A)" }}
                 />
-                {showAccountant && accountant && (
+                {accountant && (
                   <ProductCardCta
                     href={accountant.affiliateUrl}
                     slug={accountant.slug}
                     sourceType={sourceType}
-                    label="Complex situation? Talk to a crypto accountant →"
-                    className="block w-full rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50"
+                    label="Rather have an accountant do it? →"
+                    className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-100"
                   />
                 )}
               </div>
             </div>
           )}
         </div>
+      )}
 
-        <p className="px-5 pb-5 text-[11.5px] leading-relaxed text-gray-500">
-          {affiliateDisclosure}
-        </p>
-      </div>
+      <p className="mt-5 border-t border-gray-100 pt-4 text-[11.5px] leading-relaxed text-gray-500">
+        {affiliateDisclosure}
+      </p>
     </div>
-  );
-}
-
-function Num({ n }: { n: number }) {
-  return (
-    <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-[color:var(--color-accent,#16A34A)]/10 text-xs font-bold text-[color:var(--color-accent-text,#15803D)]">
-      {n}
-    </span>
-  );
-}
-
-function Opt({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      className={`${seg} ${
-        on
-          ? "border-[color:var(--color-accent,#16A34A)] bg-[color:var(--color-accent,#16A34A)]/10 text-[color:var(--color-accent-text,#15803D)]"
-          : "border-gray-200 text-gray-700 hover:border-gray-300"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

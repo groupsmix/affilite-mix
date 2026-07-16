@@ -5,7 +5,7 @@ import { ContentCard } from "./content-card";
 import { ProductCardCta } from "./product-card-client";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
-import { TaxFinder, type TaxFinderTool } from "./tax-finder";
+import { TaxFinder, type TaxFinderTool, type TopicKey } from "./tax-finder";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
 
@@ -72,6 +72,19 @@ export function TaxFinderHomepage({
   const accountantRow = usable.find((p) => p.slug === ACCOUNTANT_SLUG);
   const accountant = accountantRow ? toFinderTool(accountantRow) : null;
 
+  // Link each topic to its seeded category guide (matched by slug keyword).
+  const guideHref = (kw: string) => {
+    const cat = categories.find((c) => c.slug.includes(kw));
+    return cat ? `/category/${cat.slug}` : undefined;
+  };
+  const guideHrefs: Partial<Record<TopicKey, string>> = {
+    trade: guideHref("basic"),
+    defi: guideHref("defi"),
+    staking: guideHref("staking"),
+    airdrop: guideHref("airdrop"),
+    nft: guideHref("nft"),
+  };
+
   // Ranked comparison rows: software first (by score), then any remaining.
   const ranked = [
     ...usable.filter((p) => p.slug !== ACCOUNTANT_SLUG),
@@ -87,7 +100,7 @@ export function TaxFinderHomepage({
     },
     {
       q: "Which crypto tax tool is best for me?",
-      a: "Use the finder above — it maps your actual situation to the right tool. Broadly: Koinly for most people, Syla to minimise tax, and Crypto Tax Calculator for heavy DeFi.",
+      a: "Pick what you did at the top of the page to jump to the right one. Broadly: Koinly for most people, Crypto Tax Calculator for heavy DeFi, and Syla to minimise tax.",
     },
     {
       q: "When is the crypto tax deadline?",
@@ -107,18 +120,18 @@ export function TaxFinderHomepage({
             Australian crypto tax
           </p>
           <h1 className="mt-2 max-w-3xl text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl">
-            Tell us what you did with crypto. We&apos;ll tell you exactly what the ATO wants — and
-            which tool sorts it.
+            Crypto tax software for Australians — pick what you did, get the right tool.
           </h1>
           <p className="mt-3 max-w-2xl text-[17px] text-gray-600">
-            Built for DeFi, staking, airdrop and NFT investors. No jargon, no reading four reviews
-            to guess.
+            For DeFi, staking, airdrop and NFT investors. Choose your activity below to see what the
+            ATO taxes and go straight to the software built for it.
           </p>
 
           <div className="mt-7">
             <TaxFinder
               tools={finderTools}
               accountant={accountant}
+              guideHrefs={guideHrefs}
               daysToDeadline={days}
               affiliateDisclosure={site.affiliateDisclosure}
               sourceType="homepage-finder"
