@@ -1828,6 +1828,11 @@ jobs:
           fi
           # Canonical list of production secrets. Keep in sync with
           # wrangler.jsonc / scripts/validate-cloudflare-bindings.sh.
+          # NOTE: APP_URL is intentionally NOT listed here. It is a plaintext
+          # `var` in wrangler.jsonc (deployed with the Worker and asserted by
+          # __tests__/wrangler-binding-drift.test.ts), not a Worker secret, so
+          # it never appears in `wrangler secret list` — including it here made
+          # this gate fail on every production deploy.
           REQUIRED_SECRETS=(
             SUPABASE_SERVICE_ROLE_KEY
             SUPABASE_JWT_SECRET
@@ -1836,7 +1841,6 @@ jobs:
             JWT_SECRET
             CRON_SECRET
             INTERNAL_API_TOKEN
-            APP_URL
           )
           # Retry + success validation so a single flaky API response does not
           # either hard-fail a good deploy or (worse) return an empty list that
