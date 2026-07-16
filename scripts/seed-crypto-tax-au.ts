@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Seed script for the "Crypto Tax AU" site (cryptotaxau.com).
+ * Seed script for the "Crypto Tax AU" site (crypto-tools tenant, cryptoranked.xyz).
  *
  * Niche: Australian crypto tax for DeFi, staking, airdrop and NFT users.
  * Populates categories, crypto-tax software products (Koinly, Syla, Crypto Tax
@@ -38,12 +38,16 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
 // ── Site ───────────────────────────────────────────────────────────────
-// Domain matches config/sites/crypto-tax-au.ts. Update both when you point
-// the site at your real registered domain.
+// Repurposes the existing `crypto-tools` tenant (domain cryptoranked.xyz) into
+// the Australian crypto-tax site — reusing its Cloudflare/DNS wiring. The
+// site row's identity (name/nav/theme/meta) is updated by
+// supabase/migrations/2026071507_repurpose_crypto_tools_crypto_tax.sql; this
+// script only seeds categories, products and content. Update the slug/domain
+// here if you later move to a dedicated tenant or domain.
 const SITE = {
-  slug: "crypto-tax-au",
+  slug: "crypto-tools",
   name: "Crypto Tax AU",
-  domain: "cryptotaxau.com",
+  domain: "cryptoranked.xyz",
   language: "en",
   direction: "ltr" as const,
 };

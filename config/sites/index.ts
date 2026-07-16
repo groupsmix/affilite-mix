@@ -2,7 +2,6 @@ import type { SiteDefinition, FeatureFlags } from "../site-definition";
 import { aiComparedSite } from "./ai-compared";
 import { arabicToolsSite } from "./arabic-tools";
 import { cryptoToolsSite } from "./crypto-tools";
-import { cryptoTaxAuSite } from "./crypto-tax-au";
 import { watchToolsSite } from "./watch-tools";
 
 // A95-2: Named re-exports kept for test consumers
@@ -14,7 +13,6 @@ export const allSites: SiteDefinition[] = [
   aiComparedSite,
   arabicToolsSite,
   cryptoToolsSite,
-  cryptoTaxAuSite,
   watchToolsSite,
 ];
 
