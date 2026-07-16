@@ -153,6 +153,7 @@ export default async function PublicLayout({ children }: { children: React.React
           site={site}
           dbFooterNav={dbFooterNav}
           footerVariant={presentation.footerVariant}
+          config={presentation.footer}
         />
         <Toaster
           position="bottom-right"
