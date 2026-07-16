@@ -55,11 +55,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_site_presentations_version
 -- ── RLS ──────────────────────────────────────────────────────────────────────
 ALTER TABLE public.site_presentations ENABLE ROW LEVEL SECURITY;
 
+-- Strip Supabase's default anon/authenticated grants, then re-grant only the
+-- narrow SELECT the public layout needs (audit F7). RLS below still restricts
+-- anon to published rows.
+REVOKE ALL ON public.site_presentations FROM anon;
+REVOKE ALL ON public.site_presentations FROM authenticated;
+GRANT SELECT ON public.site_presentations TO anon;
+
 -- Public/anon may read only the live (published) presentation — this is what
 -- the public layout renders. Draft/archived rows are never anon-visible.
 DROP POLICY IF EXISTS "site_presentations_public_read" ON public.site_presentations;
 CREATE POLICY "site_presentations_public_read" ON public.site_presentations
-  FOR SELECT USING (status = 'published');
+  FOR SELECT TO anon USING (status = 'published');
 
 -- All writes + draft/history reads go through the privileged (service_role)
 -- client after the route layer has authenticated an admin session.
@@ -68,8 +75,6 @@ CREATE POLICY "site_presentations_service_all" ON public.site_presentations
   FOR ALL
   USING ((select auth.role()) = 'service_role')
   WITH CHECK ((select auth.role()) = 'service_role');
-
-REVOKE ALL ON public.site_presentations FROM authenticated;
 
 -- ── Atomic publish ────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.publish_site_presentation(p_site_id uuid, p_actor uuid)
