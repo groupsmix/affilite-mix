@@ -29,6 +29,16 @@ const SOFTWARE_SLUGS = new Set([
 ]);
 const ACCOUNTANT_SLUG = "crypto-accountant-au";
 
+/** One-line "best for" positioning per tool, so the comparison is scannable. */
+const BEST_FOR: Record<string, string> = {
+  koinly: "Best for most people",
+  syla: "Best for paying the least tax",
+  "crypto-tax-calculator": "Best for complex DeFi",
+  coinledger: "Best for simple portfolios",
+  cointracking: "Best for power users",
+  "crypto-accountant-au": "Best for complex or overdue returns",
+};
+
 /** Days until the 31 October self-lodgement deadline (rolls to next year). */
 function daysToSelfLodge(): number {
   const now = new Date();
@@ -137,6 +147,26 @@ export function TaxFinderHomepage({
               sourceType="homepage-finder"
             />
           </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-gray-500">
+            <span className="inline-flex items-center gap-1.5">
+              <Check /> Based on current ATO rules
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Check /> DeFi, staking, airdrops &amp; NFTs
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Check /> No sign-up to use
+            </span>
+            {ranked.length > 0 && (
+              <a
+                href="#compare"
+                className="font-semibold text-[color:var(--color-accent-text,#15803D)] hover:underline"
+              >
+                Or compare all {ranked.length} tools ↓
+              </a>
+            )}
+          </div>
         </div>
       </section>
 
@@ -158,8 +188,14 @@ export function TaxFinderHomepage({
                 >
                   <div className="text-center text-lg font-extrabold text-gray-400">{i + 1}</div>
                   <div>
-                    <p className="text-[17px] font-bold text-gray-900">{p.name}</p>
-                    {p.merchant && <p className="text-[13px] text-gray-500">{p.merchant}</p>}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[17px] font-bold text-gray-900">{p.name}</p>
+                      {BEST_FOR[p.slug] && (
+                        <span className="rounded-full bg-[color:var(--color-accent,#16A34A)]/10 px-2 py-0.5 text-[11px] font-semibold text-[color:var(--color-accent-text,#15803D)]">
+                          {BEST_FOR[p.slug]}
+                        </span>
+                      )}
+                    </div>
                     {p.description && (
                       <p className="mt-1.5 line-clamp-2 text-sm text-gray-600">{p.description}</p>
                     )}
@@ -277,5 +313,22 @@ export function TaxFinderHomepage({
         )}
       </div>
     </div>
+  );
+}
+
+function Check() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="size-4 shrink-0 text-[color:var(--color-accent,#16A34A)]"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0l-3.5-3.5a1 1 0 1 1 1.4-1.4l2.8 2.79 6.8-6.79a1 1 0 0 1 1.4 0Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
