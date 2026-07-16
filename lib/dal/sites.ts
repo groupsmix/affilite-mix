@@ -244,7 +244,15 @@ export async function createSite(
     meta_description?: string | null;
     og_image_url?: string | null;
     social_links?: Record<string, string>;
-    homepage_template?: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+    homepage_template?:
+      | "standard"
+      | "cinematic"
+      | "minimal"
+      | "editorial"
+      | "top10"
+      | "compare"
+      | "showcase"
+      | "taxfinder";
     product_card_style?: "standard" | "compact" | "detailed";
   },
   getClient: DalClientGetter = defaultDalClientGetter,

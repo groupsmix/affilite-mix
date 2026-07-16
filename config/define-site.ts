@@ -32,7 +32,8 @@ type HomepagePreset =
   | "editorial"
   | "top10"
   | "compare"
-  | "showcase";
+  | "showcase"
+  | "taxfinder";
 type ProductCardStylePreset = "standard" | "compact" | "detailed";
 
 /* ------------------------------------------------------------------ */
