@@ -31,7 +31,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -40,16 +40,33 @@ export async function POST(request: NextRequest) {
 
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
-  const body = bodyOrError as { name?: unknown; site_id?: unknown; ttl_days?: unknown };
+  const body = bodyOrError as {
+    name?: unknown;
+    scope?: unknown;
+    site_id?: unknown;
+    ttl_days?: unknown;
+  };
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name || name.length > 128) {
     return NextResponse.json({ error: "name is required (max 128 chars)" }, { status: 400 });
   }
 
-  const siteId = typeof body.site_id === "string" ? body.site_id : null;
-  if (siteId && !/^[0-9a-fA-F-]{36}$/.test(siteId)) {
-    return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
+  // Scope selection. `scope: "site"` binds the token to the current active
+  // site (its DB id is taken from the authenticated context, never request
+  // input); `scope: "all"` (default) mints an all-sites token. The legacy
+  // explicit `site_id` body field is still honoured for backwards
+  // compatibility, but must be a valid UUID.
+  let siteId: string | null = null;
+  if (body.scope === "site") {
+    siteId = dbSiteId;
+  } else if (body.scope === "all") {
+    siteId = null;
+  } else if (typeof body.site_id === "string") {
+    if (!/^[0-9a-fA-F-]{36}$/.test(body.site_id)) {
+      return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
+    }
+    siteId = body.site_id;
   }
 
   const ttlRaw = typeof body.ttl_days === "number" ? body.ttl_days : DEFAULT_TOKEN_TTL_DAYS;
