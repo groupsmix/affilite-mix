@@ -101,7 +101,8 @@ export interface SiteDefinition {
     | "editorial"
     | "top10"
     | "compare"
-    | "showcase";
+    | "showcase"
+    | "taxfinder";
 
   /**
    * Chrome variant — controls the header and footer design for this site.

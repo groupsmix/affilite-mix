@@ -21,6 +21,7 @@ import Link from "next/link";
 // its final height.
 import { CompareHomepage } from "./components/homepage-compare";
 import { ShowcaseHomepage } from "./components/homepage-showcase";
+import { TaxFinderHomepage } from "./components/homepage-taxfinder";
 
 /**
  * PROD-INCIDENT-2026-06-11 follow-up: surface failures in the homepage's
@@ -142,6 +143,10 @@ export default async function HomePage() {
 
   if (template === "showcase") {
     return <ShowcaseHomepage {...homepageProps} />;
+  }
+
+  if (template === "taxfinder") {
+    return <TaxFinderHomepage {...homepageProps} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";

@@ -33,6 +33,9 @@ export const cryptoToolsSite = defineSite({
   colors: { primary: "#0B2540", accent: "#16A34A", accentText: "#15803D" },
   fonts: "modern",
 
+  // Situation-triage "answer engine" homepage — see homepage-taxfinder.tsx.
+  homepage: "taxfinder",
+
   features: [
     "blog",
     "newsletter",
