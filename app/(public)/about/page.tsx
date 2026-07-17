@@ -1,6 +1,7 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
+import { isCryptoTaxAu, CryptoTaxAUAbout } from "../components/site-static-content";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -19,6 +20,23 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AboutPage() {
   const site = await getCurrentSite();
   const isArabic = site.language === "ar";
+  const isCrypto = isCryptoTaxAu(site);
+
+  if (isCrypto) {
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-12">
+        <h1 className="mb-8 text-3xl font-bold" style={{ color: "var(--ink)" }}>
+          {site.pages.about.title}
+        </h1>
+        <div
+          className={`prose prose-lg max-w-none ${isArabic ? "rtl" : ""}`}
+          style={{ color: "var(--ink-70)" }}
+        >
+          <CryptoTaxAUAbout site={site} />
+        </div>
+      </div>
+    );
+  }
 
   // Derive "What We Offer" from the site's real feature set so the page
   // never claims capabilities the site doesn't have. The previous
