@@ -134,16 +134,10 @@ export function ContentForm({
   const handlePreview = useCallback(async () => {
     if (!slug) return;
 
-    // Published content can be previewed directly with session-based auth
-
-    if (status === "published") {
-      window.open(`/${contentType}/${slug}?preview=true`, "_blank");
-
-      return;
-    }
-
-    // Draft/scheduled content needs a short-lived preview token
-
+    // Always generate a short-lived preview token. Token-based preview avoids
+    // relying on the admin session cookie being sent by the browser when the
+    // dashboard opens a new tab, which can fail for Strict SameSite cookies on
+    // some navigations and surface as a 404.
     setGeneratingPreview(true);
 
     try {
@@ -170,7 +164,7 @@ export function ContentForm({
     } finally {
       setGeneratingPreview(false);
     }
-  }, [slug, status, contentType]);
+  }, [slug, contentType]);
 
   // Product linker state
 
