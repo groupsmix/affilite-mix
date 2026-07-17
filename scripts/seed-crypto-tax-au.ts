@@ -111,6 +111,7 @@ interface ProductSeed {
   category: string; // category slug
   description: string;
   affiliate_url: string;
+  image_url?: string;
   merchant: string;
   price_label: string;
   price_amount: number;
@@ -129,6 +130,7 @@ const products: ProductSeed[] = [
     description:
       "Australian-founded crypto tax calculator with ATO-ready reports, 800+ exchange & wallet integrations, and strong DeFi and NFT support. Free to track your portfolio; pay only when you download a tax report.",
     affiliate_url: "https://koinly.io/",
+    image_url: "https://canny.io/images/c6865c5b10c0822f213070de8af4d83e.png",
     merchant: "Koinly",
     price_label: "Free to track · from A$69/yr to file",
     price_amount: 69,
@@ -145,6 +147,8 @@ const products: ProductSeed[] = [
     description:
       "Crypto tax software built exclusively for Australia and ATO rules, featuring 'Lowest Tax First Out' (LTFO) parcel selection that can legally reduce your capital gains tax.",
     affiliate_url: "https://www.syla.com.au/?code=BSETWZYW",
+    image_url:
+      "https://consumersiteimages.trustpilot.net/business-units/64919707d0dcf3c9c039d233-198x149-1x.jpg",
     merchant: "Syla",
     price_label: "From A$59/yr",
     price_amount: 59,
@@ -161,6 +165,7 @@ const products: ProductSeed[] = [
     description:
       "Australian-founded tax platform that specialises in complex DeFi, derivatives and on-chain activity across 3,000+ integrations, with detailed ATO reports.",
     affiliate_url: "https://cryptotaxcalculator.io/",
+    image_url: "https://cryptologos.zenobank.io/library/crypto-tax-calculator-icon-dark.png",
     merchant: "Crypto Tax Calculator",
     price_label: "From A$99/yr",
     price_amount: 99,
@@ -177,6 +182,8 @@ const products: ProductSeed[] = [
     description:
       "Easy-to-use global crypto tax tool with Australian ATO report support and one of the more generous recurring affiliate programs in the niche.",
     affiliate_url: "https://coinledger.io?fpr=bonus&fp_sid=10bonus",
+    image_url:
+      "https://assets-global.website-files.com/614c99cf4f23708b27a37503/618aa638ad45e02bd3b77f6f_Logo.svg",
     merchant: "CoinLedger",
     price_label: "From ~A$79/yr",
     price_amount: 79,
@@ -193,6 +200,7 @@ const products: ProductSeed[] = [
     description:
       "Veteran crypto portfolio and tax platform with deep reporting, analytics and a long-standing affiliate program. Has a free tier for smaller portfolios.",
     affiliate_url: "https://cointracking.info?ref=W792584",
+    image_url: "https://cointracking.info/assets/img/logo_dark.svg",
     merchant: "CoinTracking",
     price_label: "Free tier · paid from ~A$150/yr",
     price_amount: 150,
@@ -209,6 +217,8 @@ const products: ProductSeed[] = [
     description:
       "Global crypto tax platform with 2,400+ exchange, wallet and blockchain integrations, strong DeFi and NFT support, and ATO-ready myTax reports for Australia.",
     affiliate_url: "https://coinpanda.io/?ref=f907b679d8cd",
+    image_url:
+      "https://downloads.intercomcdn.com/i/o/194401/23d9e21a8a6e90d95f07aad7/770e07dca425f8f77deff769a198c6b0.png",
     merchant: "Coinpanda",
     price_label: "Free 25 tx · from US$79/yr",
     price_amount: 79,
@@ -740,6 +750,12 @@ async function seedProducts(
       .single();
     if (existing) {
       ids.set(prod.slug, existing.id);
+      // Keep affiliate_url and featured flags as-is, but refresh image assets
+      // from the seed so logos stay in sync with the repo.
+      await sb
+        .from("products")
+        .update({ image_url: prod.image_url ?? "", image_alt: prod.name })
+        .eq("id", existing.id);
       continue;
     }
     const { category, ...rest } = prod;
@@ -748,7 +764,7 @@ async function seedProducts(
       .insert({
         site_id: siteId,
         category_id: categoryIds.get(category) ?? null,
-        image_url: "",
+        image_url: prod.image_url ?? "",
         image_alt: prod.name,
         price_currency: "AUD",
         deal_text: "",

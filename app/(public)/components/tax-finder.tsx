@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowRight, BadgeCheck } from "lucide-react";
 import { ProductCardCta } from "./product-card-client";
+import { ProductLogo } from "./product-logo";
 
 /**
  * A tool the finder can send the visitor to. `slug`/`affiliateUrl` come from the
@@ -15,6 +16,7 @@ export interface TaxFinderTool {
   name: string;
   affiliateUrl: string;
   tagline: string;
+  imageUrl?: string | null;
 }
 
 export type TopicKey = "trade" | "defi" | "staking" | "airdrop" | "nft";
@@ -154,8 +156,19 @@ export function TaxFinder({
                 <BadgeCheck className="size-4" aria-hidden="true" />
                 Best tool for {selected.label}
               </p>
-              <p className="mt-2 text-xl font-extrabold text-gray-900">{pick.name}</p>
-              {pick.tagline && <p className="text-sm text-gray-600">{pick.tagline}</p>}
+              <div className="mt-3 flex items-center gap-3">
+                <ProductLogo
+                  name={pick.name}
+                  src={pick.imageUrl}
+                  size={48}
+                  className="rounded-lg bg-white p-1 shadow-sm"
+                  priority
+                />
+                <div>
+                  <p className="text-xl font-extrabold text-gray-900">{pick.name}</p>
+                  {pick.tagline && <p className="text-sm text-gray-600">{pick.tagline}</p>}
+                </div>
+              </div>
               <div className="mt-4 flex flex-col gap-2">
                 <ProductCardCta
                   href={pick.affiliateUrl}

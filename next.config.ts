@@ -70,6 +70,13 @@ const nextConfig: NextConfig = {
       // rewrites existing product image_url rows.
       { protocol: "https", hostname: "m.media-amazon.com" },
       { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },
+      // Crypto tax software brand logos (external until R2 ingest).
+      { protocol: "https", hostname: "canny.io" },
+      { protocol: "https", hostname: "consumersiteimages.trustpilot.net" },
+      { protocol: "https", hostname: "cryptologos.zenobank.io" },
+      { protocol: "https", hostname: "assets-global.website-files.com" },
+      { protocol: "https", hostname: "cointracking.info" },
+      { protocol: "https", hostname: "downloads.intercomcdn.com" },
     ],
   },
   // Redirect the common plural spellings of content-type routes to their

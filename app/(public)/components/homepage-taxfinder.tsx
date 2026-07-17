@@ -3,6 +3,19 @@ import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
 import { ContentCard } from "./content-card";
 import { ProductCardCta } from "./product-card-client";
+import { ProductLogo } from "./product-logo";
+import {
+  BookOpen,
+  ArrowRightLeft,
+  ArrowRight,
+  ChevronDown,
+  Coins,
+  Gift,
+  Image as ImageIcon,
+  Calculator,
+  ShieldCheck,
+  UserCheck,
+} from "lucide-react";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 import { TaxFinder, type TaxFinderTool, type TopicKey } from "./tax-finder";
@@ -50,7 +63,13 @@ function daysToSelfLodge(): number {
 }
 
 function toFinderTool(p: ProductRow): TaxFinderTool {
-  return { slug: p.slug, name: p.name, affiliateUrl: p.affiliate_url, tagline: p.price };
+  return {
+    slug: p.slug,
+    name: p.name,
+    affiliateUrl: p.affiliate_url,
+    tagline: p.price,
+    imageUrl: p.image_url,
+  };
 }
 
 /**
@@ -189,7 +208,7 @@ export function TaxFinderHomepage({
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className={`flex size-8 items-center justify-center rounded-full text-sm font-extrabold ${
+                      className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
                         i === 0
                           ? "bg-[color:var(--color-accent,#16A34A)] text-white"
                           : "bg-gray-100 text-gray-500"
@@ -197,7 +216,13 @@ export function TaxFinderHomepage({
                     >
                       {i + 1}
                     </span>
-                    <InitialAvatar name={p.name} />
+                    <ProductLogo
+                      name={p.name}
+                      src={p.image_url}
+                      size={44}
+                      className="rounded-lg bg-white p-1 shadow-sm ring-1 ring-gray-100"
+                      priority={i < 3}
+                    />
                   </div>
 
                   <div className="min-w-0">
@@ -260,22 +285,30 @@ export function TaxFinderHomepage({
               Crypto tax by transaction type
             </h2>
             <p className="mt-1.5 text-gray-600">Go deeper on how the ATO treats each one.</p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {categories.slice(0, 8).map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/category/${cat.slug}`}
-                  className="rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-[color:var(--color-accent,#16A34A)]"
-                >
-                  <h3 className="font-bold text-gray-900">{cat.name}</h3>
-                  {cat.description && (
-                    <p className="mt-1 line-clamp-2 text-[13px] text-gray-500">{cat.description}</p>
-                  )}
-                  <span className="mt-2.5 inline-block text-[13px] font-semibold text-[color:var(--color-accent-text,#15803D)]">
-                    Learn more →
-                  </span>
-                </Link>
-              ))}
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {categories.slice(0, 8).map((cat) => {
+                const Icon = categoryIcon(cat.slug);
+                return (
+                  <Link
+                    key={cat.id}
+                    href={`/category/${cat.slug}`}
+                    className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[color:var(--color-accent,#16A34A)] hover:shadow-md"
+                  >
+                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-[color:var(--color-accent,#16A34A)]/10 text-[color:var(--color-accent-text,#15803D)] ring-1 ring-[color:var(--color-accent,#16A34A)]/10 transition-colors group-hover:bg-[color:var(--color-accent,#16A34A)] group-hover:text-white group-hover:ring-[color:var(--color-accent,#16A34A)]">
+                      <Icon className="size-5" aria-hidden="true" />
+                    </span>
+                    <h3 className="mt-3 font-bold text-gray-900">{cat.name}</h3>
+                    {cat.description && (
+                      <p className="mt-1 line-clamp-2 text-[13px] text-gray-500">
+                        {cat.description}
+                      </p>
+                    )}
+                    <span className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--color-accent-text,#15803D)] group-hover:underline">
+                      Learn more <ArrowRight className="size-3.5" aria-hidden="true" />
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -312,14 +345,20 @@ export function TaxFinderHomepage({
         {/* ── FAQ ── */}
         <section className="pb-16 pt-4">
           <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">Common questions</h2>
-          <dl className="mt-4 border-t border-gray-200">
+          <div className="mt-4 border-t border-gray-200">
             {faqs.map((f) => (
-              <div key={f.q} className="border-b border-gray-200 py-4">
-                <dt className="text-[17px] font-bold text-gray-900">{f.q}</dt>
-                <dd className="mt-1.5 max-w-3xl text-[15px] text-gray-700">{f.a}</dd>
-              </div>
+              <details key={f.q} className="group border-b border-gray-200 py-1">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3 text-[17px] font-bold text-gray-900 marker:hidden [&::-webkit-details-marker]:hidden">
+                  {f.q}
+                  <ChevronDown
+                    className="size-5 shrink-0 text-gray-400 transition-transform group-open:rotate-180"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <p className="pb-4 max-w-3xl text-[15px] leading-relaxed text-gray-700">{f.a}</p>
+              </details>
             ))}
-          </dl>
+          </div>
           <p className="mt-5 max-w-3xl text-[13px] leading-relaxed text-gray-500">
             {site.contentDisclosure}
           </p>
@@ -336,15 +375,25 @@ export function TaxFinderHomepage({
   );
 }
 
-function InitialAvatar({ name, className }: { name: string; className?: string }) {
-  const initial = name.charAt(0).toUpperCase();
-  return (
-    <span
-      className={`inline-flex size-8 items-center justify-center rounded-lg bg-[color:var(--color-accent,#16A34A)]/10 text-sm font-bold text-[color:var(--color-accent-text,#15803D)] ${className ?? ""}`}
-    >
-      {initial}
-    </span>
-  );
+function categoryIcon(slug: string) {
+  switch (slug) {
+    case "crypto-tax-basics":
+      return BookOpen;
+    case "defi-tax":
+      return ArrowRightLeft;
+    case "staking-tax":
+      return Coins;
+    case "airdrop-tax":
+      return Gift;
+    case "nft-tax":
+      return ImageIcon;
+    case "crypto-tax-software":
+      return Calculator;
+    case "crypto-accountants":
+      return UserCheck;
+    default:
+      return ShieldCheck;
+  }
 }
 
 function TrustBadge({ text }: { text: string }) {
