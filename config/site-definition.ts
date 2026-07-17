@@ -30,6 +30,8 @@ export interface SiteDefinition {
     niche: string;
     logo?: string;
     faviconUrl?: string;
+    /** Optional short trust/positioning tagline shown in branded footers. */
+    tagline?: string;
   };
 
   theme: {

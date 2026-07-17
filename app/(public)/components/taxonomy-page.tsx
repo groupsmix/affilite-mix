@@ -203,9 +203,11 @@ export async function TaxonomyPage({
       />
 
       {/* Newsletter */}
-      <section className="mt-12">
-        <NewsletterSignup siteLanguage={site.language} />
-      </section>
+      {site.features.newsletter && (
+        <section className="mt-12">
+          <NewsletterSignup siteLanguage={site.language} />
+        </section>
+      )}
     </div>
   );
 }

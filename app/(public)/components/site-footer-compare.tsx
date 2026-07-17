@@ -59,7 +59,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
           </div>
           {/* Trust tagline */}
           <p className="text-xs italic text-gray-400">
-            Independent reviews. No sponsored rankings.
+            {site.brand.tagline ?? "Independent reviews. No sponsored rankings."}
           </p>
         </div>
 
