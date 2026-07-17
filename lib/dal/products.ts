@@ -446,7 +446,7 @@ export async function listProductsByNames(
   return results;
 }
 
-export async function listFeaturedProducts(siteId: string, limit = 6): Promise<ProductRow[]> {
+export async function listFeaturedProducts(siteId: string, limit = 12): Promise<ProductRow[]> {
   if (shouldSkipDbCall()) {
     return [];
   }

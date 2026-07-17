@@ -87,6 +87,14 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "affil.walmart.com",
   // Target
   "target.com",
+  // Crypto tax software affiliates (Crypto Tax AU)
+  "koinly.io",
+  "syla.com.au",
+  "cryptotaxcalculator.io",
+  "coinledger.io",
+  "cointracking.info",
+  "coinpanda.io",
+  "cryptotaxau.com",
 ];
 
 /**
