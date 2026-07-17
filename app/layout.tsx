@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
+import { Inter, Geist, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
 import { headers } from "next/headers";
 import { getCurrentSite } from "@/lib/site-context";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
@@ -85,6 +85,12 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const geist = Geist({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-geist",
+});
+
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
   weight: ["400", "500", "600", "700"],
@@ -110,8 +116,16 @@ const playfairDisplay = Playfair_Display({
 
 const fontVarMap: Record<string, string> = {
   Inter: inter.variable,
+  Geist: geist.variable,
   "IBM Plex Sans Arabic": ibmPlexArabic.variable,
   "Playfair Display": playfairDisplay.variable,
+};
+
+const fontFamilyMap: Record<string, string> = {
+  Inter: inter.style.fontFamily,
+  Geist: geist.style.fontFamily,
+  "IBM Plex Sans Arabic": ibmPlexArabic.style.fontFamily,
+  "Playfair Display": playfairDisplay.style.fontFamily,
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -136,11 +150,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     needed.add(fontVarMap[site.theme.fontBody]!);
   }
 
+  const headingStack =
+    (site.theme?.fontHeading && fontFamilyMap[site.theme.fontHeading]) || inter.style.fontFamily;
+  const bodyStack =
+    (site.theme?.fontBody && fontFamilyMap[site.theme.fontBody]) || inter.style.fontFamily;
+
   return (
     <html
       lang={site.language ?? "en"}
       dir={site.direction ?? "ltr"}
       className={Array.from(needed).join(" ")}
+      style={{ ["--font-heading" as string]: headingStack, ["--font-body" as string]: bodyStack }}
       suppressHydrationWarning
     >
       <body>
