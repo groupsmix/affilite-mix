@@ -30,6 +30,7 @@ export const cryptoToolsSite = defineSite({
   description:
     "Plain-English Australian crypto tax guides and software reviews for DeFi, staking, airdrop and NFT investors — built around ATO rules so you can lodge on time and pay less.",
   tagline: "ATO-aligned guidance. No sponsored rankings.",
+  logo: "/images/site-logo-crypto-tools.png",
 
   colors: { primary: "#0B2540", accent: "#16A34A", accentText: "#15803D" },
   fonts: { heading: "Geist", body: "Geist" },
@@ -37,6 +38,7 @@ export const cryptoToolsSite = defineSite({
   // Branded dark header/footer with a green accent stripe and a clear CTA.
   layout: "compare",
   headerConfig: {
+    logoMode: "image",
     showCta: true,
     ctaLabel: "Find my tax tool",
     ctaHref: "/#compare",
