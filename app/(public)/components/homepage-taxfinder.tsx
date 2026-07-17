@@ -26,6 +26,7 @@ const SOFTWARE_SLUGS = new Set([
   "crypto-tax-calculator",
   "coinledger",
   "cointracking",
+  "coinpanda",
 ]);
 const ACCOUNTANT_SLUG = "crypto-accountant-au";
 
@@ -36,6 +37,7 @@ const BEST_FOR: Record<string, string> = {
   "crypto-tax-calculator": "Best for complex DeFi",
   coinledger: "Best for simple portfolios",
   cointracking: "Best for power users",
+  coinpanda: "Best for many exchanges",
   "crypto-accountant-au": "Best for complex or overdue returns",
 };
 

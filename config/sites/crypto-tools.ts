@@ -5,7 +5,7 @@ import { defineSite } from "../define-site";
  *
  * Niche: Australian crypto tax for DeFi, staking, airdrop and NFT users.
  * Monetised by recurring crypto-tax software affiliates (Koinly, Syla,
- * CoinLedger, Crypto Tax Calculator) plus crypto-accountant referrals.
+ * CoinLedger, Crypto Tax Calculator, CoinTracking, Coinpanda) plus crypto-accountant referrals.
  *
  * The tenant id stays `crypto-tools` (and the domain stays cryptoranked.xyz)
  * so the existing Cloudflare Worker domain, DNS and Terraform wiring are
