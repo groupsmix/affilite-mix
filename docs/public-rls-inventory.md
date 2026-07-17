@@ -7,7 +7,7 @@
 
 Every table with Row-Level Security enabled is listed below.
 
-**Update (F-002 Fix):** Migration **00038_reintroduce_public_rls** re-granted `SELECT` access to the `anon` role for public-facing tables (`sites`, `categories`, `products`, `content`, `pages`, `content_products`, `ad_placements`) and reinstated strict RLS policies. The Data Access Layer (DAL) for public pages now uses `getAnonClient()` to enforce tenant isolation at the database level, preventing cross-tenant data leaks in the event of an application-layer bug.
+**Update (F-002 Fix):** Migration **00038_reintroduce_public_rls** re-granted `SELECT` access to the `anon` role for public-facing tables (`sites`, `categories`, `products`, `content`, `pages`, `content_products`, `ad_placements`, `site_presentations`) and reinstated strict RLS policies. The Data Access Layer (DAL) for public pages now uses `getAnonClient()` to enforce tenant isolation at the database level, preventing cross-tenant data leaks in the event of an application-layer bug.
 
 ### Tables with public-read SELECT policies
 
@@ -20,6 +20,7 @@ The following tables have `SELECT` access granted to the `anon` role, protected 
 - `pages` (`public_read_published_pages`)
 - `content_products` (`public_read_content_products`)
 - `ad_placements` (`ad_placements_public_read`)
+- `site_presentations` (`site_presentations_public_read`)
 
 ### Tables with public-write (INSERT) policies
 
@@ -88,6 +89,7 @@ Tenant isolation is enforced by strict RLS policies on the database side (checki
 | `public_read_content_products`      | `content_products`       | 00037      |
 | `public_read_published_pages`       | `pages`                  | 00037      |
 | `ad_placements_public_read`         | `ad_placements`          | 00037      |
+| `site_presentations_public_read`    | `site_presentations`     | 2026071506 |
 | `public_insert_ad_impressions`      | `ad_impressions`         | 00038      |
 | `web_vitals_anon_insert`            | `web_vitals`             | 00038      |
 
