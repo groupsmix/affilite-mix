@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
 import { ContentCard } from "./content-card";
@@ -147,24 +148,39 @@ export function TaxFinderHomepage({
       {/* ── Triage: the answer engine ── */}
       <section className="border-b border-gray-200 bg-gray-50">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-          <p className="text-[13.5px] font-semibold uppercase tracking-[0.04em] text-[color:var(--color-accent-text,#15803D)]">
-            Australian crypto tax
-          </p>
-          <h1 className="mt-2 max-w-3xl text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl">
-            Crypto tax software for Australians — pick what you did, get the right tool.
-          </h1>
-          <p className="mt-3 max-w-2xl text-[17px] text-gray-600">
-            For DeFi, staking, airdrop and NFT investors. Choose your activity below to see what the
-            ATO taxes and go straight to the software built for it.
-          </p>
+          <div className="lg:grid lg:grid-cols-2 lg:gap-10">
+            <div>
+              <p className="text-[13.5px] font-semibold uppercase tracking-[0.04em] text-[color:var(--color-accent-text,#15803D)]">
+                Australian crypto tax
+              </p>
+              <h1 className="mt-2 max-w-3xl text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl">
+                Crypto tax software for Australians — pick what you did, get the right tool.
+              </h1>
+              <p className="mt-3 max-w-2xl text-[17px] text-gray-600">
+                For DeFi, staking, airdrop and NFT investors. Choose your activity below to see what
+                the ATO taxes and go straight to the software built for it.
+              </p>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <TrustBadge text="Based on current ATO rules" />
-            <TrustBadge text="DeFi, staking, airdrops &amp; NFTs" />
-            <TrustBadge text="No sign-up to use" />
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <TrustBadge text="Based on current ATO rules" />
+                <TrustBadge text="DeFi, staking, airdrops &amp; NFTs" />
+                <TrustBadge text="No sign-up to use" />
+              </div>
+            </div>
+
+            <div className="relative mt-8 aspect-[3/2] w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg lg:mt-0">
+              <Image
+                src="/images/hero-crypto-tax-au.png"
+                alt="Crypto tax report with Australian dollar coins, calculator and rising chart"
+                fill
+                priority
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+            </div>
           </div>
 
-          <div className="mt-7">
+          <div className="mt-7 lg:mt-10">
             <TaxFinder
               tools={finderTools}
               accountant={accountant}
