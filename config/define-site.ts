@@ -5,6 +5,7 @@ import type {
   NavItem,
   LayoutVariant,
 } from "./site-definition";
+import type { HeaderConfig, FooterConfig, HeaderTokens } from "./presentation";
 
 import { ADMIN_PATH } from "../lib/admin-paths";
 
@@ -201,6 +202,14 @@ export interface SiteInput {
   logo?: string;
   /** Favicon URL */
   faviconUrl?: string;
+  /** Short trust/positioning tagline shown in branded footers. */
+  tagline?: string;
+  /** Optional static header presentation overrides. */
+  headerConfig?: Partial<HeaderConfig>;
+  /** Optional static footer presentation overrides. */
+  footerConfig?: Partial<FooterConfig>;
+  /** Optional static header design tokens. */
+  headerTokens?: Partial<HeaderTokens>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -287,6 +296,9 @@ export function defineSite(input: SiteInput): SiteDefinition {
     homepageTemplate: homepage,
     layoutVariant: input.layout ?? "standard",
     productCardStyle,
+    headerConfig: input.headerConfig,
+    footerConfig: input.footerConfig,
+    headerTokens: input.headerTokens,
 
     brand: {
       description,
@@ -294,6 +306,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
       niche: input.niche,
       logo: input.logo,
       faviconUrl: input.faviconUrl,
+      tagline: input.tagline,
     },
 
     theme: {

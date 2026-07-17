@@ -29,23 +29,25 @@ export const cryptoToolsSite = defineSite({
   niche: "Australian Crypto Tax for DeFi, Staking, Airdrops & NFTs",
   description:
     "Plain-English Australian crypto tax guides and software reviews for DeFi, staking, airdrop and NFT investors — built around ATO rules so you can lodge on time and pay less.",
+  tagline: "ATO-aligned guidance. No sponsored rankings.",
 
   colors: { primary: "#0B2540", accent: "#16A34A", accentText: "#15803D" },
   fonts: "modern",
 
+  // Branded dark header/footer with a green accent stripe and a clear CTA.
+  layout: "compare",
+  headerConfig: {
+    showCta: true,
+    ctaLabel: "Find my tax tool",
+    ctaHref: "/#compare",
+    navAlignment: "center",
+  },
+  footerConfig: { showNewsletter: false },
+
   // Situation-triage "answer engine" homepage — see homepage-taxfinder.tsx.
   homepage: "taxfinder",
 
-  features: [
-    "blog",
-    "newsletter",
-    "rssFeed",
-    "search",
-    "scheduling",
-    "comparisons",
-    "deals",
-    "cookieConsent",
-  ],
+  features: ["blog", "rssFeed", "search", "scheduling", "comparisons", "deals", "cookieConsent"],
 
   contentDisclosure:
     "This page contains affiliate links. We may earn a commission at no extra cost to you if you sign up through our links. General information only — not tax advice. Verify with the ATO or a registered tax agent.",

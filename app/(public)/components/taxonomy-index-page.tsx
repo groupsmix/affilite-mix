@@ -107,9 +107,11 @@ export async function TaxonomyIndexPage({ config }: { config: TaxonomyIndexConfi
         </div>
       )}
 
-      <section className="mt-12">
-        <NewsletterSignup siteLanguage={site.language} />
-      </section>
+      {site.features.newsletter && (
+        <section className="mt-12">
+          <NewsletterSignup siteLanguage={site.language} />
+        </section>
+      )}
     </div>
   );
 }
