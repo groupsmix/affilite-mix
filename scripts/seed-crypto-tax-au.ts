@@ -199,7 +199,7 @@ const products: ProductSeed[] = [
     description:
       "Veteran crypto portfolio and tax platform with deep reporting, analytics and a long-standing affiliate program. Has a free tier for smaller portfolios.",
     affiliate_url: "https://cointracking.info?ref=W792584",
-    image_url: "https://cointracking.info/assets/img/logo_dark.svg",
+    image_url: "/images/product-cointracking.png",
     merchant: "CoinTracking",
     price_label: "Free tier · paid from ~A$150/yr",
     price_amount: 150,
