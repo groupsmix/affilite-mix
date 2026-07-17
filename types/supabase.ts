@@ -569,6 +569,36 @@ export type Database = {
           },
         ];
       };
+      automation_actions: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_policies: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_runs: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_service_accounts: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_tokens: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
       authors: {
         Row: {
           bio: string;
@@ -1673,6 +1703,7 @@ export type Database = {
           product_id: string;
           scraped_at: string;
           site_id: string;
+          snapshot_date: string;
           source: string;
         };
         Insert: {
@@ -1683,6 +1714,7 @@ export type Database = {
           product_id: string;
           scraped_at?: string;
           site_id: string;
+          snapshot_date?: string;
           source?: string;
         };
         Update: {
@@ -1693,6 +1725,7 @@ export type Database = {
           product_id?: string;
           scraped_at?: string;
           site_id?: string;
+          snapshot_date?: string;
           source?: string;
         };
         Relationships: [
@@ -2071,6 +2104,12 @@ export type Database = {
           label?: string;
           name?: string;
         };
+        Relationships: [];
+      };
+      site_presentations: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
         Relationships: [];
       };
       scheduled_jobs: {
