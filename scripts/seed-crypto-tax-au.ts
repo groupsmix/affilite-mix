@@ -603,7 +603,7 @@ ${DISCLAIMER}`,
     category: "crypto-tax-software",
     excerpt:
       "The best crypto tax software for Australian investors, ranked for ATO reports, DeFi support, tax minimisation and value.",
-    meta_title: "Best Crypto Tax Software Australia 2026 (Ranked &amp; Tested)",
+    meta_title: "Best Crypto Tax Software Australia 2026 (Ranked & Tested)",
     meta_description:
       "The best crypto tax software in Australia for 2026, ranked: Koinly, Syla, Crypto Tax Calculator and CoinLedger compared on ATO reports, DeFi and price.",
     tags: ["crypto-tax-software", "australia", "best-of", "guide"],
