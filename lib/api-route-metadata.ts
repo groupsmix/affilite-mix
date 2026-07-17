@@ -905,6 +905,22 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     notes: "Signature-verified; no cookie auth / no CSRF.",
   },
 
+  // --- Contact --------------------------------------------------------------
+  {
+    path: "/api/contact",
+    methods: ["POST"],
+    auth: "public",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: true,
+    csrf: true,
+    requestSchema: "{ name?: string; email: string; subject?: string; message: string }",
+    responseSchema: "Ok",
+    sensitiveFields: ["email"],
+    notes:
+      "Public contact form for a site. Validates email, subject and message length; writes to contact_submissions.",
+  },
+
   // --- Newsletter -----------------------------------------------------------
   {
     path: "/api/newsletter",
