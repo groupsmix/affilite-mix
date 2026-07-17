@@ -21,20 +21,26 @@ create index if not exists contact_submissions_site_id_created_at_idx
 -- insert for the site_id carried in their JWT app_metadata claim.
 alter table public.contact_submissions enable row level security;
 
+-- Prevent Supabase's default public grants from leaking data to anon.
+revoke all on public.contact_submissions from anon;
+revoke all on public.contact_submissions from authenticated;
+
+-- The public contact form uses a tenant-authenticated client; grant INSERT only.
+grant insert on public.contact_submissions to authenticated;
+
 drop policy if exists "Service role full access on contact_submissions" on public.contact_submissions;
 
 create policy "Service role full access on contact_submissions"
   on public.contact_submissions
   for all
   to service_role
-  using (true)
-  with check (true);
+  using ((select auth.role()) = 'service_role')
+  with check ((select auth.role()) = 'service_role');
 
 drop policy if exists tenant_isolation_auth_contact_submissions on public.contact_submissions;
 
 create policy tenant_isolation_auth_contact_submissions
   on public.contact_submissions
-  for all
+  for insert
   to authenticated
-  using (site_id = any(current_request_site_ids()))
   with check (site_id = any(current_request_site_ids()));
