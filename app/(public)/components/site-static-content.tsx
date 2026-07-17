@@ -412,3 +412,89 @@ export function CryptoTaxAUAffiliateDisclosure({ site }: { site: SiteDefinition 
     </>
   );
 }
+
+export function CryptoTaxAUHowWeRank({ site }: { site: SiteDefinition }) {
+  const contactEmail = site.pages.contact?.email ?? site.brand.contactEmail;
+
+  return (
+    <>
+      <p>
+        {site.name} rates and ranks crypto-tax software and services for Australian investors. Our
+        goal is to help you find the right tool for your situation, not to sell you the most
+        expensive one.
+      </p>
+
+      <h2>How we choose what to review</h2>
+      <p>
+        We focus on tools that Australian crypto investors actually use or ask about. We add new
+        reviews when a tool has an Australian user base, ATO reporting capability, or a feature set
+        that fills a gap (for example, strong DeFi support or SMSF reporting).
+      </p>
+
+      <h2>Our scoring criteria</h2>
+      <p>Each tool is scored against the same set of criteria, weighted for Australian users:</p>
+      <ul>
+        <li>
+          <strong>ATO report accuracy</strong> — does the tool produce a myTax-compatible or
+          accountant-ready report under current ATO guidance?
+        </li>
+        <li>
+          <strong>Ease of use</strong> — can a non-accountant import exchanges and wallets and
+          generate a report without manual re-work?
+        </li>
+        <li>
+          <strong>Australian pricing and value</strong> — AUD pricing, free tiers and whether the
+          cost scales fairly for common transaction counts.
+        </li>
+        <li>
+          <strong>DeFi, staking, airdrop and NFT coverage</strong> — can it handle the activities
+          that trigger the most ATO questions?
+        </li>
+        <li>
+          <strong>Customer support</strong> — responsiveness, local business hours and access to
+          tax-specialist help.
+        </li>
+      </ul>
+
+      <h2>How comparisons are ordered</h2>
+      <p>
+        Comparisons are ordered by the overall score, not by commission rate or partnership status.
+        The &ldquo;best for&rdquo; badge on each card reflects the use case where the tool scores
+        highest — for example, tax minimisation, DeFi depth or simplicity.
+      </p>
+
+      <h2>Affiliate relationships do not change ratings</h2>
+      <p>
+        {site.name} earns affiliate commissions from some of the tools we recommend, but those
+        relationships do not influence scores, placement or editorial coverage. We link to tools we
+        believe are worth using; if a tool is not right for you, we say so.
+      </p>
+
+      <h2>How often we update</h2>
+      <p>
+        We review pricing and feature tables at least quarterly and update guides when ATO guidance
+        changes. Each guide shows a last-updated timestamp where the CMS supports it.
+      </p>
+
+      <h2>Not tax advice</h2>
+      <p>
+        Our ratings and guides are general information. They are not personal tax advice. Before you
+        choose a tool or lodge a return, confirm the details with the provider and, if needed, an
+        Australian registered tax agent.
+      </p>
+
+      <h2>Questions or corrections</h2>
+      <p>
+        If you think a rating is wrong, a tool has changed, or we have missed something, please{" "}
+        <a
+          href={`mailto:${contactEmail}`}
+          className="font-medium"
+          style={{ color: "var(--color-accent, #10B981)" }}
+        >
+          email us
+        </a>{" "}
+        and we will investigate.
+      </p>
+    </>
+  );
+}

@@ -63,6 +63,8 @@ export const cryptoToolsSite = defineSite({
     { title: "Comparisons", href: "/comparison" },
   ],
 
+  sitemapExtraPages: [{ path: "/how-we-rank", priority: 0.5, changeFrequency: "monthly" }],
+
   footerNav: {
     quickLinks: [
       { title: "Crypto Tax Guide", href: "/guide" },
@@ -77,6 +79,7 @@ export const cryptoToolsSite = defineSite({
     ],
     legal: [
       { title: "About", href: "/about" },
+      { title: "How We Rank", href: "/how-we-rank" },
       { title: "Privacy Policy", href: "/privacy" },
       { title: "Terms of Service", href: "/terms" },
       { title: "Affiliate Disclosure", href: "/affiliate-disclosure" },
