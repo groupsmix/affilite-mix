@@ -32,7 +32,7 @@ export function ContentCardGrid({
   const showAd = items.length > adAfter;
 
   return (
-    <div className={cn("grid gap-6 sm:grid-cols-2 lg:grid-cols-3", className)}>
+    <div className={cn("grid gap-6 sm:grid-cols-2", className)}>
       {items.map((item, index) => (
         <Fragment key={item.id}>
           <ContentCard content={item} locale={locale} />
