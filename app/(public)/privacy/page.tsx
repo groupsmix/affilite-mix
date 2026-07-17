@@ -1,6 +1,7 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
+import { isCryptoTaxAu, CryptoTaxAUPrivacy } from "../components/site-static-content";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -20,6 +21,17 @@ export default async function PrivacyPage() {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
   const contactEmail = site.pages.contact?.email ?? site.brand.contactEmail;
+
+  if (isCryptoTaxAu(site)) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-12">
+        <h1 className="mb-6 text-3xl font-bold">{site.pages.privacy.title}</h1>
+        <div className="prose prose-gray max-w-none">
+          <CryptoTaxAUPrivacy site={site} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">

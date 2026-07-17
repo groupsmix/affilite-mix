@@ -4,6 +4,7 @@ import { staticPageMetadata } from "@/lib/seo";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { redirect } from "next/navigation";
+import { isCryptoTaxAu, CryptoTaxAUContact } from "../components/site-static-content";
 
 export const revalidate = 3600;
 
@@ -36,6 +37,7 @@ export default async function ContactPage() {
   }
 
   const isAr = site.language === "ar";
+  const isCrypto = isCryptoTaxAu(site);
 
   const breadcrumbs = breadcrumbJsonLd(site, [
     { name: site.name, path: "/" },
@@ -58,66 +60,76 @@ export default async function ContactPage() {
       </header>
 
       <div className="prose max-w-none">
-        <p>
-          {isAr
-            ? "هل لديك سؤال أو اقتراح أو ترغب في العمل معنا؟ يسعدنا سماع رأيك."
-            : "Have a question, suggestion, or want to work with us? We\u2019d love to hear from you."}
-        </p>
+        {isCrypto ? (
+          <CryptoTaxAUContact site={site} />
+        ) : (
+          <>
+            <p>
+              {isAr
+                ? "هل لديك سؤال أو اقتراح أو ترغب في العمل معنا؟ يسعدنا سماع رأيك."
+                : "Have a question, suggestion, or want to work with us? We\u2019d love to hear from you."}
+            </p>
 
-        <h2>{isAr ? "تواصل معنا" : "Get in Touch"}</h2>
-        <p>
-          {isAr ? (
-            <>
-              أفضل طريقة للتواصل معنا هي عبر البريد الإلكتروني على{" "}
-              <a
-                href={`mailto:${contactPage.email}`}
-                className="font-medium transition-colors"
-                style={{ color: "var(--color-accent-text, #047857)" }}
-              >
-                {contactPage.email}
-              </a>
-              .
-            </>
-          ) : (
-            <>
-              The best way to reach us is by email at{" "}
-              <a
-                href={`mailto:${contactPage.email}`}
-                className="font-medium transition-colors"
-                style={{ color: "var(--color-accent-text, #047857)" }}
-              >
-                {contactPage.email}
-              </a>
-              .
-            </>
-          )}
-        </p>
+            <h2>{isAr ? "تواصل معنا" : "Get in Touch"}</h2>
+            <p>
+              {isAr ? (
+                <>
+                  أفضل طريقة للتواصل معنا هي عبر البريد الإلكتروني على{" "}
+                  <a
+                    href={`mailto:${contactPage.email}`}
+                    className="font-medium transition-colors"
+                    style={{ color: "var(--color-accent-text, #047857)" }}
+                  >
+                    {contactPage.email}
+                  </a>
+                  .
+                </>
+              ) : (
+                <>
+                  The best way to reach us is by email at{" "}
+                  <a
+                    href={`mailto:${contactPage.email}`}
+                    className="font-medium transition-colors"
+                    style={{ color: "var(--color-accent-text, #047857)" }}
+                  >
+                    {contactPage.email}
+                  </a>
+                  .
+                </>
+              )}
+            </p>
 
-        <h2>{isAr ? "كيف يمكننا مساعدتك" : "What We Can Help With"}</h2>
-        <ul>
-          <li>
-            {isAr
-              ? "أسئلة حول مراجعاتنا أو توصياتنا"
-              : "Questions about our reviews or recommendations"}
-          </li>
-          <li>
-            {isAr
-              ? "اقتراحات لمنتجات أو مواضيع لتغطيتها"
-              : "Suggestions for products or topics to cover"}
-          </li>
-          <li>{isAr ? "استفسارات الشراكة والتعاون" : "Partnership and collaboration inquiries"}</li>
-          <li>
-            {isAr ? "تصحيحات أو ملاحظات على محتوانا" : "Corrections or feedback on our content"}
-          </li>
-          <li>{isAr ? `أسئلة عامة حول ${site.name}` : `General questions about ${site.name}`}</li>
-        </ul>
+            <h2>{isAr ? "كيف يمكننا مساعدتك" : "What We Can Help With"}</h2>
+            <ul>
+              <li>
+                {isAr
+                  ? "أسئلة حول مراجعاتنا أو توصياتنا"
+                  : "Questions about our reviews or recommendations"}
+              </li>
+              <li>
+                {isAr
+                  ? "اقتراحات لمنتجات أو مواضيع لتغطيتها"
+                  : "Suggestions for products or topics to cover"}
+              </li>
+              <li>
+                {isAr ? "استفسارات الشراكة والتعاون" : "Partnership and collaboration inquiries"}
+              </li>
+              <li>
+                {isAr ? "تصحيحات أو ملاحظات على محتوانا" : "Corrections or feedback on our content"}
+              </li>
+              <li>
+                {isAr ? `أسئلة عامة حول ${site.name}` : `General questions about ${site.name}`}
+              </li>
+            </ul>
 
-        <h2>{isAr ? "وقت الاستجابة" : "Response Time"}</h2>
-        <p>
-          {isAr
-            ? 'نسعى للرد على جميع الرسائل خلال يوم إلى يومي عمل. للأمور العاجلة، يرجى كتابة "عاجل" في عنوان الرسالة.'
-            : 'We aim to respond to all emails within 1-2 business days. For urgent matters, please include "URGENT" in the subject line.'}
-        </p>
+            <h2>{isAr ? "وقت الاستجابة" : "Response Time"}</h2>
+            <p>
+              {isAr
+                ? 'نسعى للرد على جميع الرسائل خلال يوم إلى يومي عمل. للأمور العاجلة، يرجى كتابة "عاجل" في عنوان الرسالة.'
+                : 'We aim to respond to all emails within 1-2 business days. For urgent matters, please include "URGENT" in the subject line.'}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

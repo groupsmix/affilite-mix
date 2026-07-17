@@ -1,6 +1,7 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
+import { isCryptoTaxAu, CryptoTaxAUTerms } from "../components/site-static-content";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -19,6 +20,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function TermsPage() {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
+
+  if (isCryptoTaxAu(site)) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-12">
+        <h1 className="mb-6 text-3xl font-bold">{site.pages.terms.title}</h1>
+        <div className="prose prose-gray max-w-none">
+          <CryptoTaxAUTerms site={site} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
