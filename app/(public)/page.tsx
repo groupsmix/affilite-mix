@@ -104,7 +104,7 @@ export default async function HomePage() {
         reportHomepageFanoutError("getRecentContent", site.id, err);
         return [];
       }),
-      listFeaturedProducts(site.id, 6).catch((err) => {
+      listFeaturedProducts(site.id, 12).catch((err) => {
         reportHomepageFanoutError("listFeaturedProducts", site.id, err);
         return [];
       }),
