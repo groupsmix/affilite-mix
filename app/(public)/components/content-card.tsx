@@ -22,28 +22,28 @@ export function ContentCard({
   const href = `/${content.type}/${content.slug}`;
 
   return (
-    <article className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      {content.featured_image && (
-        <ContentCardImage
-          href={href}
-          src={content.featured_image}
-          alt={content.title}
-          priority={priority}
-        />
-      )}
-      <div className="p-5">
+    <article className="group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <ContentCardImage
+        href={href}
+        src={content.featured_image}
+        alt={content.title}
+        priority={priority}
+      />
+      <div className="flex flex-1 flex-col p-5">
         <Link href={href}>
-          <h3 className="mb-2 text-xl font-semibold leading-tight transition-colors hover:[color:var(--color-accent,#10B981)]">
+          <h3 className="mb-2 text-lg font-bold leading-snug tracking-tight transition-colors group-hover:[color:var(--color-accent-text,#15803D)]">
             {searchQuery ? highlightText(content.title, searchQuery) : content.title}
           </h3>
         </Link>
         {content.excerpt && (
-          <p className="mb-3 line-clamp-2 text-sm text-gray-600">
+          <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-gray-600">
             {searchQuery ? highlightText(content.excerpt, searchQuery) : content.excerpt}
           </p>
         )}
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>{content.type}</span>
+        <div className="mt-auto flex items-center justify-between text-xs font-medium text-gray-500">
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 uppercase tracking-wider">
+            {content.type}
+          </span>
           {(content.publish_at ?? content.created_at) && (
             <time dateTime={content.publish_at ?? content.created_at}>
               {formatCardDate(content.publish_at ?? content.created_at, locale)}

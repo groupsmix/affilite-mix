@@ -81,29 +81,31 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
     { name: ct.label, path: `/${contentType}` },
   ]);
 
+  const heading = site.language === "ar" ? ct.label : (ct.labelPlural ?? `${ct.label}s`);
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <JsonLd data={breadcrumbs} />
 
       <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: ct.label }]} />
 
-      <header className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">
-          {site.language === "ar" ? ct.label : (ct.labelPlural ?? `${ct.label}s`)}
+      <header className="mb-10">
+        <h1 className="max-w-3xl text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+          {heading}
         </h1>
         {/* Content type filter tabs */}
         {site.contentTypes.length > 1 && (
-          <nav className="mt-4 flex flex-wrap gap-2" aria-label="Content type filter">
+          <nav className="mt-5 flex flex-wrap gap-2" aria-label="Content type filter">
             {site.contentTypes.map((t) => {
               const isActive = t.value === contentType;
               return (
                 <a
                   key={t.value}
                   href={`/${t.value}`}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                  className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-all active:scale-[0.98] ${
                     isActive
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "border-[color:var(--color-accent,#16A34A)] bg-[color:var(--color-accent,#16A34A)] text-white"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                   aria-current={isActive ? "page" : undefined}
                 >
@@ -132,7 +134,7 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
           />
         </>
       ) : (
-        <div className="py-16 text-center text-gray-500">
+        <div className="rounded-2xl border border-gray-100 bg-gray-50 py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? `لا يوجد ${ct.label} بعد`
@@ -140,6 +142,6 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
           </p>
         </div>
       )}
-    </div>
+    </main>
   );
 }
