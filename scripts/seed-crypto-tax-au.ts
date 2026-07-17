@@ -144,7 +144,7 @@ const products: ProductSeed[] = [
     category: "crypto-tax-software",
     description:
       "Crypto tax software built exclusively for Australia and ATO rules, featuring 'Lowest Tax First Out' (LTFO) parcel selection that can legally reduce your capital gains tax.",
-    affiliate_url: "https://syla.com.au/",
+    affiliate_url: "https://www.syla.com.au/?code=BSETWZYW",
     merchant: "Syla",
     price_label: "From A$59/yr",
     price_amount: 59,
@@ -176,7 +176,7 @@ const products: ProductSeed[] = [
     category: "crypto-tax-software",
     description:
       "Easy-to-use global crypto tax tool with Australian ATO report support and one of the more generous recurring affiliate programs in the niche.",
-    affiliate_url: "https://coinledger.io/",
+    affiliate_url: "https://coinledger.io?fpr=bonus&fp_sid=10bonus",
     merchant: "CoinLedger",
     price_label: "From ~A$79/yr",
     price_amount: 79,
@@ -192,7 +192,7 @@ const products: ProductSeed[] = [
     category: "crypto-tax-software",
     description:
       "Veteran crypto portfolio and tax platform with deep reporting, analytics and a long-standing affiliate program. Has a free tier for smaller portfolios.",
-    affiliate_url: "https://cointracking.info/",
+    affiliate_url: "https://cointracking.info?ref=W792584",
     merchant: "CoinTracking",
     price_label: "Free tier · paid from ~A$150/yr",
     price_amount: 150,
@@ -201,6 +201,22 @@ const products: ProductSeed[] = [
     cta_text: "Try CoinTracking",
     pros: "Powerful reporting & analytics, Portfolio tracking, Lifetime plan options, Recurring affiliate program",
     cons: "Dated interface, Steeper learning curve for beginners",
+  },
+  {
+    slug: "coinpanda",
+    name: "Coinpanda",
+    category: "crypto-tax-software",
+    description:
+      "Global crypto tax platform with 2,400+ exchange, wallet and blockchain integrations, strong DeFi and NFT support, and ATO-ready myTax reports for Australia.",
+    affiliate_url: "https://coinpanda.io/?ref=f907b679d8cd",
+    merchant: "Coinpanda",
+    price_label: "Free 25 tx · from US$79/yr",
+    price_amount: 79,
+    score: 8.7,
+    featured: true,
+    cta_text: "Try Coinpanda",
+    pros: "2,400+ integrations, Strong DeFi & NFT support, ATO myTax reports, 65+ countries including Australia, Free 25-transaction plan",
+    cons: "USD pricing (no AUD), Higher tiers for very large volumes",
   },
   {
     slug: "crypto-accountant-au",
