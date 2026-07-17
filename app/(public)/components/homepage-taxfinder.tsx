@@ -280,7 +280,7 @@ export function TaxFinderHomepage({
                 View all
               </Link>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {recentContent.map((content) => (
                 <ContentCard key={content.id} content={content} locale="en-AU" priority={false} />
               ))}

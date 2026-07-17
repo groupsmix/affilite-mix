@@ -87,7 +87,7 @@ export default async function HomePage() {
   const site = await getCurrentSite();
   const [recentContent, featuredProducts, categories, productCount, reviewCount] =
     await Promise.all([
-      getRecentContent(site.id, 6).catch((err) => {
+      getRecentContent(site.id, 9).catch((err) => {
         reportHomepageFanoutError("getRecentContent", site.id, err);
         return [];
       }),
