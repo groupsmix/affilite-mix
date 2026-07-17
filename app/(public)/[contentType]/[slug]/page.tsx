@@ -36,6 +36,7 @@ import {
   faqJsonLd,
 } from "../../components/json-ld";
 import { notFound } from "next/navigation";
+import { unstable_noStore } from "next/cache";
 import type { Metadata } from "next";
 
 /** Revalidate content detail pages every 60 seconds (ISR) */
@@ -114,6 +115,12 @@ export async function generateMetadata({
 export default async function ContentPage({ params, searchParams }: ContentPageProps) {
   const { contentType, slug } = await params;
   const { preview, token } = await searchParams;
+
+  // Never serve a cached 404 for preview requests.
+  if (preview === "true") {
+    unstable_noStore();
+  }
+
   const site = await getCurrentSite();
   let isPreview = false;
 
