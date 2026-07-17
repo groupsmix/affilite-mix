@@ -182,8 +182,7 @@ const products: ProductSeed[] = [
     description:
       "Easy-to-use global crypto tax tool with Australian ATO report support and one of the more generous recurring affiliate programs in the niche.",
     affiliate_url: "https://coinledger.io?fpr=bonus&fp_sid=10bonus",
-    image_url:
-      "https://assets-global.website-files.com/614c99cf4f23708b27a37503/618aa638ad45e02bd3b77f6f_Logo.svg",
+    image_url: "/images/product-coinledger.png",
     merchant: "CoinLedger",
     price_label: "From ~A$79/yr",
     price_amount: 79,
@@ -235,6 +234,7 @@ const products: ProductSeed[] = [
     description:
       "Get matched with an Australian registered tax agent who specialises in crypto — ideal for heavy DeFi activity, high transaction volumes, prior-year catch-ups, or an ATO review.",
     affiliate_url: "https://cryptotaxau.com/contact",
+    image_url: "/images/product-accountant-au.png",
     merchant: "Crypto Tax AU Partner Network",
     price_label: "Free matching",
     price_amount: 0,
