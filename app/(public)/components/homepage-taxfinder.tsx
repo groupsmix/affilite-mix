@@ -139,6 +139,12 @@ export function TaxFinderHomepage({
             ATO taxes and go straight to the software built for it.
           </p>
 
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <TrustBadge text="Based on current ATO rules" />
+            <TrustBadge text="DeFi, staking, airdrops &amp; NFTs" />
+            <TrustBadge text="No sign-up to use" />
+          </div>
+
           <div className="mt-7">
             <TaxFinder
               tools={finderTools}
@@ -150,25 +156,16 @@ export function TaxFinderHomepage({
             />
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-gray-500">
-            <span className="inline-flex items-center gap-1.5">
-              <Check /> Based on current ATO rules
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Check /> DeFi, staking, airdrops &amp; NFTs
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Check /> No sign-up to use
-            </span>
-            {ranked.length > 0 && (
+          {ranked.length > 0 && (
+            <div className="mt-5">
               <a
                 href="#compare"
-                className="font-semibold text-[color:var(--color-accent-text,#15803D)] hover:underline"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--color-accent-text,#15803D)] hover:underline"
               >
                 Or compare all {ranked.length} tools ↓
               </a>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -184,24 +181,44 @@ export function TaxFinderHomepage({
               {ranked.map((p, i) => (
                 <div
                   key={p.id}
-                  className={`grid items-center gap-4 rounded-xl border bg-white p-4 sm:grid-cols-[32px_1fr_88px_170px] ${
-                    i === 0 ? "border-[color:var(--color-accent,#16A34A)]" : "border-gray-200"
+                  className={`relative grid grid-cols-1 items-center gap-4 rounded-xl border p-4 sm:grid-cols-[auto_1fr_88px_170px] ${
+                    i === 0
+                      ? "border-[color:var(--color-accent,#16A34A)] bg-[color:var(--color-accent,#16A34A)]/5 ring-1 ring-[color:var(--color-accent,#16A34A)]/10"
+                      : "border-gray-200 bg-white"
                   }`}
                 >
-                  <div className="text-center text-lg font-extrabold text-gray-400">{i + 1}</div>
-                  <div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`flex size-8 items-center justify-center rounded-full text-sm font-extrabold ${
+                        i === 0
+                          ? "bg-[color:var(--color-accent,#16A34A)] text-white"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <InitialAvatar name={p.name} />
+                  </div>
+
+                  <div className="min-w-0">
+                    {i === 0 && (
+                      <span className="mb-1 inline-flex items-center rounded bg-[color:var(--color-accent,#16A34A)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                        Recommended
+                      </span>
+                    )}
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[17px] font-bold text-gray-900">{p.name}</p>
                       {BEST_FOR[p.slug] && (
-                        <span className="rounded-full bg-[color:var(--color-accent,#16A34A)]/10 px-2 py-0.5 text-[11px] font-semibold text-[color:var(--color-accent-text,#15803D)]">
+                        <span className="rounded-full bg-[color:var(--color-accent,#16A34A)]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[color:var(--color-accent-text,#15803D)]">
                           {BEST_FOR[p.slug]}
                         </span>
                       )}
                     </div>
                     {p.description && (
-                      <p className="mt-1.5 line-clamp-2 text-sm text-gray-600">{p.description}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-gray-600">{p.description}</p>
                     )}
                   </div>
+
                   <div className="text-center sm:text-center">
                     {p.score !== null && (
                       <>
@@ -212,11 +229,12 @@ export function TaxFinderHomepage({
                       </>
                     )}
                   </div>
+
                   <ProductCardCta
                     href={p.affiliate_url}
                     slug={p.slug}
                     sourceType="homepage-compare"
-                    label={p.cta_text || `Visit ${p.name} →`}
+                    label={`${p.cta_text || `Visit ${p.name}`} →`}
                     className={`block w-full rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition-opacity hover:opacity-90 ${
                       i === 0 ? "text-white" : "border border-gray-200 text-gray-800"
                     }`}
@@ -315,6 +333,28 @@ export function TaxFinderHomepage({
         )}
       </div>
     </div>
+  );
+}
+
+function InitialAvatar({ name, className }: { name: string; className?: string }) {
+  const initial = name.charAt(0).toUpperCase();
+  return (
+    <span
+      className={`inline-flex size-8 items-center justify-center rounded-lg bg-[color:var(--color-accent,#16A34A)]/10 text-sm font-bold text-[color:var(--color-accent-text,#15803D)] ${className ?? ""}`}
+    >
+      {initial}
+    </span>
+  );
+}
+
+function TrustBadge({ text }: { text: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm">
+      <span className="inline-flex size-5 items-center justify-center rounded-full bg-[color:var(--color-accent,#16A34A)]/10">
+        <Check />
+      </span>
+      {text}
+    </span>
   );
 }
 

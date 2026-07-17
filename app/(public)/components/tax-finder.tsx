@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ArrowRight, BadgeCheck } from "lucide-react";
 import { ProductCardCta } from "./product-card-client";
 
 /**
@@ -148,19 +149,25 @@ export function TaxFinder({
           </div>
 
           {pick && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.04em] text-[color:var(--color-accent-text,#15803D)]">
-                Best tool for this
+            <div className="relative rounded-xl border border-[color:var(--color-accent,#16A34A)]/20 bg-[color:var(--color-accent,#16A34A)]/5 p-5 shadow-sm">
+              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.04em] text-[color:var(--color-accent-text,#15803D)]">
+                <BadgeCheck className="size-4" aria-hidden="true" />
+                Best tool for {selected.label}
               </p>
-              <p className="mt-2 text-lg font-extrabold text-gray-900">{pick.name}</p>
-              {pick.tagline && <p className="text-[13px] text-gray-500">{pick.tagline}</p>}
-              <div className="mt-3 flex flex-col gap-2">
+              <p className="mt-2 text-xl font-extrabold text-gray-900">{pick.name}</p>
+              {pick.tagline && <p className="text-sm text-gray-600">{pick.tagline}</p>}
+              <div className="mt-4 flex flex-col gap-2">
                 <ProductCardCta
                   href={pick.affiliateUrl}
                   slug={pick.slug}
                   sourceType={sourceType}
-                  label={`Go to ${pick.name} →`}
-                  className="block w-full rounded-lg px-4 py-2.5 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                  label={
+                    <span className="inline-flex items-center justify-center gap-2">
+                      Get started with {pick.name}{" "}
+                      <ArrowRight className="size-4" aria-hidden="true" />
+                    </span>
+                  }
+                  className="block w-full rounded-lg px-4 py-3 text-center text-base font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
                   style={{ backgroundColor: "var(--color-accent, #16A34A)" }}
                 />
                 {accountant && (
@@ -168,7 +175,12 @@ export function TaxFinder({
                     href={accountant.affiliateUrl}
                     slug={accountant.slug}
                     sourceType={sourceType}
-                    label="Rather have an accountant do it? →"
+                    label={
+                      <span className="inline-flex items-center justify-center gap-2">
+                        Rather have an accountant do it?{" "}
+                        <ArrowRight className="size-4" aria-hidden="true" />
+                      </span>
+                    }
                     className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-100"
                   />
                 )}
