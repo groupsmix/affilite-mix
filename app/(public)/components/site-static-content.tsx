@@ -1,5 +1,6 @@
 import type { SiteDefinition } from "@/config/site-definition";
 import Link from "next/link";
+import { ContactForm } from "./contact-form";
 
 export function isCryptoTaxAu(site: SiteDefinition): boolean {
   return (
@@ -79,8 +80,6 @@ export function CryptoTaxAUAbout({ site }: { site: SiteDefinition }) {
 }
 
 export function CryptoTaxAUContact({ site }: { site: SiteDefinition }) {
-  const email = site.pages.contact?.email ?? site.brand.contactEmail;
-
   return (
     <>
       <p>
@@ -89,18 +88,10 @@ export function CryptoTaxAUContact({ site }: { site: SiteDefinition }) {
         (AEST/AEDT).
       </p>
 
-      <h2>Email us</h2>
-      <p>
-        The best way to reach us is by email at{" "}
-        <a
-          href={`mailto:${email}`}
-          className="font-medium"
-          style={{ color: "var(--color-accent-text, #047857)" }}
-        >
-          {email}
-        </a>
-        .
-      </p>
+      <h2>Send us a message</h2>
+      <div className="mb-8">
+        <ContactForm siteName={site.name} />
+      </div>
 
       <h2>What we can help with</h2>
       <ul>

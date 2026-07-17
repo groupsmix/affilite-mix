@@ -130,7 +130,7 @@ const products: ProductSeed[] = [
     description:
       "Australian-founded crypto tax calculator with ATO-ready reports, 800+ exchange & wallet integrations, and strong DeFi and NFT support. Free to track your portfolio; pay only when you download a tax report.",
     affiliate_url: "https://koinly.io/",
-    image_url: "https://canny.io/images/c6865c5b10c0822f213070de8af4d83e.png",
+    image_url: "/images/product-koinly.png",
     merchant: "Koinly",
     price_label: "Free to track · from A$69/yr to file",
     price_amount: 69,
@@ -147,8 +147,7 @@ const products: ProductSeed[] = [
     description:
       "Crypto tax software built exclusively for Australia and ATO rules, featuring 'Lowest Tax First Out' (LTFO) parcel selection that can legally reduce your capital gains tax.",
     affiliate_url: "https://www.syla.com.au/?code=BSETWZYW",
-    image_url:
-      "https://consumersiteimages.trustpilot.net/business-units/64919707d0dcf3c9c039d233-198x149-1x.jpg",
+    image_url: "/images/product-syla.png",
     merchant: "Syla",
     price_label: "From A$59/yr",
     price_amount: 59,
@@ -165,7 +164,7 @@ const products: ProductSeed[] = [
     description:
       "Australian-founded tax platform that specialises in complex DeFi, derivatives and on-chain activity across 3,000+ integrations, with detailed ATO reports.",
     affiliate_url: "https://cryptotaxcalculator.io/",
-    image_url: "https://cryptologos.zenobank.io/library/crypto-tax-calculator-icon-dark.png",
+    image_url: "/images/product-crypto-tax-calculator.png",
     merchant: "Crypto Tax Calculator",
     price_label: "From A$99/yr",
     price_amount: 99,
@@ -216,8 +215,7 @@ const products: ProductSeed[] = [
     description:
       "Global crypto tax platform with 2,400+ exchange, wallet and blockchain integrations, strong DeFi and NFT support, and ATO-ready myTax reports for Australia.",
     affiliate_url: "https://coinpanda.io/?ref=f907b679d8cd",
-    image_url:
-      "https://downloads.intercomcdn.com/i/o/194401/23d9e21a8a6e90d95f07aad7/770e07dca425f8f77deff769a198c6b0.png",
+    image_url: "/images/product-coinpanda.png",
     merchant: "Coinpanda",
     price_label: "Free 25 tx · from US$79/yr",
     price_amount: 79,

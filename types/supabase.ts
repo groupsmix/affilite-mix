@@ -997,6 +997,44 @@ export type Database = {
           },
         ];
       };
+      contact_submissions: {
+        Row: {
+          created_at: string;
+          email: string;
+          id: string;
+          message: string;
+          name: string | null;
+          site_id: string;
+          subject: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          email: string;
+          id?: string;
+          message: string;
+          name?: string | null;
+          site_id: string;
+          subject?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          email?: string;
+          id?: string;
+          message?: string;
+          name?: string | null;
+          site_id?: string;
+          subject?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_submissions_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       cron_state: {
         Row: {
           cursor: Json;
