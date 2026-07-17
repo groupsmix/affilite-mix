@@ -78,7 +78,7 @@ const TOPICS: {
 ];
 
 const chip =
-  "rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer select-none";
+  "rounded-full border px-4 py-2.5 text-sm font-semibold transition-all cursor-pointer select-none active:scale-[0.98]";
 
 export function TaxFinder({
   tools,
@@ -101,10 +101,10 @@ export function TaxFinder({
   const guideHref = topic ? guideHrefs?.[topic] : undefined;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-[15px] font-bold text-gray-900">What did you do with crypto?</p>
-        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+        <span className="rounded-full border border-[color:var(--color-accent,#16A34A)]/20 bg-[color:var(--color-accent,#16A34A)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--color-accent-text,#15803D)]">
           {daysToDeadline} days to 31 Oct
         </span>
       </div>
@@ -176,11 +176,10 @@ export function TaxFinder({
                   sourceType={sourceType}
                   label={
                     <span className="inline-flex items-center justify-center gap-2">
-                      Get started with {pick.name}{" "}
-                      <ArrowRight className="size-4" aria-hidden="true" />
+                      Get started <ArrowRight className="size-4" aria-hidden="true" />
                     </span>
                   }
-                  className="block w-full rounded-lg px-4 py-3 text-center text-base font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+                  className="block w-full rounded-lg px-4 py-3 text-center text-base font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
                   style={{ backgroundColor: "var(--color-accent, #16A34A)" }}
                 />
                 {accountant && (
@@ -190,11 +189,11 @@ export function TaxFinder({
                     sourceType={sourceType}
                     label={
                       <span className="inline-flex items-center justify-center gap-2">
-                        Rather have an accountant do it?{" "}
+                        Find an accountant
                         <ArrowRight className="size-4" aria-hidden="true" />
                       </span>
                     }
-                    className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-100"
+                    className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-all hover:bg-gray-50 active:scale-[0.98]"
                   />
                 )}
               </div>

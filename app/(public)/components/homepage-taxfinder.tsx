@@ -16,6 +16,7 @@ import {
   Calculator,
   ShieldCheck,
   UserCheck,
+  Check,
 } from "lucide-react";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
@@ -32,8 +33,7 @@ interface TaxFinderHomepageProps {
   reviewCount: number;
 }
 
-/** Slugs the finder can recommend as software; anything else (e.g. the
- *  accountant referral) is surfaced separately as a complex-case upsell. */
+/** Slugs the finder can recommend as software; anything else is surfaced separately. */
 const SOFTWARE_SLUGS = new Set([
   "koinly",
   "syla",
@@ -44,7 +44,7 @@ const SOFTWARE_SLUGS = new Set([
 ]);
 const ACCOUNTANT_SLUG = "crypto-accountant-au";
 
-/** One-line "best for" positioning per tool, so the comparison is scannable. */
+/** One-line positioning per tool, so the comparison is scannable. */
 const BEST_FOR: Record<string, string> = {
   koinly: "Best for most people",
   syla: "Best for paying the least tax",
@@ -73,26 +73,11 @@ function toFinderTool(p: ProductRow): TaxFinderTool {
   };
 }
 
-/**
- * "Tax finder" homepage — a situation-triage answer engine for the Australian
- * crypto-tax site (crypto-tools tenant, cryptoranked.xyz).
- *
- * Design intent: the visitor arrives confused and anxious near a deadline. The
- * first view is not a decorative hero but an interactive triage — pick what you
- * did with crypto → see your likely ATO taxable events → get the single tool
- * built for your situation, with the tracked affiliate CTA. That situation →
- * ATO-events → best-tool mapping is what makes the page specific to this
- * business (and drives the affiliate conversion). The full comparison, topic
- * hubs and guides sit below for people who prefer to browse. Deliberately plain
- * and readable — the interaction, not ornament, carries the differentiation.
- */
 export function TaxFinderHomepage({
   site,
   recentContent,
   featuredProducts,
   categories,
-  productCount,
-  reviewCount,
 }: TaxFinderHomepageProps) {
   const firstContentType = site.contentTypes[0]?.value ?? "guide";
   const usable = featuredProducts.filter((p) => hasUsableAffiliateUrl(p.affiliate_url));
@@ -104,7 +89,6 @@ export function TaxFinderHomepage({
   const accountantRow = usable.find((p) => p.slug === ACCOUNTANT_SLUG);
   const accountant = accountantRow ? toFinderTool(accountantRow) : null;
 
-  // Link each topic to its seeded category guide (matched by slug keyword).
   const guideHref = (kw: string) => {
     const cat = categories.find((c) => c.slug.includes(kw));
     return cat ? `/category/${cat.slug}` : undefined;
@@ -117,7 +101,6 @@ export function TaxFinderHomepage({
     nft: guideHref("nft"),
   };
 
-  // Ranked comparison rows: software first (by score), then any remaining.
   const ranked = [
     ...usable.filter((p) => p.slug !== ACCOUNTANT_SLUG),
     ...usable.filter((p) => p.slug === ACCOUNTANT_SLUG),
@@ -141,34 +124,43 @@ export function TaxFinderHomepage({
   ];
 
   return (
-    <div>
+    <main>
       <JsonLd data={organizationJsonLd(site)} />
       <JsonLd data={webSiteJsonLd(site)} />
 
-      {/* ── Triage: the answer engine ── */}
+      {/* Hero */}
       <section className="border-b border-gray-200 bg-gray-50">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-          <div className="lg:grid lg:grid-cols-2 lg:gap-10">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:py-16">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
             <div>
               <p className="text-[13.5px] font-semibold uppercase tracking-[0.04em] text-[color:var(--color-accent-text,#15803D)]">
                 Australian crypto tax
               </p>
-              <h1 className="mt-2 max-w-3xl text-3xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-4xl">
-                Crypto tax software for Australians — pick what you did, get the right tool.
+              <h1 className="mt-3 max-w-[18ch] text-4xl font-extrabold leading-[1.05] tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">
+                Find the right crypto tax tool for your ATO return.
               </h1>
-              <p className="mt-3 max-w-2xl text-[17px] text-gray-600">
-                For DeFi, staking, airdrop and NFT investors. Choose your activity below to see what
-                the ATO taxes and go straight to the software built for it.
+              <p className="mt-4 max-w-[55ch] text-lg leading-relaxed text-gray-600">
+                Pick what you did with crypto. We&apos;ll show your taxable events and the software
+                built for it.
               </p>
-
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <TrustBadge text="Based on current ATO rules" />
-                <TrustBadge text="DeFi, staking, airdrops &amp; NFTs" />
-                <TrustBadge text="No sign-up to use" />
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <a
+                  href="#finder"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:var(--color-accent,#16A34A)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
+                >
+                  Find my tool
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </a>
+                <a
+                  href="#compare"
+                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-800 transition-all hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98]"
+                >
+                  Compare all tools
+                </a>
               </div>
             </div>
 
-            <div className="relative mt-8 aspect-[3/2] w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg lg:mt-0">
+            <div className="relative mt-6 aspect-[3/2] w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg lg:mt-0">
               <Image
                 src="/images/hero-crypto-tax-au.png"
                 alt="Crypto tax report with Australian dollar coins, calculator and rising chart"
@@ -179,136 +171,74 @@ export function TaxFinderHomepage({
               />
             </div>
           </div>
-
-          <div className="mt-7 lg:mt-10">
-            <TaxFinder
-              tools={finderTools}
-              accountant={accountant}
-              guideHrefs={guideHrefs}
-              daysToDeadline={days}
-              affiliateDisclosure={site.affiliateDisclosure}
-              sourceType="homepage-finder"
-            />
-          </div>
-
-          {ranked.length > 0 && (
-            <div className="mt-5">
-              <a
-                href="#compare"
-                className="inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--color-accent-text,#15803D)] hover:underline"
-              >
-                Or compare all {ranked.length} tools ↓
-              </a>
-            </div>
-          )}
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* ── Full comparison ── */}
-        {ranked.length > 0 && (
-          <section id="compare" className="py-12">
-            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">
+      {/* Trust strip */}
+      <section className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            <TrustBadge text="Based on ATO rules" />
+            <TrustBadge text="Covers DeFi, staking and NFTs" />
+            <TrustBadge text="No signup required" />
+          </div>
+        </div>
+      </section>
+
+      {/* Finder */}
+      <section id="finder" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <TaxFinder
+          tools={finderTools}
+          accountant={accountant}
+          guideHrefs={guideHrefs}
+          daysToDeadline={days}
+          affiliateDisclosure={site.affiliateDisclosure}
+          sourceType="homepage-finder"
+        />
+      </section>
+
+      {/* Comparison */}
+      {ranked.length > 0 && (
+        <section id="compare" className="border-t border-gray-200 bg-gray-50 py-12 lg:py-16">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
               Compare every tool
             </h2>
-            <p className="mt-1.5 text-gray-600">The full ranking, if you&apos;d rather browse.</p>
-            <div className="mt-6 flex flex-col gap-3">
+            <p className="mt-2 max-w-[55ch] text-gray-600">
+              The full ranking, if you prefer to browse before you pick.
+            </p>
+            <div className="mt-8 flex flex-col gap-4">
               {ranked.map((p, i) => (
-                <div
-                  key={p.id}
-                  className={`relative grid grid-cols-1 items-center gap-4 rounded-xl border p-4 sm:grid-cols-[auto_1fr_88px_170px] ${
-                    i === 0
-                      ? "border-[color:var(--color-accent,#16A34A)] bg-[color:var(--color-accent,#16A34A)]/5 ring-1 ring-[color:var(--color-accent,#16A34A)]/10"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
-                        i === 0
-                          ? "bg-[color:var(--color-accent,#16A34A)] text-white"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                    <ProductLogo
-                      name={p.name}
-                      src={p.image_url}
-                      size={44}
-                      className="rounded-lg bg-white p-1 shadow-sm ring-1 ring-gray-100"
-                      priority={i < 3}
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    {i === 0 && (
-                      <span className="mb-1 inline-flex items-center rounded bg-[color:var(--color-accent,#16A34A)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                        Recommended
-                      </span>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[17px] font-bold text-gray-900">{p.name}</p>
-                      {BEST_FOR[p.slug] && (
-                        <span className="rounded-full bg-[color:var(--color-accent,#16A34A)]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[color:var(--color-accent-text,#15803D)]">
-                          {BEST_FOR[p.slug]}
-                        </span>
-                      )}
-                    </div>
-                    {p.description && (
-                      <p className="mt-1 line-clamp-2 text-sm text-gray-600">{p.description}</p>
-                    )}
-                  </div>
-
-                  <div className="text-center sm:text-center">
-                    {p.score !== null && (
-                      <>
-                        <span className="text-xl font-extrabold text-gray-900">
-                          {p.score.toFixed(1)}
-                        </span>
-                        <span className="text-xs text-gray-500">/10</span>
-                      </>
-                    )}
-                  </div>
-
-                  <ProductCardCta
-                    href={p.affiliate_url}
-                    slug={p.slug}
-                    sourceType="homepage-compare"
-                    label={`${p.cta_text || `Visit ${p.name}`} →`}
-                    className={`block w-full rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition-opacity hover:opacity-90 ${
-                      i === 0 ? "text-white" : "border border-gray-200 text-gray-800"
-                    }`}
-                    style={
-                      i === 0 ? { backgroundColor: "var(--color-accent, #16A34A)" } : undefined
-                    }
-                  />
-                </div>
+                <ToolRow key={p.id} product={p} index={i} sourceType="homepage-compare" />
               ))}
             </div>
-            <p className="mt-4 max-w-3xl text-[13px] leading-relaxed text-gray-500">
+            <p className="mt-5 max-w-3xl text-[13px] leading-relaxed text-gray-500">
               {site.affiliateDisclosure}
             </p>
-          </section>
-        )}
-      </div>
+          </div>
+        </section>
+      )}
 
-      {/* ── Topic hubs ── */}
+      {/* Topic hubs */}
       {categories.length > 0 && (
-        <section className="border-y border-gray-200 bg-gray-50">
-          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">
+        <section className="border-t border-gray-200 bg-white py-12 lg:py-16">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
               Crypto tax by transaction type
             </h2>
-            <p className="mt-1.5 text-gray-600">Go deeper on how the ATO treats each one.</p>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {categories.slice(0, 8).map((cat) => {
+            <p className="mt-2 max-w-[55ch] text-gray-600">
+              Go deeper on how the ATO treats each one.
+            </p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {categories.slice(0, 7).map((cat, i) => {
                 const Icon = categoryIcon(cat.slug);
                 return (
                   <Link
                     key={cat.id}
                     href={`/category/${cat.slug}`}
-                    className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[color:var(--color-accent,#16A34A)] hover:shadow-md"
+                    className={`group rounded-2xl border border-gray-200 bg-gray-50 p-5 transition-all hover:-translate-y-0.5 hover:border-[color:var(--color-accent,#16A34A)]/30 hover:bg-white hover:shadow-md ${
+                      i === 0 ? "sm:col-span-2" : ""
+                    }`}
                   >
                     <span className="inline-flex size-10 items-center justify-center rounded-lg bg-[color:var(--color-accent,#16A34A)]/10 text-[color:var(--color-accent-text,#15803D)] ring-1 ring-[color:var(--color-accent,#16A34A)]/10 transition-colors group-hover:bg-[color:var(--color-accent,#16A34A)] group-hover:text-white group-hover:ring-[color:var(--color-accent,#16A34A)]">
                       <Icon className="size-5" aria-hidden="true" />
@@ -331,26 +261,26 @@ export function TaxFinderHomepage({
       )}
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* ── Popular guides ── */}
+        {/* Popular guides */}
         {recentContent.length > 0 && (
-          <section className="py-12">
-            <div className="mb-6 flex items-center justify-between">
+          <section className="py-12 lg:py-16">
+            <div className="mb-6 flex items-end justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">
+                <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
                   Popular guides
                 </h2>
-                <p className="mt-1.5 text-gray-600">
-                  Plain-English answers written for Australian investors.
+                <p className="mt-2 text-gray-600">
+                  Plain-English answers for Australian investors.
                 </p>
               </div>
               <Link
                 href={`/${firstContentType}`}
                 className="shrink-0 text-sm font-semibold text-[color:var(--color-accent-text,#15803D)] hover:underline"
               >
-                View all →
+                View all
               </Link>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2">
               {recentContent.map((content) => (
                 <ContentCard key={content.id} content={content} locale="en-AU" priority={false} />
               ))}
@@ -358,12 +288,14 @@ export function TaxFinderHomepage({
           </section>
         )}
 
-        {/* ── FAQ ── */}
+        {/* FAQ */}
         <section className="pb-16 pt-4">
-          <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">Common questions</h2>
-          <div className="mt-4 border-t border-gray-200">
+          <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
+            Common questions
+          </h2>
+          <div className="mt-5 border-t border-gray-200 divide-y divide-gray-200">
             {faqs.map((f) => (
-              <details key={f.q} className="group border-b border-gray-200 py-1">
+              <details key={f.q} className="group py-1">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3 text-[17px] font-bold text-gray-900 marker:hidden [&::-webkit-details-marker]:hidden">
                   {f.q}
                   <ChevronDown
@@ -385,6 +317,88 @@ export function TaxFinderHomepage({
           <div className="py-16 text-center text-gray-500">
             <p className="text-lg">No content yet</p>
           </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function ToolRow({
+  product,
+  index,
+  sourceType,
+}: {
+  product: ProductRow;
+  index: number;
+  sourceType: string;
+}) {
+  const isTop = index === 0;
+  return (
+    <div
+      className={`group grid grid-cols-1 items-start gap-5 rounded-2xl border p-5 transition-all hover:-translate-y-0.5 sm:grid-cols-[auto_1fr_auto] sm:items-center ${
+        isTop
+          ? "border-[color:var(--color-accent,#16A34A)]/30 bg-white shadow-md"
+          : "border-gray-200 bg-white hover:shadow-md"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <span
+          className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
+            isTop
+              ? "bg-[color:var(--color-accent,#16A34A)] text-white"
+              : "bg-gray-100 text-gray-500"
+          }`}
+        >
+          {index + 1}
+        </span>
+        <ProductLogo
+          name={product.name}
+          src={product.image_url}
+          size={48}
+          className="rounded-lg bg-white p-1 shadow-sm ring-1 ring-gray-100"
+          priority={index < 3}
+        />
+      </div>
+
+      <div className="min-w-0">
+        {isTop && (
+          <span className="mb-1 inline-flex items-center rounded bg-[color:var(--color-accent,#16A34A)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+            Recommended
+          </span>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-lg font-bold text-gray-900">{product.name}</p>
+          {BEST_FOR[product.slug] && (
+            <span className="rounded-full bg-[color:var(--color-accent,#16A34A)]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[color:var(--color-accent-text,#15803D)]">
+              {BEST_FOR[product.slug]}
+            </span>
+          )}
+        </div>
+        {product.description && (
+          <p className="mt-1 max-w-[60ch] text-sm text-gray-600">{product.description}</p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end sm:gap-3">
+        {product.score !== null && (
+          <div className="text-2xl font-extrabold text-gray-900">
+            {product.score.toFixed(1)}
+            <span className="text-sm font-medium text-gray-500">/10</span>
+          </div>
+        )}
+        {hasUsableAffiliateUrl(product.affiliate_url) && (
+          <ProductCardCta
+            href={product.affiliate_url}
+            slug={product.slug}
+            sourceType={sourceType}
+            label={`Visit ${product.name} →`}
+            className={`inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-all active:scale-[0.98] ${
+              isTop
+                ? "text-white shadow-sm hover:opacity-90"
+                : "border border-gray-200 bg-white text-gray-800 hover:border-gray-300 hover:bg-gray-50"
+            }`}
+            style={isTop ? { backgroundColor: "var(--color-accent, #16A34A)" } : undefined}
+          />
         )}
       </div>
     </div>
@@ -414,28 +428,11 @@ function categoryIcon(slug: string) {
 
 function TrustBadge({ text }: { text: string }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm">
+    <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700">
       <span className="inline-flex size-5 items-center justify-center rounded-full bg-[color:var(--color-accent,#16A34A)]/10">
-        <Check />
+        <Check className="size-3.5 text-[color:var(--color-accent,#16A34A)]" aria-hidden="true" />
       </span>
       {text}
     </span>
-  );
-}
-
-function Check() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      className="size-4 shrink-0 text-[color:var(--color-accent,#16A34A)]"
-      fill="currentColor"
-    >
-      <path
-        fillRule="evenodd"
-        d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0l-3.5-3.5a1 1 0 1 1 1.4-1.4l2.8 2.79 6.8-6.79a1 1 0 0 1 1.4 0Z"
-        clipRule="evenodd"
-      />
-    </svg>
   );
 }

@@ -235,6 +235,10 @@
   --shadow-sticky: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-body);
   /* Use the shadcn foreground token, NOT --color-primary. The site theme

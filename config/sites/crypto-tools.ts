@@ -32,7 +32,7 @@ export const cryptoToolsSite = defineSite({
   tagline: "ATO-aligned guidance. No sponsored rankings.",
 
   colors: { primary: "#0B2540", accent: "#16A34A", accentText: "#15803D" },
-  fonts: "modern",
+  fonts: { heading: "Geist", body: "Geist" },
 
   // Branded dark header/footer with a green accent stripe and a clear CTA.
   layout: "compare",
