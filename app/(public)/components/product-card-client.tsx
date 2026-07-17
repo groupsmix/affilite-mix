@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
@@ -27,7 +27,7 @@ interface ProductCardCtaProps {
   href: string;
   slug: string;
   sourceType?: string;
-  label: string;
+  label: ReactNode;
   className: string;
   style?: React.CSSProperties;
 }
