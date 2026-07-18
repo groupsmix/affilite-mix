@@ -161,6 +161,18 @@ export const CSRF_EXEMPT_ROUTES: readonly CsrfExemptRoute[] = [
     ],
     owner: "@groupsmix/engineering",
   },
+  {
+    path: "/api/automation/",
+    reason:
+      "Automation API uses Bearer token authentication and is invoked by non-browser machine callers, not by form submissions that require double-submit CSRF protection.",
+    compensatingControls: [
+      "Bearer token verified in lib/automation/auth.ts (SHA-256 hash lookup, expiry and status checks).",
+      "Token is bound to a specific site_id; route handlers cannot widen access to another tenant.",
+      "Per-route rate limiting via lib/rate-limit (automation bucket).",
+      "State-changing automation actions require idempotency-key header and are logged in automation_runs.",
+    ],
+    owner: "@groupsmix/security",
+  },
 ] as const;
 
 const csrfExemptSet = new Set<string>(CSRF_EXEMPT_ROUTES.map((r) => r.path));
