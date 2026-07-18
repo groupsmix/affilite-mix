@@ -7,6 +7,7 @@ import { shouldSkipDbCall } from "@/lib/db-available";
 import { canonicalizeVsSlug } from "@/lib/vs-slug";
 import { logger } from "@/lib/logger";
 import { captureException, captureMessage } from "@/lib/sentry";
+import { getAllSyncGuideParams } from "@/lib/crypto-tax-au-tools";
 
 /**
  * audit5-#21: when the last-good cache is older than this, the fallback
@@ -196,6 +197,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],
     priority: page.priority,
   }));
+
+  // Crypto Tax AU lead-magnet tools: comparison matrix, CGT calculator and
+  // programmatic exchange-to-software sync guides.
+  if (site.id === "crypto-tools") {
+    staticEntries.push(
+      {
+        url: `${baseUrl}/tools`,
+        lastModified: STATIC_LAST_MODIFIED,
+        changeFrequency: "monthly",
+        priority: 0.8,
+      },
+      {
+        url: `${baseUrl}/tools/crypto-tax-comparison`,
+        lastModified: STATIC_LAST_MODIFIED,
+        changeFrequency: "monthly",
+        priority: 0.8,
+      },
+      {
+        url: `${baseUrl}/tools/cgt-calculator`,
+        lastModified: STATIC_LAST_MODIFIED,
+        changeFrequency: "monthly",
+        priority: 0.8,
+      },
+      ...getAllSyncGuideParams().map(({ exchange, software }) => ({
+        url: `${baseUrl}/tools/sync-guide/${exchange}/${software}`,
+        lastModified: STATIC_LAST_MODIFIED,
+        changeFrequency: "monthly" as const,
+        priority: 0.6,
+      })),
+    );
+  }
 
   let dynamicEntries: MetadataRoute.Sitemap = [];
   let dynamicFetchSucceeded = false;

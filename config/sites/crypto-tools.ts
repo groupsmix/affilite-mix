@@ -61,6 +61,15 @@ export const cryptoToolsSite = defineSite({
     { title: "Tax Guides", href: "/guide" },
     { title: "Software Reviews", href: "/review" },
     { title: "Comparisons", href: "/comparison" },
+    {
+      title: "Tools",
+      href: "/tools",
+      children: [
+        { title: "Software Comparison", href: "/tools/crypto-tax-comparison" },
+        { title: "CGT Calculator", href: "/tools/cgt-calculator" },
+        { title: "Sync Guides", href: "/tools/sync-guide/coinspot/koinly" },
+      ],
+    },
   ],
 
   sitemapExtraPages: [{ path: "/how-we-rank", priority: 0.5, changeFrequency: "monthly" }],
@@ -70,6 +79,8 @@ export const cryptoToolsSite = defineSite({
       { title: "Crypto Tax Guide", href: "/guide" },
       { title: "Best Crypto Tax Software", href: "/comparison" },
       { title: "Software Reviews", href: "/review" },
+      { title: "CGT Calculator", href: "/tools/cgt-calculator" },
+      { title: "Software Comparison", href: "/tools/crypto-tax-comparison" },
     ],
     topics: [
       { title: "DeFi Tax", href: "/category/defi-tax" },
