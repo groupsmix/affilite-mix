@@ -26,6 +26,7 @@ export default async function NewContentPage() {
         categories={categories}
         products={products}
         contentTypes={getSiteById(siteSlug)?.contentTypes}
+        siteDomain={getSiteById(siteSlug)?.domain}
       />
     </div>
   );
