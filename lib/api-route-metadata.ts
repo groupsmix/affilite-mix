@@ -1198,6 +1198,20 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
       "GET requires content:read; PATCH/DELETE require content:draft. Tenant-isolated read/update/delete for a single AI draft.",
   },
   {
+    path: "/api/automation/v1/content/drafts/[id]/publish",
+    methods: ["POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes:
+      "Requires scope content:publish. Promotes an AI draft to live content (creates or updates the content row by slug).",
+  },
+  {
     path: "/api/automation/v1/runs",
     methods: ["POST"],
     auth: "automation",
