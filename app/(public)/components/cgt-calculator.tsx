@@ -68,7 +68,7 @@ export function CgtCalculator({ ctaProduct }: CgtCalculatorProps) {
     const medicareRate = includeMedicare ? 0.02 : 0;
     const taxRate = marginalRate + medicareRate;
     const tax = Math.max(0, netGain * taxRate);
-    const effectiveRate = grossGain > 0 ? tax / grossGain : 0;
+    const effectiveRate = tax / grossGain;
 
     return {
       proceeds,
