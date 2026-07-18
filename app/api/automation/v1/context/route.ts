@@ -4,6 +4,7 @@ import { getSiteRowById } from "@/lib/dal/sites";
 import { getAutomationDbClient } from "@/lib/automation/db";
 import { countContent } from "@/lib/dal/content";
 import { countProducts } from "@/lib/dal/products";
+import { countAIDrafts } from "@/lib/dal/ai-drafts";
 import { listPoliciesForSite } from "@/lib/dal/automation-policies";
 import { countActionsSince } from "@/lib/dal/automation-runs";
 
@@ -24,7 +25,7 @@ export const GET = withAutomation(["site:read"], async (_request, { auth, reques
 
   const [contentCount, draftCount, productCount, policies, actionsToday] = await Promise.all([
     countContent({ siteId }, getAutomationDbClient),
-    countContent({ siteId, statuses: ["draft"] }, getAutomationDbClient),
+    countAIDrafts({ siteId, status: "pending" }, getAutomationDbClient),
     countProducts({ siteId }, getAutomationDbClient),
     listPoliciesForSite(siteId),
     countActionsSince(account.id, startOfDay.toISOString()),
