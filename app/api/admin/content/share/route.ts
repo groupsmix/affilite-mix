@@ -5,6 +5,7 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 /** List sites a piece of content is shared to */
 export const GET = withAuthz(
@@ -20,7 +21,8 @@ export const GET = withAuthz(
     }
 
     try {
-      const targets = await listSharedTargets(siteId, contentId);
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      const targets = await listSharedTargets(siteId, contentId, getClient);
       return NextResponse.json(targets);
     } catch (err) {
       captureException(err, { context: "[api/admin/content/share] GET failed:" });
@@ -57,7 +59,13 @@ export const POST = withAuthz(
     }
 
     try {
-      const shared = await shareContent(content_id as string, siteId, target_site_id as string);
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      const shared = await shareContent(
+        content_id as string,
+        siteId,
+        target_site_id as string,
+        getClient,
+      );
 
       void recordAuditEvent({
         site_id: siteId,
@@ -105,7 +113,8 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await unshareContent(siteId, content_id as string, target_site_id as string);
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      await unshareContent(siteId, content_id as string, target_site_id as string, getClient);
 
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({

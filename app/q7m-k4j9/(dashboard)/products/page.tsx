@@ -8,6 +8,7 @@ import {
 } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -94,6 +95,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     );
   }
   const dbSiteId = siteIdResult.data;
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const categoryIds = parseCsvString(sp["f.category_id"]);
@@ -120,28 +122,34 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     "products page data",
     () =>
       Promise.all([
-        listProducts({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
-          networks: networks.length > 0 ? networks : undefined,
-          q,
-          missingUrl: missingUrl || undefined,
-          sortBy,
-          sortDirection,
-          limit: pageSize,
-          offset: (pageNum - 1) * pageSize,
-        }),
-        countProducts({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
-          networks: networks.length > 0 ? networks : undefined,
-          q,
-          missingUrl: missingUrl || undefined,
-        }),
-        listCategories(dbSiteId),
-        listDistinctMerchants(dbSiteId),
+        listProducts(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+            networks: networks.length > 0 ? networks : undefined,
+            q,
+            missingUrl: missingUrl || undefined,
+            sortBy,
+            sortDirection,
+            limit: pageSize,
+            offset: (pageNum - 1) * pageSize,
+          },
+          getClient,
+        ),
+        countProducts(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+            networks: networks.length > 0 ? networks : undefined,
+            q,
+            missingUrl: missingUrl || undefined,
+          },
+          getClient,
+        ),
+        listCategories(dbSiteId, undefined, getClient),
+        listDistinctMerchants(dbSiteId, {}, getClient),
       ]),
     [[], 0, [], []] as [ProductRow[], number, CategoryRow[], string[]],
   );
@@ -190,10 +198,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         </div>
       ) : null}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Products</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Products</h1>
         <Link
           href="/q7m-k4j9/products/new"
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800"
         >
           Add Product
         </Link>
@@ -223,6 +231,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           statusOptions={STATUS_OPTIONS}
           categoryOptions={categoryOptions}
           networkOptions={networkOptions}
+          categories={categories}
           missingUrlActive={missingUrl}
         />
       )}

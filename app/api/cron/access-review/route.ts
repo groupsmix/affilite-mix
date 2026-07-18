@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { recordCronLiveness } from "@/lib/cron-liveness";

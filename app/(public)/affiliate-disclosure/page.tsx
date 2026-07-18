@@ -5,6 +5,7 @@ import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { isCryptoTaxAu, CryptoTaxAUAffiliateDisclosure } from "../components/site-static-content";
 
 export const revalidate = 3600;
 
@@ -43,6 +44,25 @@ export default async function AffiliateDisclosurePage() {
     { name: site.name, path: "/" },
     { name: isAr ? "إفصاح الشراكة" : disclosurePage.title, path: "/affiliate-disclosure" },
   ]);
+
+  if (isCryptoTaxAu(site)) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8">
+        <JsonLd data={breadcrumbs} />
+
+        <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: disclosurePage.title }]} />
+
+        <header className="mb-8">
+          <h1 className="mb-2 text-3xl font-bold">{disclosurePage.title}</h1>
+          <p className="text-gray-600">{disclosurePage.description}</p>
+        </header>
+
+        <div className="prose max-w-none">
+          <CryptoTaxAUAffiliateDisclosure site={site} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">

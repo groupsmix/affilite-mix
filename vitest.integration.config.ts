@@ -4,12 +4,11 @@ import path from "path";
 export default defineConfig({
   test: {
     globals: true,
-    include: ["**/*.integration.test.ts"],
-    env: {
-      NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co",
-      SUPABASE_SERVICE_ROLE_KEY: "placeholder",
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder",
-    },
+    include: ["**/*.integration.test.ts", "__tests__/integration/**/*.test.ts"],
+    // J-1: do NOT hard-code placeholder credentials. Real Supabase variables
+    // come from the environment / CI secrets; if they are missing the
+    // shouldRunSupabaseIntegration guard skips the suite. Hard-coding would
+    // mask missing secrets and cause tests to start against a fake endpoint.
   },
   resolve: {
     alias: {

@@ -1,8 +1,12 @@
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { getClickCount, getDailyClicks, getTopProducts } from "./affiliate-clicks";
 import { countContent } from "./content";
+import { logger } from "@/lib/logger";
 import { countProducts } from "./products";
-import { listSites } from "./sites";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
+import { listAdminSites, listSites } from "./sites";
+import { resolveEstimatedRevenuePerClick } from "@/lib/analytics/epc";
+import type { SiteRow } from "@/types/database";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -56,6 +60,19 @@ export interface DomainPerformanceRow {
 export interface ConversionFunnelStep {
   stage: string;
   count: number;
+}
+
+export interface NicheStats {
+  siteId: string;
+  name: string;
+  slug: string;
+  clicks7d: number;
+  clicksToday: number;
+  revenue7d: number;
+  revenueToday: number;
+  totalProducts: number;
+  totalContent: number;
+  isActive: boolean;
 }
 
 // ── Revenue over time ───────────────────────────────────────────────────
@@ -225,4 +242,68 @@ export async function getConversionFunnel(
     { stage: "Content Published", count: publishedContent },
     { stage: "Clicks (Conversions)", count: totalClicks },
   ];
+}
+
+// ── Multi-niche overview (super-admin) ───────────────────────────────────
+
+/**
+ * B-F3: the Multi-Niche Overview page renders the full site registry and
+ * per-site product/content/click counts. The default tenant-scoped client can
+ * only see the active site, so the page was blank for every non-active tenant
+ * (and often blank for WristNerd too because `sites` has no authenticated
+ * SELECT policy). We route the cross-site reads through the privileged client
+ * and degrade per-site failures to zeros so the page never hard-crashes.
+ * The Server Component is only rendered when the user is super_admin.
+ */
+export async function getMultiNicheOverview(): Promise<NicheStats[]> {
+  let sites: SiteRow[] = [];
+  try {
+    sites = await listAdminSites();
+  } catch (error: unknown) {
+    logger.error("[multi-niche-overview] listAdminSites unavailable", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+
+  if (sites.length === 0) return [];
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const getClient = () => getPrivilegedSupabaseClient("multi-niche-overview");
+
+  const stats = await Promise.all(
+    sites.map(async (site) => {
+      // Per-site calls can fail individually without taking down the whole table.
+      const [clicksToday, clicks7d, totalProducts, totalContent] = await Promise.all([
+        getClickCount(site.id, todayStart, undefined, getClient).catch(() => 0),
+        getClickCount(site.id, sevenDaysAgo, undefined, getClient).catch(() => 0),
+        countProducts({ siteId: site.id }, getClient).catch(() => 0),
+        countContent({ siteId: site.id }, getClient).catch(() => 0),
+      ]);
+
+      const epc = resolveEstimatedRevenuePerClick({ dbSite: site });
+      const revenue7d = parseFloat((clicks7d * epc).toFixed(2));
+      const revenueToday = parseFloat((clicksToday * epc).toFixed(2));
+
+      return {
+        siteId: site.id,
+        name: site.name,
+        slug: site.slug,
+        clicks7d,
+        clicksToday,
+        revenue7d,
+        revenueToday,
+        totalProducts,
+        totalContent,
+        isActive: site.is_active,
+      };
+    }),
+  );
+
+  // Sort by revenue first, then clicks, so the dashboard surfaces the niches
+  // that are actually earning.
+  return stats.sort((a, b) => b.revenue7d - a.revenue7d || b.clicks7d - a.clicks7d);
 }

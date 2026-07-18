@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { ChevronRight, LogOut, Menu, Settings, User } from "lucide-react";
 
 import { adminNavItems } from "@/config/admin-nav";
+import { ADMIN_PATH, ADMIN_LOGIN_PATH, ADMIN_SETTINGS_PATH } from "@/lib/admin-paths";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,9 +19,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { AdminMonetizationType } from "./admin-sidebar";
+import { findAdminNavItemByHref, type AdminMonetizationType } from "./admin-sidebar";
 import { CommandMenu } from "./command-menu";
 import { TenantBadgeSwitcher } from "./tenant-badge-switcher";
+import { ThemeToggle } from "./theme-toggle";
 
 interface Crumb {
   label: string;
@@ -39,14 +41,14 @@ function humanize(segment: string): string {
  * they match so labels stay consistent with the sidebar.
  */
 function buildCrumbs(pathname: string): Crumb[] {
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts.length === 0 || parts[0] !== "admin") return [];
+  if (!pathname.startsWith(ADMIN_PATH)) return [];
 
-  const crumbs: Crumb[] = [{ label: "Admin", href: "/q7m-k4j9" }];
-  let acc = "/q7m-k4j9";
-  for (let i = 1; i < parts.length; i++) {
+  const parts = pathname.slice(ADMIN_PATH.length).split("/").filter(Boolean);
+  const crumbs: Crumb[] = [{ label: "Admin", href: ADMIN_PATH }];
+  let acc = ADMIN_PATH;
+  for (let i = 0; i < parts.length; i++) {
     acc += `/${parts[i]}`;
-    const match = adminNavItems.find((item) => item.href === acc);
+    const match = findAdminNavItemByHref(adminNavItems, acc);
     const label = match?.label ?? humanize(parts[i]!);
     crumbs.push({ label, href: i === parts.length - 1 ? undefined : acc });
   }
@@ -102,7 +104,7 @@ async function handleLogout() {
   } catch {
     // Fall through to client-side redirect; the login page will re-check session.
   }
-  window.location.href = "/q7m-k4j9/login";
+  window.location.href = ADMIN_LOGIN_PATH;
 }
 
 function UserMenu() {
@@ -117,7 +119,7 @@ function UserMenu() {
         <DropdownMenuLabel>Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/q7m-k4j9/settings">
+          <Link href={ADMIN_SETTINGS_PATH}>
             <Settings className="size-4" />
             Settings
           </Link>
@@ -164,8 +166,13 @@ export function AdminTopbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <CommandMenu monetizationType={monetizationType} hasActiveSite={hasActiveSite} />
+        <CommandMenu
+          monetizationType={monetizationType}
+          isSuperAdmin={isSuperAdmin}
+          hasActiveSite={hasActiveSite}
+        />
         <TenantBadgeSwitcher initialSiteName={siteName ?? null} isSuperAdmin={isSuperAdmin} />
+        <ThemeToggle />
         <UserMenu />
       </div>
     </header>

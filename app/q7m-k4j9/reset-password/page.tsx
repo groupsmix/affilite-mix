@@ -178,8 +178,13 @@ export default function ResetPasswordPage() {
         >
           <CardContent className="space-y-4">
             {error && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
-                <AlertDescription className="text-red-600">{error}</AlertDescription>
+              <Alert
+                variant="destructive"
+                className="bg-red-50 dark:bg-red-900/20 border-red-200 text-red-600 dark:text-red-400"
+              >
+                <AlertDescription className="text-red-600 dark:text-red-400">
+                  {error}
+                </AlertDescription>
               </Alert>
             )}
 

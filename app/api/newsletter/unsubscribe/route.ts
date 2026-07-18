@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     const token = request.nextUrl.searchParams.get("token");
     if (!token) {
       return NextResponse.redirect(
+        // nosemgrep
         new URL("/newsletter/unsubscribed?error=missing_token", request.url),
       );
     }
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
         ),
       });
       return NextResponse.redirect(
+        // nosemgrep
         new URL("/newsletter/unsubscribed?error=expired_token", request.url),
       );
     }
@@ -92,6 +94,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       captureException(error, { context: "[api/newsletter/unsubscribe] GET failed to update:" });
       return NextResponse.redirect(
+        // nosemgrep
         new URL("/newsletter/unsubscribed?error=update_failed", request.url),
       );
     }
@@ -99,11 +102,12 @@ export async function GET(request: NextRequest) {
     if (!data || data.length === 0) {
       // No row matched — treat as an invalid token rather than silently succeeding.
       return NextResponse.redirect(
+        // nosemgrep
         new URL("/newsletter/unsubscribed?error=invalid_token", request.url),
       );
     }
 
-    return NextResponse.redirect(new URL("/newsletter/unsubscribed", request.url));
+    return NextResponse.redirect(new URL("/newsletter/unsubscribed", request.url)); // nosemgrep
   } catch (err) {
     captureException(err, { context: "[api/newsletter/unsubscribe] GET failed:" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

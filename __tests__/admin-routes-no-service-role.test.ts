@@ -35,18 +35,20 @@ const SERVICE_ROLE_ALLOWLIST = new Set([
   // getTenantClient() mints HS256 JWTs that fail on asymmetric Supabase keys.
   "app/api/admin/sites/stats/route.ts",
   // Platform config tabs read/write tables that migrations 00033 / 00040 /
-  // 2026052801 locked to service_role (site_modules, site_feature_flags,
-  // site_integrations, user_site_roles) — plus roles/permissions/
-  // integration_providers which only grant `authenticated` READ while these
-  // handlers also touch a service_role-only table. The tenant client returns
-  // zero rows / is denied, blanking the pages. Each route is super_admin-gated
-  // (withAuthz / requireAdmin+assertRole) and every site-scoped DAL call carries
-  // an explicit `.eq('site_id', …)` predicate. Mirrors the security allow-list
-  // in lib/security/service-role-allowlist.ts.
-  "app/api/admin/feature-flags/route.ts",
+  // 2026052801 locked to service_role (site_modules, site_integrations,
+  // user_site_roles) — plus roles/permissions/integration_providers which only
+  // grant `authenticated` READ while these handlers also touch a service_role-only
+  // table. The tenant client returns zero rows / is denied, blanking the pages.
+  // Each route is super_admin-gated (withAuthz / requireAdmin+assertRole) and
+  // every site-scoped DAL call carries an explicit `.eq('site_id', …)` predicate.
+  // Mirrors the security allow-list in lib/security/service-role-allowlist.ts.
   "app/api/admin/modules/route.ts",
   "app/api/admin/integrations/route.ts",
   "app/api/admin/permissions/route.ts",
+  // Audit Log export is super_admin-only and needs service-role because `audit_log`
+  // SELECT is service_role-only (migrations 00033 / 00040). Mirrors the security
+  // allow-list in lib/security/service-role-allowlist.ts.
+  "app/api/admin/audit-log/export/route.ts",
   // F5 audit: hard-delete path. The DELETE handler is super_admin + step-up
   // gated at the route layer (assertRole + requireStepUpAuth) and calls
   // deleteSite() which throws unless callerRole === "super_admin" (sites.ts:361).

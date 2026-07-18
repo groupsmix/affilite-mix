@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
 import { getTrackingUrl } from "@/lib/tracking-url";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface VerdictBoxProps {
   /** The subject (review) or the winning tool (comparison). */
@@ -21,8 +22,14 @@ interface VerdictBoxProps {
    * runner-up — turning a single-winner verdict into a genuine two-way choice.
    */
   runnerUpProduct?: ProductRow | null;
-  /** Comparison only: how many tools were compared (trust signal). */
+  /** Comparison only: how many items were compared (trust signal). */
   totalCompared?: number;
+  /**
+   * Plural product noun for this site (e.g. "Watches"), used in the
+   * comparison methodology line so it reads "Compared 3 watches" instead of
+   * the generic "tools". Defaults to "products" when omitted.
+   */
+  productLabelPlural?: string;
   /** Pre-formatted "last verified" date (freshness/trust signal). */
   lastVerified?: string | null;
   /** Mark the image as the LCP candidate (review hero). */
@@ -75,22 +82,24 @@ export function VerdictBox({
   runnerUp,
   runnerUpProduct,
   totalCompared,
+  productLabelPlural,
   lastVerified,
   priority = false,
 }: VerdictBoxProps) {
   const { accepted: hasConsent } = useCookieConsent();
   const isAr = language === "ar";
   const isComparison = variant === "comparison";
+  const pluralNoun = (productLabelPlural || "products").toLowerCase();
 
   const trackingType = isComparison ? "comparison" : "hero";
-  const ctaUrl = product.affiliate_url
+  const ctaUrl = hasUsableAffiliateUrl(product.affiliate_url)
     ? getTrackingUrl(product.slug, trackingType, product.affiliate_url, hasConsent)
     : null;
 
   // Second tracked CTA for the runner-up. Same "comparison" tracking type — the
   // product slug (p=…) is what attributes the click, so EPC stays correct.
   const runnerUpCtaUrl =
-    isComparison && runnerUpProduct?.affiliate_url
+    isComparison && runnerUpProduct && hasUsableAffiliateUrl(runnerUpProduct.affiliate_url)
       ? getTrackingUrl(
           runnerUpProduct.slug,
           "comparison",
@@ -270,8 +279,8 @@ export function VerdictBox({
             {totalCompared && totalCompared > 1 && (
               <span>
                 {isAr
-                  ? `قارنّا ${totalCompared} أدوات بنفس المعايير`
-                  : `Compared ${totalCompared} tools on the same rubric`}
+                  ? `قارنّا ${totalCompared} ${pluralNoun} بنفس المعايير`
+                  : `Compared ${totalCompared} ${pluralNoun} on the same rubric`}
               </span>
             )}
             {runnerUp && runnerUp.score !== null && (

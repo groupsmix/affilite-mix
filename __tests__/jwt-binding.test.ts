@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 
 function makeRequest(headers: Record<string, string>): Request {
@@ -6,6 +6,19 @@ function makeRequest(headers: Record<string, string>): Request {
 }
 
 describe("F-035 JWT UA/IP binding", () => {
+  const originalCfFlag = process.env.TRUST_CF_CONNECTING_IP;
+
+  beforeEach(() => {
+    process.env.TRUST_CF_CONNECTING_IP = "true";
+  });
+
+  afterEach(() => {
+    if (originalCfFlag === undefined) {
+      delete process.env.TRUST_CF_CONNECTING_IP;
+    } else {
+      process.env.TRUST_CF_CONNECTING_IP = originalCfFlag;
+    }
+  });
   it("computes a stable hash for identical UA + IP", async () => {
     const a = makeRequest({
       "user-agent": "Mozilla/5.0",

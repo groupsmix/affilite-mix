@@ -1,0 +1,32 @@
+initialize:
+  - uses: github.com/actions/setup-node@v4
+    with:
+      node-version: "22.22.2"
+
+  # The .husky/pre-commit hook runs `gitleaks protect --staged` and hard-fails
+  # without the binary. Install it once per workspace so commits can pass.
+  - run: |
+      if ! command -v gitleaks >/dev/null 2>&1; then
+        curl -sL "https://github.com/zricethezav/gitleaks/releases/download/v8.22.0/gitleaks_8.22.0_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+        mkdir -p /tmp/gitleaks
+        tar -xzf /tmp/gitleaks.tar.gz -C /tmp/gitleaks gitleaks
+        mkdir -p "$HOME/.local/bin"
+        install -m 755 /tmp/gitleaks/gitleaks "$HOME/.local/bin/gitleaks"
+      fi
+
+maintenance: |
+  npm install
+
+knowledge:
+  - name: lint
+    contents: |
+      npm run lint
+  - name: test
+    contents: |
+      npm run test
+  - name: typecheck
+    contents: |
+      npm run typecheck:all
+  - name: build
+    contents: |
+      npm run build

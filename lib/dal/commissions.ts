@@ -18,6 +18,7 @@ export interface ProductEpcRow {
 
 const COMMISSION_TABLE = "commissions";
 const EPC_TABLE = "product_epc_stats";
+const COMMISSION_BATCH_SIZE = 200;
 
 /**
  * Deterministic synthetic order_id for commission reports whose network did not
@@ -68,47 +69,60 @@ export async function ingestCommissions(
   const sb = await getClient();
   let inserted = 0;
   let skipped = 0;
+  const rowsByKey = new Map<
+    string,
+    (typeof reports)[number] & {
+      order_id: string;
+    }
+  >();
 
-  // Upsert one at a time to keep per-row resilience while deduplicating on the
-  // full (network, order_id) unique index (migration 2026062003).
   for (const report of reports) {
-    // Bug 6: some networks omit order_id. Those rows were excluded from the old
-    // PARTIAL dedup index (WHERE order_id IS NOT NULL) and duplicated on every
-    // run. Derive a deterministic key so re-ingesting the same sale dedups.
     const order_id = report.order_id ?? syntheticOrderId(report);
     const row = { ...report, order_id };
+    const key = `${row.site_id}\u0000${row.network}\u0000${order_id}`;
+    if (rowsByKey.has(key)) skipped++;
+    rowsByKey.set(key, row);
+  }
 
-    // Classify new vs. already-present for accurate accounting. `skipped` is
-    // retained (the cron route consumes { inserted, skipped }) but now means
-    // "already present → refreshed in place" rather than "dropped".
-    const { data: existing } = await sb
+  const rows = Array.from(rowsByKey.values());
+  for (let start = 0; start < rows.length; start += COMMISSION_BATCH_SIZE) {
+    const batch = rows.slice(start, start + COMMISSION_BATCH_SIZE);
+    const siteIds = Array.from(new Set(batch.map((row) => row.site_id)));
+    const networks = Array.from(new Set(batch.map((row) => row.network)));
+    const orderIds = batch.map((row) => row.order_id);
+    const batchKeys = new Set(
+      batch.map((row) => `${row.site_id}\u0000${row.network}\u0000${row.order_id}`),
+    );
+
+    const { data: existingRows, error: lookupError } = await sb
       .from(COMMISSION_TABLE)
-      .select("id")
-      // Audit #3: scope the existing-row check to the tenant so accounting
-      // (inserted vs. skipped) and dedup are per-site, matching the
-      // (site_id, network, order_id) unique index.
-      .eq("site_id", row.site_id)
-      .eq("network", row.network)
-      .eq("order_id", order_id)
-      .maybeSingle();
+      .select("site_id, network, order_id")
+      .in("site_id", siteIds)
+      .in("network", networks)
+      .in("order_id", orderIds);
 
-    // Bug 6: upsert (was insert-only) so a re-reported sale updates its status
-    // and amounts instead of erroring on 23505 and being silently skipped.
-    // Audit #3: the onConflict target is the (site_id, network, order_id) unique
-    // index (migration 2026062101) so commissions dedup per-tenant and one
-    // tenant can no longer overwrite another tenant's row on a colliding order_id.
+    if (lookupError) throw lookupError;
+
+    const existingKeys = new Set(
+      ((existingRows ?? []) as { site_id: string; network: string; order_id: string }[])
+        .map((row) => `${row.site_id}\u0000${row.network}\u0000${row.order_id}`)
+        .filter((key) => batchKeys.has(key)),
+    );
+
     const { error } = await sb
       .from(COMMISSION_TABLE)
-      .upsert(row, { onConflict: "site_id,network,order_id" })
-      .select("id")
-      .single();
+      .upsert(batch, { onConflict: "site_id,network,order_id" })
+      .select("id");
 
     if (error) throw error;
 
-    if (existing) {
-      skipped++;
-    } else {
-      inserted++;
+    for (const row of batch) {
+      const key = `${row.site_id}\u0000${row.network}\u0000${row.order_id}`;
+      if (existingKeys.has(key)) {
+        skipped++;
+      } else {
+        inserted++;
+      }
     }
   }
 

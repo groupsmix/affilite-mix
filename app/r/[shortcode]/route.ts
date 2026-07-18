@@ -12,6 +12,12 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
 import { isHttpsUrl } from "@/lib/validation";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
+import {
+  getNetworkFromUrl,
+  getTrackingParamForNetwork,
+  toAffiliateNetwork,
+} from "@/lib/affiliate/networks";
 
 /** 60 outbound redirects per minute per IP */
 const REDIRECT_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -56,16 +62,30 @@ export async function GET(
     const bestLink = await pickBestAffiliateLink(product.id, geo);
     const destinationUrl = bestLink?.url ?? product.affiliate_url;
 
-    if (!destinationUrl) {
+    if (!destinationUrl || isPlaceholderAffiliateUrl(destinationUrl)) {
       return apiError(404, "No affiliate link available for this product");
+    }
+
+    // Append the publisher tracking key (e.g. CJ `sid`) when the shortcode
+    // link included one for this product's network.
+    const network =
+      (bestLink?.network ? toAffiliateNetwork(bestLink.network) : null) ??
+      getNetworkFromUrl(destinationUrl);
+    const trackingParam = network ? getTrackingParamForNetwork(network) : null;
+    let finalDestinationUrl = destinationUrl;
+    if (trackingParam) {
+      const trackingValue = request.nextUrl.searchParams.get(trackingParam);
+      if (trackingValue && isValidTrackingValue(trackingValue)) {
+        finalDestinationUrl = appendTrackingParam(destinationUrl, trackingParam, trackingValue);
+      }
     }
 
     // SEC-01: Validate URL scheme before redirecting — prevents javascript:/data:
     // SSRF/XSS vectors if a malicious URL is stored in the database.
     let urlObj: URL;
     try {
-      urlObj = new URL(destinationUrl);
-      if (!isHttpsUrl(destinationUrl)) {
+      urlObj = new URL(finalDestinationUrl);
+      if (!isHttpsUrl(finalDestinationUrl)) {
         logger.error("[r/shortcode] rejected redirect: invalid scheme", {
           siteId,
           shortcode,
@@ -91,7 +111,7 @@ export async function GET(
     // in production). Re-reading the env var here would diverge from that
     // default and silently allow off-allow-list redirects when the var is
     // unset in production.
-    const domainCheck = validateAffiliateDomain(destinationUrl);
+    const domainCheck = validateAffiliateDomain(finalDestinationUrl);
     if (!domainCheck.allowed) {
       logger.error("[r/shortcode] rejected affiliate destination off allow-list", {
         siteId,
@@ -124,14 +144,14 @@ export async function GET(
       recordClick({
         site_id: siteId,
         product_name: product.name,
-        affiliate_url: destinationUrl,
+        affiliate_url: finalDestinationUrl,
         content_slug: contentSlug,
         referrer: request.headers.get("referer") ?? undefined,
       }),
       { context: "[r/shortcode] recordClick" },
     );
 
-    return NextResponse.redirect(destinationUrl, 302);
+    return NextResponse.redirect(finalDestinationUrl, 302); // nosemgrep
   } catch (err) {
     captureException(err, { context: "[r/shortcode] redirect failed" });
     return apiError(500, "Internal server error");
@@ -149,4 +169,16 @@ function detectGeoFromAcceptLanguage(request: NextRequest): string {
   // Look for locale tags like en-US, de-DE, fr-FR
   const match = acceptLang.match(/[a-z]{2}-([A-Z]{2})/);
   return match ? match[1]! : "*";
+}
+
+const TRACKING_VALUE_RE = /[\x00-\x1F\x7F<>"'\s]/;
+
+function isValidTrackingValue(value: string): boolean {
+  return value.length > 0 && value.length <= 128 && !TRACKING_VALUE_RE.test(value);
+}
+
+function appendTrackingParam(url: string, param: string, value: string): string {
+  const u = new URL(url);
+  u.searchParams.set(param, value);
+  return u.toString();
 }

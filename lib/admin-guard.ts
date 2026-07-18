@@ -3,7 +3,7 @@ import { getAdminSession, AdminPayload } from "@/lib/auth";
 import { getActiveSiteSlug } from "@/lib/active-site";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteById } from "@/config/sites";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
@@ -227,6 +227,20 @@ export async function requireAdmin(): Promise<AdminResult> {
         siteSlug: null,
       };
     }
+  }
+
+  // Enforce token scope: a session minted from a site-scoped API token carries
+  // a `site_id` claim and may only act on that one site — even for a
+  // super_admin. A manually changed active-site cookie that resolves to a
+  // different tenant is rejected. Sessions without the claim (interactive
+  // logins, all-sites tokens) are unaffected.
+  if (session.site_id && session.site_id !== dbSiteId) {
+    return {
+      error: unauthorizedResponse(),
+      session: null,
+      dbSiteId: null,
+      siteSlug: null,
+    };
   }
 
   return { error: null, session, dbSiteId, siteSlug };

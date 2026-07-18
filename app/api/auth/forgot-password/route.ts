@@ -12,6 +12,11 @@ import { hashResetToken } from "@/lib/reset-token";
 import { buildPasswordResetEmail } from "@/lib/email-templates/password-reset";
 import { resolveSendingEmail } from "@/lib/sending-email";
 
+async function randomTimingDelay(): Promise<void> {
+  const delayMs = 200 + Math.floor(Math.random() * 400);
+  await new Promise((r) => setTimeout(r, delayMs));
+}
+
 /**
  * POST /api/auth/forgot-password
  *
@@ -59,19 +64,20 @@ export async function POST(request: Request) {
       // time of the existing-user path (which performs DB writes + email
       // send). Without this, an attacker can distinguish "user exists"
       // from "user doesn't exist" by measuring response latency. CWE-203.
-      const delayMs = 200 + Math.floor(Math.random() * 400);
-      await new Promise((r) => setTimeout(r, delayMs));
+      await randomTimingDelay();
       return successResponse;
     }
 
     // Issue 13: If a still-valid (unexpired) reset token already exists for
-    // this account, return the success response immediately without overwriting
-    // the token or re-sending the email. This prevents a second request from
-    // invalidating a reset link already delivered to the user's inbox.
+    // this account, return the success response without overwriting the token
+    // or re-sending the email. Apply the same random delay as the unknown-user
+    // path so an attacker cannot time-discover whether an existing token is
+    // present. CWE-203.
     if (user.reset_token && user.reset_token_expires_at) {
       const expiresAtMs = new Date(user.reset_token_expires_at).getTime();
       if (expiresAtMs > Date.now()) {
         // A valid unexpired token exists — silently succeed without overwriting.
+        await randomTimingDelay();
         return successResponse;
       }
     }

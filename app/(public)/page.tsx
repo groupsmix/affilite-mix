@@ -3,7 +3,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getRecentContent, countPublishedContent } from "@/lib/dal/content";
 import { listFeaturedProducts, countProducts } from "@/lib/dal/products";
 import { listCategoriesWithProductCount } from "@/lib/dal/categories";
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import dynamic from "next/dynamic";
@@ -20,6 +20,8 @@ import Link from "next/link";
 // static import keeps the client bundle identical while painting the page at
 // its final height.
 import { CompareHomepage } from "./components/homepage-compare";
+import { ShowcaseHomepage } from "./components/homepage-showcase";
+import { TaxFinderHomepage } from "./components/homepage-taxfinder";
 
 /**
  * PROD-INCIDENT-2026-06-11 follow-up: surface failures in the homepage's
@@ -56,24 +58,37 @@ const Top10Homepage = dynamic(() =>
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  const isCryptoTaxAu =
+    site.name === "Crypto Tax AU" ||
+    site.domain === "cryptoranked.xyz" ||
+    site.id === "crypto-tools" ||
+    site.id === "863772b4-00ad-4912-9813-3c1372ce7c28";
+  const ogTitle = `${site.name} — ${site.brand.niche}`;
+  const ogImageSrc = isCryptoTaxAu ? "/images/hero-crypto-tax-au.png" : site.brand.logo;
+  const ogImage = ogImageSrc
+    ? { url: ogImageSrc, width: 1536, height: 1024, alt: site.name }
+    : undefined;
   return {
-    title: site.name,
+    metadataBase: new URL(`https://${site.domain}`),
+    title: { absolute: ogTitle },
     description: site.brand.description,
     alternates: {
       canonical: `https://${site.domain}/`,
     },
     openGraph: {
-      title: `${site.name} — ${site.brand.niche}`,
+      title: ogTitle,
       description: site.brand.description,
       url: `https://${site.domain}/`,
       siteName: site.name,
       locale: site.locale,
       type: "website",
+      ...(ogImage ? { images: [ogImage] } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      title: `${site.name} — ${site.brand.niche}`,
+      title: ogTitle,
       description: site.brand.description,
+      ...(ogImage ? { images: [ogImage.url] } : {}),
     },
   };
 }
@@ -85,11 +100,11 @@ export default async function HomePage() {
   const site = await getCurrentSite();
   const [recentContent, featuredProducts, categories, productCount, reviewCount] =
     await Promise.all([
-      getRecentContent(site.id, 6).catch((err) => {
+      getRecentContent(site.id, 9).catch((err) => {
         reportHomepageFanoutError("getRecentContent", site.id, err);
         return [];
       }),
-      listFeaturedProducts(site.id, 6).catch((err) => {
+      listFeaturedProducts(site.id, 12).catch((err) => {
         reportHomepageFanoutError("listFeaturedProducts", site.id, err);
         return [];
       }),
@@ -97,7 +112,7 @@ export default async function HomePage() {
         reportHomepageFanoutError("listCategoriesWithProductCount", site.id, err);
         return [];
       }),
-      countProducts({ siteId: site.id, status: "active" }, getAnonClient).catch((err) => {
+      countProducts({ siteId: site.id, status: "active" }, getTenantClient).catch((err) => {
         reportHomepageFanoutError("countProducts", site.id, err);
         return 0;
       }),
@@ -137,6 +152,14 @@ export default async function HomePage() {
 
   if (template === "compare") {
     return <CompareHomepage {...homepageProps} />;
+  }
+
+  if (template === "showcase") {
+    return <ShowcaseHomepage {...homepageProps} />;
+  }
+
+  if (template === "taxfinder") {
+    return <TaxFinderHomepage {...homepageProps} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";

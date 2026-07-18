@@ -76,7 +76,7 @@ jobs:
           echo "Temporary migration-skip Actions variables are not configured."
 
   audit:
-    name: npm audit (high / critical)
+    name: npm audit (moderate+)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -267,9 +267,29 @@ jobs:
         run: semgrep scan --config .semgrep/ --sarif --output semgrep.sarif --metrics=off --disable-version-check
         continue-on-error: true
 
+      # GitHub code scanning does NOT honor the SARIF `suppressions` field —
+      # it creates error-level annotations for every result in the file,
+      # including findings suppressed via // nosemgrep. That means the
+      # upload-sarif check fails even though the CLI gate (--severity ERROR
+      # --error) passes with zero findings. Strip suppressed results from
+      # the SARIF before upload so the advisory check stays green. The CLI
+      # gate below remains the blocking enforcement.
+      - name: Strip suppressed findings from SARIF
+        if: always()
+        run: |
+          python3 -c "
+          import json
+          with open('semgrep.sarif') as f:
+              sarif = json.load(f)
+          for run in sarif.get('runs', []):
+              run['results'] = [r for r in run.get('results', []) if not r.get('suppressions')]
+          with open('semgrep.sarif', 'w') as f:
+              json.dump(sarif, f)
+          "
+
       - name: Upload Semgrep SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
         with:
           sarif_file: semgrep.sarif
           category: semgrep

@@ -5,6 +5,8 @@ import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
 import { getAllowedOrigins } from "@/lib/security/allowed-origins";
 import type { MiddlewareContext } from "./compose";
 
+const AUTOMATION_PATH_PREFIX = "/api/automation/" as const;
+
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
@@ -27,7 +29,10 @@ export function withCsrf(request: NextRequest, ctx: MiddlewareContext): NextResp
   }
 
   // 2. Validate CSRF double-submit cookie token (unless exempt)
-  const isExempt = csrfExemptPaths().has(pathname) || pathname.startsWith(CRON_PATH_PREFIX);
+  const isExempt =
+    csrfExemptPaths().has(pathname) ||
+    pathname.startsWith(CRON_PATH_PREFIX) ||
+    pathname.startsWith(AUTOMATION_PATH_PREFIX);
 
   if (!isExempt) {
     const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;

@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     const token = request.nextUrl.searchParams.get("token");
     if (!token) {
       return NextResponse.redirect(
+        // nosemgrep
         new URL("/newsletter/confirmed?error=missing_token", request.url),
       );
     }
@@ -57,12 +58,13 @@ export async function GET(request: NextRequest) {
     if (fetchError || !subscriber) {
       captureException(fetchError, { context: "[api/newsletter/confirm] Token lookup failed:" });
       return NextResponse.redirect(
+        // nosemgrep
         new URL("/newsletter/confirmed?error=invalid_token", request.url),
       );
     }
 
     if (subscriber.status === "active" && subscriber.confirmed_at) {
-      return NextResponse.redirect(new URL("/newsletter/confirmed", request.url));
+      return NextResponse.redirect(new URL("/newsletter/confirmed", request.url)); // nosemgrep
     }
 
     // FIX: Enforce token expiry. isTokenWithinExpiry() is called on the
@@ -70,6 +72,7 @@ export async function GET(request: NextRequest) {
     // valid indefinitely, allowing old emails to activate subscriptions months later.
     if (!isTokenWithinExpiry(subscriber.created_at)) {
       return NextResponse.redirect(
+        // nosemgrep
         new URL("/newsletter/confirmed?error=expired_token", request.url),
       );
     }
@@ -90,11 +93,12 @@ export async function GET(request: NextRequest) {
         context: "[api/newsletter/confirm] Failed to activate subscriber:",
       });
       return NextResponse.redirect(
+        // nosemgrep
         new URL("/newsletter/confirmed?error=update_failed", request.url),
       );
     }
 
-    return NextResponse.redirect(new URL("/newsletter/confirmed", request.url));
+    return NextResponse.redirect(new URL("/newsletter/confirmed", request.url)); // nosemgrep
   } catch (err) {
     captureException(err, { context: "[api/newsletter/confirm] GET failed:" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

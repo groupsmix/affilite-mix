@@ -76,6 +76,9 @@ function fakeFrom(table: string) {
       this._id = value;
       return this;
     },
+    unsafeNoSiteFilter() {
+      return this;
+    },
     abortSignal(_signal: AbortSignal) {
       return this;
     },

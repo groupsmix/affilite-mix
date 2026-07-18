@@ -1,251 +1,5968 @@
 openapi: 3.1.0
 info:
   title: Affilite Mix API
-  version: 1.0.0
-  description: |
-    Multi-tenant affiliate marketing platform API.
-    All endpoints require the `x-site-id` header for tenant scoping
-    unless otherwise noted.
+  version: "1"
+  description: "Multi-tenant affiliate marketing platform API. Routes marked x-internal: true are not part of the public consumer contract."
   contact:
     name: Affilite Mix
   license:
     name: Proprietary
-
 servers:
-  - url: https://ai-compared.com
-    description: Production (ai-compared)
-  - url: https://staging.ai-compared.com
+  - url: "https://compareai.site"
+    description: Production (compareai.site)
+  - url: "https://staging.compareai.site"
     description: Staging
-
 paths:
-  /api/health:
+  /api/admin/ads:
     get:
-      summary: Health check
-      operationId: getHealth
-      tags: [System]
+      summary: GET /api/admin/ads (site) — auth=admin
+      operationId: getApiAdminAds
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdCreateInput
+      x-responseSchema: "Ad | Ad[]"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
       responses:
-        "200":
-          description: Service is healthy
+        200:
+          description: "Successful response (Ad | Ad[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
-                properties:
-                  status: { type: string, example: "ok" }
-
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/ads (site) — auth=admin
+      operationId: postApiAdminAds
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdCreateInput
+      x-responseSchema: "Ad | Ad[]"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (Ad | Ad[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/ads/{id}:
+    get:
+      summary: "GET /api/admin/ads/[id] (site) — auth=admin"
+      operationId: getApiAdminAdsId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdUpdateInput
+      x-responseSchema: Ad
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ad)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+    patch:
+      summary: "PATCH /api/admin/ads/[id] (site) — auth=admin"
+      operationId: patchApiAdminAdsId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdUpdateInput
+      x-responseSchema: Ad
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ad)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+    delete:
+      summary: "DELETE /api/admin/ads/[id] (site) — auth=admin"
+      operationId: deleteApiAdminAdsId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdUpdateInput
+      x-responseSchema: Ad
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ad)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/admin/affiliate-networks:
+    get:
+      summary: GET /api/admin/affiliate-networks (site) — auth=admin
+      operationId: getApiAdminAffiliatenetworks
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AffiliateNetworkInput
+      x-responseSchema: AffiliateNetwork
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AffiliateNetwork)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/affiliate-networks (site) — auth=admin
+      operationId: postApiAdminAffiliatenetworks
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AffiliateNetworkInput
+      x-responseSchema: AffiliateNetwork
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AffiliateNetwork)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/affiliate-networks (site) — auth=admin
+      operationId: patchApiAdminAffiliatenetworks
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AffiliateNetworkInput
+      x-responseSchema: AffiliateNetwork
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AffiliateNetwork)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/affiliate-networks (site) — auth=admin
+      operationId: deleteApiAdminAffiliatenetworks
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AffiliateNetworkInput
+      x-responseSchema: AffiliateNetwork
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AffiliateNetwork)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/ai-content:
+    post:
+      summary: POST /api/admin/ai-content (site) — auth=admin
+      operationId: postApiAdminAicontent
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AiContentGenerateInput
+      x-responseSchema: AiContentDraft
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AiContentDraft)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/ai/rewrite:
+    post:
+      summary: POST /api/admin/ai/rewrite (site) — auth=admin
+      operationId: postApiAdminAiRewrite
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AiRewriteInput
+      x-responseSchema: AiRewriteOutput
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AiRewriteOutput)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/analytics:
+    get:
+      summary: GET /api/admin/analytics (site) — auth=admin
+      operationId: getApiAdminAnalytics
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: AnalyticsSnapshot
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AnalyticsSnapshot)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/analytics/conversion:
+    get:
+      summary: GET /api/admin/analytics/conversion (site) — auth=admin
+      operationId: getApiAdminAnalyticsConversion
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: ConversionFunnel
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ConversionFunnel)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/analytics/domains:
+    get:
+      summary: GET /api/admin/analytics/domains (site) — auth=admin
+      operationId: getApiAdminAnalyticsDomains
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: DomainPerformance
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (DomainPerformance)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/analytics/products:
+    get:
+      summary: GET /api/admin/analytics/products (site) — auth=admin
+      operationId: getApiAdminAnalyticsProducts
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: TopProducts
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (TopProducts)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/analytics/revenue:
+    get:
+      summary: GET /api/admin/analytics/revenue (site) — auth=admin
+      operationId: getApiAdminAnalyticsRevenue
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: RevenueTrend
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (RevenueTrend)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/analytics/summary:
+    get:
+      summary: GET /api/admin/analytics/summary (site) — auth=admin
+      operationId: getApiAdminAnalyticsSummary
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: AnalyticsSummary
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AnalyticsSummary)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/api-tokens:
+    get:
+      summary: GET /api/admin/api-tokens (site) — auth=super_admin
+      operationId: getApiAdminApitokens
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdminApiTokenInput
+      x-responseSchema: "AdminApiToken | AdminApiToken[]"
+      x-notes: Creating API tokens is super_admin-only. The raw token is returned once on creation.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (AdminApiToken | AdminApiToken[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/api-tokens (site) — auth=super_admin
+      operationId: postApiAdminApitokens
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdminApiTokenInput
+      x-responseSchema: "AdminApiToken | AdminApiToken[]"
+      x-notes: Creating API tokens is super_admin-only. The raw token is returned once on creation.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (AdminApiToken | AdminApiToken[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/api-tokens/{id}:
+    delete:
+      summary: "DELETE /api/admin/api-tokens/[id] (site) — auth=super_admin"
+      operationId: deleteApiAdminApitokensId
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: "{ ok: true }"
+      x-notes: Revoking an API token is super_admin-only.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ ok: true })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/admin/automation/service-accounts:
+    get:
+      summary: GET /api/admin/automation/service-accounts (site) — auth=super_admin
+      operationId: getApiAdminAutomationServiceaccounts
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AutomationServiceAccountInput
+      x-responseSchema: "AutomationServiceAccount | AutomationServiceAccount[]"
+      x-notes: super_admin-only. Provisions a site-bound automation service account and issues its first bearer token (raw token returned once).
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (AutomationServiceAccount | AutomationServiceAccount[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/automation/service-accounts (site) — auth=super_admin
+      operationId: postApiAdminAutomationServiceaccounts
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AutomationServiceAccountInput
+      x-responseSchema: "AutomationServiceAccount | AutomationServiceAccount[]"
+      x-notes: super_admin-only. Provisions a site-bound automation service account and issues its first bearer token (raw token returned once).
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (AutomationServiceAccount | AutomationServiceAccount[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/automation/service-accounts/{id}:
+    delete:
+      summary: "DELETE /api/admin/automation/service-accounts/[id] (site) — auth=super_admin"
+      operationId: deleteApiAdminAutomationServiceaccountsId
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: "{ ok: true }"
+      x-notes: "super_admin-only kill switch: revokes an automation service account."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ ok: true })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/admin/audit-log/export:
+    get:
+      summary: GET /api/admin/audit-log/export (site) — auth=super_admin
+      operationId: getApiAdminAuditlogExport
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AuditLogQuery
+      x-responseSchema: CSV
+      x-notes: super_admin-only. Exports audit_log for the active site as CSV using the privileged client.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (CSV)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/categories:
+    get:
+      summary: GET /api/admin/categories (site) — auth=admin
+      operationId: getApiAdminCategories
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: CategoryInput
+      x-responseSchema: Category
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Category)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/categories (site) — auth=admin
+      operationId: postApiAdminCategories
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: CategoryInput
+      x-responseSchema: Category
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Category)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/categories (site) — auth=admin
+      operationId: patchApiAdminCategories
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: CategoryInput
+      x-responseSchema: Category
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Category)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/categories (site) — auth=admin
+      operationId: deleteApiAdminCategories
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: CategoryInput
+      x-responseSchema: Category
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Category)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/categories/usage:
+    get:
+      summary: GET /api/admin/categories/usage (site) — auth=admin
+      operationId: getApiAdminCategoriesUsage
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: "CategoryUsage[]"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (CategoryUsage[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/content:
+    get:
+      summary: GET /api/admin/content (site) — auth=admin
+      operationId: getApiAdminContent
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentInput
+      x-responseSchema: Content
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/content (site) — auth=admin
+      operationId: postApiAdminContent
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentInput
+      x-responseSchema: Content
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/content (site) — auth=admin
+      operationId: patchApiAdminContent
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentInput
+      x-responseSchema: Content
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/content (site) — auth=admin
+      operationId: deleteApiAdminContent
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentInput
+      x-responseSchema: Content
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/content-products:
+    get:
+      summary: GET /api/admin/content-products (site) — auth=admin
+      operationId: getApiAdminContentproducts
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentProductInput
+      x-responseSchema: ContentProduct
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ContentProduct)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/content-products (site) — auth=admin
+      operationId: postApiAdminContentproducts
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentProductInput
+      x-responseSchema: ContentProduct
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ContentProduct)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/content-products (site) — auth=admin
+      operationId: deleteApiAdminContentproducts
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentProductInput
+      x-responseSchema: ContentProduct
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ContentProduct)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/content/clone:
+    post:
+      summary: POST /api/admin/content/clone (site) — auth=admin
+      operationId: postApiAdminContentClone
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentCloneInput
+      x-responseSchema: Content
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Content)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/content/share:
+    post:
+      summary: POST /api/admin/content/share (site) — auth=admin
+      operationId: postApiAdminContentShare
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentShareInput
+      x-responseSchema: ContentShare
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ContentShare)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/content/share (site) — auth=admin
+      operationId: deleteApiAdminContentShare
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ContentShareInput
+      x-responseSchema: ContentShare
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ContentShare)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/integrations:
+    get:
+      summary: GET /api/admin/integrations (site) — auth=admin
+      operationId: getApiAdminIntegrations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: IntegrationInput
+      x-responseSchema: Integration
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Integration)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/integrations (site) — auth=admin
+      operationId: postApiAdminIntegrations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: IntegrationInput
+      x-responseSchema: Integration
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Integration)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/integrations (site) — auth=admin
+      operationId: patchApiAdminIntegrations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: IntegrationInput
+      x-responseSchema: Integration
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Integration)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/integrations (site) — auth=admin
+      operationId: deleteApiAdminIntegrations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: IntegrationInput
+      x-responseSchema: Integration
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Integration)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/media:
+    get:
+      summary: GET /api/admin/media (site) — auth=admin
+      operationId: getApiAdminMedia
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "MediaQuery | { id: string }"
+      x-responseSchema: "Media[] | { ok: true }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (Media[] | { ok: true })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/media (site) — auth=admin
+      operationId: deleteApiAdminMedia
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "MediaQuery | { id: string }"
+      x-responseSchema: "Media[] | { ok: true }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (Media[] | { ok: true })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/modules:
+    get:
+      summary: GET /api/admin/modules (site) — auth=admin
+      operationId: getApiAdminModules
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ModuleInput
+      x-responseSchema: "Module[]"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (Module[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/modules (site) — auth=admin
+      operationId: patchApiAdminModules
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ModuleInput
+      x-responseSchema: "Module[]"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (Module[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/pages:
+    get:
+      summary: GET /api/admin/pages (site) — auth=admin
+      operationId: getApiAdminPages
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PageInput
+      x-responseSchema: Page
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/pages (site) — auth=admin
+      operationId: postApiAdminPages
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PageInput
+      x-responseSchema: Page
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/pages/{id}:
+    get:
+      summary: "GET /api/admin/pages/[id] (site) — auth=admin"
+      operationId: getApiAdminPagesId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PageInput
+      x-responseSchema: Page
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+    patch:
+      summary: "PATCH /api/admin/pages/[id] (site) — auth=admin"
+      operationId: patchApiAdminPagesId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PageInput
+      x-responseSchema: Page
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+    delete:
+      summary: "DELETE /api/admin/pages/[id] (site) — auth=admin"
+      operationId: deleteApiAdminPagesId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PageInput
+      x-responseSchema: Page
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Page)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/admin/pages/reorder:
+    post:
+      summary: POST /api/admin/pages/reorder (site) — auth=admin
+      operationId: postApiAdminPagesReorder
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PageReorderInput
+      x-responseSchema: Ok
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/permissions:
+    get:
+      summary: GET /api/admin/permissions (site) — auth=super_admin
+      operationId: getApiAdminPermissions
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PermissionInput
+      x-responseSchema: Permission
+      x-notes: super_admin only — grants/revokes admin role + site membership.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Permission)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/permissions (site) — auth=super_admin
+      operationId: postApiAdminPermissions
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PermissionInput
+      x-responseSchema: Permission
+      x-notes: super_admin only — grants/revokes admin role + site membership.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Permission)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/permissions (site) — auth=super_admin
+      operationId: deleteApiAdminPermissions
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PermissionInput
+      x-responseSchema: Permission
+      x-notes: super_admin only — grants/revokes admin role + site membership.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Permission)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/preview-token:
+    post:
+      summary: POST /api/admin/preview-token (site) — auth=admin
+      operationId: postApiAdminPreviewtoken
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PreviewTokenInput
+      x-responseSchema: "{ token: string }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ token: string })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/privacy/user:
+    post:
+      summary: POST /api/admin/privacy/user (site) — auth=super_admin
+      operationId: postApiAdminPrivacyUser
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PrivacyUserInput
+      x-responseSchema: "PrivacyExport | Ok"
+      x-notes: GDPR export/erasure — always audit-logged with ticket id in details.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (PrivacyExport | Ok)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/privacy/user (site) — auth=super_admin
+      operationId: deleteApiAdminPrivacyUser
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PrivacyUserInput
+      x-responseSchema: "PrivacyExport | Ok"
+      x-notes: GDPR export/erasure — always audit-logged with ticket id in details.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (PrivacyExport | Ok)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/privacy/restrict:
+    post:
+      summary: POST /api/admin/privacy/restrict (site) — auth=super_admin
+      operationId: postApiAdminPrivacyRestrict
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PrivacyRestrictInput
+      x-responseSchema: Ok
+      x-notes: GDPR Art. 18 — place / lift processing restriction. Always audit-logged.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/privacy/restrict (site) — auth=super_admin
+      operationId: deleteApiAdminPrivacyRestrict
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PrivacyRestrictInput
+      x-responseSchema: Ok
+      x-notes: GDPR Art. 18 — place / lift processing restriction. Always audit-logged.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/privacy/rectify:
+    post:
+      summary: POST /api/admin/privacy/rectify (site) — auth=super_admin
+      operationId: postApiAdminPrivacyRectify
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PrivacyRectifyInput
+      x-responseSchema: Ok
+      x-notes: "S3-004: GDPR Art. 16 — rectify inaccurate personal data. Always audit-logged."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/privacy/object:
+    post:
+      summary: POST /api/admin/privacy/object (site) — auth=super_admin
+      operationId: postApiAdminPrivacyObject
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PrivacyObjectInput
+      x-responseSchema: Ok
+      x-notes: GDPR Art. 21 — record / withdraw marketing objection. Always audit-logged.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/privacy/object (site) — auth=super_admin
+      operationId: deleteApiAdminPrivacyObject
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PrivacyObjectInput
+      x-responseSchema: Ok
+      x-notes: GDPR Art. 21 — record / withdraw marketing objection. Always audit-logged.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/dlq:
+    get:
+      summary: GET /api/admin/dlq (site) — auth=super_admin
+      operationId: getApiAdminDlq
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: void
+      x-responseSchema: DlqDashboard
+      x-notes: "R-014: DLQ monitoring dashboard — shows recent webhook_dlq + click_failures entries."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (DlqDashboard)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/products:
+    get:
+      summary: GET /api/admin/products (site) — auth=admin
+      operationId: getApiAdminProducts
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ProductInput
+      x-responseSchema: Product
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Product)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/products (site) — auth=admin
+      operationId: postApiAdminProducts
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ProductInput
+      x-responseSchema: Product
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Product)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/products (site) — auth=admin
+      operationId: patchApiAdminProducts
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ProductInput
+      x-responseSchema: Product
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Product)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/products (site) — auth=admin
+      operationId: deleteApiAdminProducts
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ProductInput
+      x-responseSchema: Product
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Product)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/products/export:
+    get:
+      summary: GET /api/admin/products/export (site) — auth=admin
+      operationId: getApiAdminProductsExport
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: CSV stream
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (CSV stream)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/products/import:
+    post:
+      summary: POST /api/admin/products/import (site) — auth=admin
+      operationId: postApiAdminProductsImport
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ProductImportInput (multipart CSV)
+      x-responseSchema: "{ imported: number; errors: ImportError[] }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ imported: number; errors: ImportError[] })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/presentations:
+    get:
+      summary: GET /api/admin/presentations (site) — auth=admin
+      operationId: getApiAdminPresentations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PresentationDraftInput
+      x-responseSchema: "{ published: Presentation | null; draft: Presentation | null }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ published: Presentation | null; draft: Presentation | null })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    put:
+      summary: PUT /api/admin/presentations (site) — auth=admin
+      operationId: putApiAdminPresentations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PresentationDraftInput
+      x-responseSchema: "{ published: Presentation | null; draft: Presentation | null }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ published: Presentation | null; draft: Presentation | null })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/presentations (site) — auth=admin
+      operationId: postApiAdminPresentations
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PresentationDraftInput
+      x-responseSchema: "{ published: Presentation | null; draft: Presentation | null }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ published: Presentation | null; draft: Presentation | null })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/schedule:
+    get:
+      summary: GET /api/admin/schedule (site) — auth=admin
+      operationId: getApiAdminSchedule
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ScheduleInput
+      x-responseSchema: ScheduledJob
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ScheduledJob)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/schedule (site) — auth=admin
+      operationId: postApiAdminSchedule
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ScheduleInput
+      x-responseSchema: ScheduledJob
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ScheduledJob)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/schedule (site) — auth=admin
+      operationId: deleteApiAdminSchedule
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: ScheduleInput
+      x-responseSchema: ScheduledJob
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (ScheduledJob)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/sites:
+    get:
+      summary: GET /api/admin/sites (site) — auth=admin
+      operationId: getApiAdminSites
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: SiteInput
+      x-responseSchema: Site
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/sites (site) — auth=admin
+      operationId: postApiAdminSites
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: SiteInput
+      x-responseSchema: Site
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/sites/{id}:
+    get:
+      summary: "GET /api/admin/sites/[id] (site) — auth=admin"
+      operationId: getApiAdminSitesId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: SiteInput
+      x-responseSchema: Site
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+    patch:
+      summary: "PATCH /api/admin/sites/[id] (site) — auth=admin"
+      operationId: patchApiAdminSitesId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: SiteInput
+      x-responseSchema: Site
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+    delete:
+      summary: "DELETE /api/admin/sites/[id] (site) — auth=admin"
+      operationId: deleteApiAdminSitesId
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: SiteInput
+      x-responseSchema: Site
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Site)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/admin/sites/active:
+    get:
+      summary: GET /api/admin/sites/active (site) — auth=admin
+      operationId: getApiAdminSitesActive
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: "{ siteId: string; slug: string }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ siteId: string; slug: string })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/sites/select:
+    post:
+      summary: POST /api/admin/sites/select (site) — auth=admin
+      operationId: postApiAdminSitesSelect
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ siteId: string }"
+      x-responseSchema: Ok
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/sites/stats:
+    get:
+      summary: GET /api/admin/sites/stats (site) — auth=admin
+      operationId: getApiAdminSitesStats
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: SiteStats
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (SiteStats)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/sites/templates:
+    get:
+      summary: GET /api/admin/sites/templates (site) — auth=admin
+      operationId: getApiAdminSitesTemplates
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: "SiteTemplate[]"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (SiteTemplate[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/upload:
+    post:
+      summary: POST /api/admin/upload (site) — auth=admin
+      operationId: postApiAdminUpload
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: UploadPresignInput
+      x-responseSchema: "{ uploadUrl: string; stagingKey: string; publicUrl: string; requiredHeaders: Record<string,string>; maxBytes: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ uploadUrl: string; stagingKey: string; publicUrl: string; requiredHeaders: Record<string,string>; maxBytes: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/upload/finalize:
+    post:
+      summary: POST /api/admin/upload/finalize (site) — auth=admin
+      operationId: postApiAdminUploadFinalize
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: UploadFinalizeInput
+      x-responseSchema: UploadedImage
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (UploadedImage)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/webhook-dlq:
+    get:
+      summary: GET /api/admin/webhook-dlq (site) — auth=super_admin
+      operationId: getApiAdminWebhookdlq
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ eventId: string }"
+      x-responseSchema: "{ data: WebhookDlqEntry[]; count: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ data: WebhookDlqEntry[]; count: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/webhook-dlq (site) — auth=super_admin
+      operationId: patchApiAdminWebhookdlq
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ eventId: string }"
+      x-responseSchema: "{ data: WebhookDlqEntry[]; count: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ data: WebhookDlqEntry[]; count: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/users:
+    get:
+      summary: GET /api/admin/users (site) — auth=super_admin
+      operationId: getApiAdminUsers
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdminUserInput
+      x-responseSchema: AdminUser
+      x-notes: Creating/editing admin users is super_admin-only.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AdminUser)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/users (site) — auth=super_admin
+      operationId: postApiAdminUsers
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdminUserInput
+      x-responseSchema: AdminUser
+      x-notes: Creating/editing admin users is super_admin-only.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AdminUser)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/users (site) — auth=super_admin
+      operationId: patchApiAdminUsers
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdminUserInput
+      x-responseSchema: AdminUser
+      x-notes: Creating/editing admin users is super_admin-only.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AdminUser)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/users (site) — auth=super_admin
+      operationId: deleteApiAdminUsers
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdminUserInput
+      x-responseSchema: AdminUser
+      x-notes: Creating/editing admin users is super_admin-only.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AdminUser)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/users/me:
+    get:
+      summary: GET /api/admin/users/me (site) — auth=admin
+      operationId: getApiAdminUsersMe
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdminSelfInput
+      x-responseSchema: AdminUser (self)
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AdminUser (self))
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    patch:
+      summary: PATCH /api/admin/users/me (site) — auth=admin
+      operationId: patchApiAdminUsersMe
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AdminSelfInput
+      x-responseSchema: AdminUser (self)
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AdminUser (self))
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/users/me/password:
+    post:
+      summary: POST /api/admin/users/me/password (site) — auth=admin
+      operationId: postApiAdminUsersMePassword
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ currentPassword: string; newPassword: string }"
+      x-responseSchema: Ok
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/users/me/totp:
+    get:
+      summary: GET /api/admin/users/me/totp (site) — auth=admin
+      operationId: getApiAdminUsersMeTotp
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: TotpSetupInput
+      x-responseSchema: "{ secret?: string; qr?: string; enabled: boolean }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ secret?: string; qr?: string; enabled: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/users/me/totp (site) — auth=admin
+      operationId: postApiAdminUsersMeTotp
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: TotpSetupInput
+      x-responseSchema: "{ secret?: string; qr?: string; enabled: boolean }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ secret?: string; qr?: string; enabled: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    delete:
+      summary: DELETE /api/admin/users/me/totp (site) — auth=admin
+      operationId: deleteApiAdminUsersMeTotp
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: TotpSetupInput
+      x-responseSchema: "{ secret?: string; qr?: string; enabled: boolean }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ secret?: string; qr?: string; enabled: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/auth/csrf:
+    get:
+      summary: GET /api/auth/csrf (global) — public
+      operationId: getApiAuthCsrf
+      tags:
+        - Auth
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ csrfToken: string }"
+      x-notes: Issues a double-submit CSRF token; sets an httpOnly cookie.
+      security: []
+      responses:
+        200:
+          description: CSRF token issued
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfTokenResponse"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/auth/forgot-password:
+    post:
+      summary: POST /api/auth/forgot-password (global) — public
+      operationId: postApiAuthForgotpassword
+      tags:
+        - Auth
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ email: string; turnstileToken: string }"
+      x-responseSchema: Ok (always 200 to avoid enumeration)
+      x-notes: "Audit-logged as `request_password_reset`; throttled per IP + email."
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/auth/login:
     post:
-      summary: Admin login
-      operationId: postLogin
-      tags: [Auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password]
-              properties:
-                email: { type: string, format: email }
-                password: { type: string }
-                totp_code: { type: string, pattern: "^\\d{6}$" }
+      summary: POST /api/auth/login (global) — public
+      operationId: postApiAuthLogin
+      tags:
+        - Auth
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ email: string; password: string; turnstileToken: string; totp_token?: string }"
+      x-responseSchema: "{ user: AdminUser } + httpOnly session cookie"
+      x-notes: null
+      security: []
       responses:
-        "200":
-          description: Login successful
-        "401":
-          description: Invalid credentials
-        "429":
-          description: Too many attempts
-
-  /api/auth/logout:
-    post:
-      summary: Admin logout
-      operationId: postLogout
-      tags: [Auth]
-      responses:
-        "200":
-          description: Logged out
-
-  /api/auth/me:
-    get:
-      summary: Get current user
-      operationId: getMe
-      tags: [Auth]
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Current user info
-        "401":
-          description: Not authenticated
-
-  /api/auth/refresh:
-    post:
-      summary: Refresh access token
-      operationId: postRefresh
-      tags: [Auth]
-      responses:
-        "200":
-          description: Token refreshed
-
-  /api/newsletter:
-    post:
-      summary: Subscribe to newsletter
-      operationId: postNewsletter
-      tags: [Newsletter]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email]
-              properties:
-                email: { type: string, format: email }
-                turnstile_token: { type: string }
-      responses:
-        "200":
-          description: Confirmation email sent
-        "400":
-          description: Invalid email
-        "429":
-          description: Rate limited
-
-  /api/newsletter/confirm:
-    get:
-      summary: Confirm newsletter subscription
-      operationId: getNewsletterConfirm
-      tags: [Newsletter]
-      parameters:
-        - name: token
-          in: query
-          required: true
-          schema: { type: string }
-      responses:
-        "302":
-          description: Redirect to confirmation page
-
-  /api/newsletter/unsubscribe:
-    get:
-      summary: Unsubscribe from newsletter
-      operationId: getNewsletterUnsubscribe
-      tags: [Newsletter]
-      parameters:
-        - name: token
-          in: query
-          required: true
-          schema: { type: string }
-      responses:
-        "302":
-          description: Redirect to unsubscribed page
-
-  /api/track/click:
-    get:
-      summary: Track affiliate click
-      operationId: getTrackClick
-      tags: [Tracking]
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema: { type: string, format: uri }
-      responses:
-        "302":
-          description: Redirect to affiliate URL
-
-  /api/user/data-export:
-    get:
-      summary: GDPR data export
-      operationId: getDataExport
-      tags: [Privacy]
-      parameters:
-        - name: email
-          in: query
-          required: true
-          schema: { type: string, format: email }
-        - name: turnstile_token
-          in: query
-          required: true
-          description: "A47-02: Turnstile CAPTCHA token to prevent automated email enumeration."
-          schema: { type: string }
-      responses:
-        "200":
-          description: User data as JSON
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
           content:
             application/json:
               schema:
                 type: object
-        "403":
-          description: CAPTCHA verification failed
-        "429":
-          description: Rate limited (3 per 15 min)
-
-  /api/membership/checkout:
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/auth/logout:
     post:
-      summary: Create Stripe checkout session
-      operationId: postCheckout
-      tags: [Membership]
+      summary: POST /api/auth/logout (global) — auth=admin
+      operationId: postApiAuthLogout
+      tags:
+        - Auth
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: Ok
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/auth/me:
+    get:
+      summary: GET /api/auth/me (global) — auth=admin
+      operationId: getApiAuthMe
+      tags:
+        - Auth
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AdminUser (self)
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Current admin session
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+        401:
+          description: Not authenticated
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/auth/refresh:
+    post:
+      summary: POST /api/auth/refresh (global) — auth=admin
+      operationId: postApiAuthRefresh
+      tags:
+        - Auth
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: "{ expiresAt: string } + refreshed cookie"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ expiresAt: string } + refreshed cookie)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/auth/step-up:
+    post:
+      summary: POST /api/auth/step-up (global) — auth=admin
+      operationId: postApiAuthStepup
+      tags:
+        - Auth
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ password: string; totp_token?: string }"
+      x-responseSchema: "{ ok: true } + re-minted session cookie"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ ok: true } + re-minted session cookie)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/auth/reset-password:
+    post:
+      summary: POST /api/auth/reset-password (global) — auth=token
+      operationId: postApiAuthResetpassword
+      tags:
+        - Auth
+      x-auth: token
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ token: string; newPassword: string }"
+      x-responseSchema: Ok
+      x-notes: null
       security:
         - bearerAuth: []
       responses:
-        "200":
-          description: Checkout session URL
-
-  /api/community/comments:
-    get:
-      summary: List comments
-      operationId: getComments
-      tags: [Community]
-      parameters:
-        - name: target_type
-          in: query
-          required: true
-          schema: { type: string, enum: [product, content] }
-        - name: target_id
-          in: query
-          required: true
-          schema: { type: string, format: uuid }
-        - name: limit
-          in: query
-          required: false
-          description: "A46-03: Max comments to return (1-100, default 50)."
-          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
-        - name: offset
-          in: query
-          required: false
-          description: "A46-03: Number of comments to skip for pagination."
-          schema: { type: integer, minimum: 0, default: 0 }
-      responses:
-        "200":
-          description: Comments list with pagination metadata
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/auth/token-login:
     post:
-      summary: Post a comment
-      operationId: postComment
-      tags: [Community]
+      summary: POST /api/auth/token-login (global) — auth=token
+      operationId: postApiAuthTokenlogin
+      tags:
+        - Auth
+      x-auth: token
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: "{ token: string }"
+      x-responseSchema: "{ ok: true } + httpOnly session cookie"
+      x-notes: Exchanges a pre-generated API token for an admin session. CSRF-exempt because the token is the auth factor.
+      security:
+        - bearerAuth: []
       responses:
-        "201":
-          description: Comment created
-
+        200:
+          description: "Successful response ({ ok: true } + httpOnly session cookie)"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/ai-generate:
+    post:
+      summary: POST /api/cron/ai-generate (tenant) — auth=cron
+      operationId: postApiCronAigenerate
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ generated: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ generated: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/click-reconcile:
+    post:
+      summary: POST /api/cron/click-reconcile (tenant) — auth=cron
+      operationId: postApiCronClickreconcile
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ success_count: number; failure_count: number; alert: boolean }"
+      x-notes: "A-006: Reconciles click tracking volume vs failures and alerts on threshold breach."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ success_count: number; failure_count: number; alert: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/commission-ingest:
+    post:
+      summary: POST /api/cron/commission-ingest (tenant) — auth=cron
+      operationId: postApiCronCommissioningest
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ ingested: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ ingested: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/access-review:
+    post:
+      summary: POST /api/cron/access-review (tenant) — auth=cron
+      operationId: postApiCronAccessreview
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ ok: boolean; totalUsers: number; findings: number }"
+      x-notes: SOC 2 CC6.1 — automated access recertification.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ ok: boolean; totalUsers: number; findings: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/data-retention:
+    post:
+      summary: POST /api/cron/data-retention (tenant) — auth=cron
+      operationId: postApiCronDataretention
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ purged: number; archived: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ purged: number; archived: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/epc-recompute:
+    post:
+      summary: POST /api/cron/epc-recompute (tenant) — auth=cron
+      operationId: postApiCronEpcrecompute
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ recomputed: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ recomputed: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/expire-deals:
+    post:
+      summary: POST /api/cron/expire-deals (tenant) — auth=cron
+      operationId: postApiCronExpiredeals
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ expired: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ expired: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/homepage-synthetic-check:
+    post:
+      summary: POST /api/cron/homepage-synthetic-check (tenant) — auth=cron
+      operationId: postApiCronHomepagesyntheticcheck
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ ok: boolean; alerted: boolean }"
+      x-notes: "Synthetic check: fail loudly when homepage renders empty while DB has published content."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ ok: boolean; alerted: boolean })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/price-scrape:
+    post:
+      summary: POST /api/cron/price-scrape (tenant) — auth=cron
+      operationId: postApiCronPricescrape
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ scraped: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ scraped: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/publish:
+    post:
+      summary: POST /api/cron/publish (tenant) — auth=cron
+      operationId: postApiCronPublish
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ published: number; archived: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ published: number; archived: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/sitemap-refresh:
+    post:
+      summary: POST /api/cron/sitemap-refresh (tenant) — auth=cron
+      operationId: postApiCronSitemaprefresh
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ pinged: string[] }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ pinged: string[] })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/stripe-sync:
+    post:
+      summary: POST /api/cron/stripe-sync (tenant) — auth=cron
+      operationId: postApiCronStripesync
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ synced: number }"
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ synced: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/csp-report:
+    post:
+      summary: POST /api/csp-report (global) — public
+      operationId: postApiCspreport
+      tags:
+        - Csp-report
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: CSPViolationReport
+      x-responseSchema: 204 No Content
+      x-notes: Browser-generated CSP reports; body is untrusted.
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/gift-finder:
+    post:
+      summary: POST /api/gift-finder (site) — public
+      operationId: postApiGiftfinder
+      tags:
+        - Gift-finder
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: GiftFinderInput
+      x-responseSchema: "GiftSuggestion[]"
+      x-notes: null
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/health:
+    get:
+      summary: GET /api/health (global) — public
+      operationId: getApiHealth
+      tags:
+        - Health
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ status: string; checks: HealthCheck[] }"
+      x-notes: Intentionally public so external uptime monitors can poll it.
+      security: []
+      responses:
+        200:
+          description: Healthy service
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        503:
+          description: Degraded service
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /api/internal/resolve-site:
+    get:
+      summary: GET /api/internal/resolve-site (global) — auth=internal
+      operationId: getApiInternalResolvesite
+      tags:
+        - Internal
+      x-auth: internal
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: "{ host: string }"
+      x-responseSchema: "{ siteId: string }"
+      x-notes: Worker-to-Worker only; gated by INTERNAL_API_SECRET.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/newsletter:
+    post:
+      summary: POST /api/newsletter (site) — public
+      operationId: postApiNewsletter
+      tags:
+        - Newsletter
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ email: string; turnstileToken: string }"
+      x-responseSchema: Ok
+      x-notes: null
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewsletterSignupRequest"
+      responses:
+        200:
+          description: Signup accepted
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsletterSignupResponse"
+        400:
+          description: Invalid signup request
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        403:
+          description: Captcha verification failed
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        500:
+          description: Signup failed
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        503:
+          description: Email service unavailable
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/newsletter/confirm:
+    get:
+      summary: GET /api/newsletter/confirm (site) — auth=token
+      operationId: getApiNewsletterConfirm
+      tags:
+        - Newsletter
+      x-auth: token
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: "{ token: string }"
+      x-responseSchema: Ok
+      x-notes: null
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/newsletter/unsubscribe:
+    get:
+      summary: GET /api/newsletter/unsubscribe (site) — auth=token
+      operationId: getApiNewsletterUnsubscribe
+      tags:
+        - Newsletter
+      x-auth: token
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: "{ token: string }"
+      x-responseSchema: Ok
+      x-notes: null
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/newsletter/unsubscribe (site) — auth=token
+      operationId: postApiNewsletterUnsubscribe
+      tags:
+        - Newsletter
+      x-auth: token
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: "{ token: string }"
+      x-responseSchema: Ok
+      x-notes: null
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (Ok)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/products/{productId}/price-alert:
+    post:
+      summary: "POST /api/products/[productId]/price-alert (site) — public"
+      operationId: postApiProductsProductIdPricealert
+      tags:
+        - Products
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: PriceAlertInput
+      x-responseSchema: Ok
+      x-notes: null
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/products/{productId}/price-history:
+    get:
+      summary: "GET /api/products/[productId]/price-history (site) — public"
+      operationId: getApiProductsProductIdPricehistory
+      tags:
+        - Products
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "PricePoint[]"
+      x-notes: null
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/queue/clicks:
+    post:
+      summary: POST /api/queue/clicks (global) — auth=internal
+      operationId: postApiQueueClicks
+      tags:
+        - Queue
+      x-auth: internal
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: ClickBatch
+      x-responseSchema: "{ enqueued: number }"
+      x-notes: Invoked by Cloudflare Queue consumer.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/revalidate:
+    post:
+      summary: POST /api/revalidate (global) — auth=internal
+      operationId: postApiRevalidate
+      tags:
+        - Revalidate
+      x-auth: internal
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: "{ tag: string }"
+      x-responseSchema: Ok
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/quiz/{slug}:
+    get:
+      summary: "GET /api/quiz/[slug] (site) — public"
+      operationId: getApiQuizSlug
+      tags:
+        - Quiz
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: Quiz
+      x-notes: null
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/quiz/{slug}/submit:
+    post:
+      summary: "POST /api/quiz/[slug]/submit (site) — public"
+      operationId: postApiQuizSlugSubmit
+      tags:
+        - Quiz
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: QuizSubmission
+      x-responseSchema: QuizResult
+      x-notes: null
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/track/click:
+    post:
+      summary: POST /api/track/click (site) — public
+      operationId: postApiTrackClick
+      tags:
+        - Track
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: ClickEvent
+      x-responseSchema: 302 redirect
+      x-notes: null
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/track/impression:
+    post:
+      summary: POST /api/track/impression (site) — public
+      operationId: postApiTrackImpression
+      tags:
+        - Track
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: ImpressionEvent
+      x-responseSchema: 204 No Content
+      x-notes: null
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/vitals:
+    post:
+      summary: POST /api/vitals (global) — public
+      operationId: postApiVitals
+      tags:
+        - Vitals
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: WebVitalsReport
+      x-responseSchema: 204 No Content
+      x-notes: null
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/consent/log:
+    post:
+      summary: POST /api/consent/log (global) — public
+      operationId: postApiConsentLog
+      tags:
+        - Consent
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: global
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: ConsentLogInput
+      x-responseSchema: Ok
+      x-notes: "OF-04: Log consent banner acceptance. IP is truncated to /24 before storage."
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/user/data-export:
+    get:
+      summary: GET /api/user/data-export (site) — public
+      operationId: getApiUserDataexport
+      tags:
+        - User
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: false
+      x-requestSchema: "{ email: string }"
+      x-responseSchema: DataExportPayload
+      x-notes: "S3-004: GDPR Art. 20 self-service data portability."
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/health:
+    get:
+      summary: GET /api/automation/v1/health (site) — auth=automation
+      operationId: getApiAutomationV1Health
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Authenticated liveness probe; returns the token's bound site."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/context:
+    get:
+      summary: GET /api/automation/v1/context (site) — auth=automation
+      operationId: getApiAutomationV1Context
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope site:read. Site identity, scopes, limits, counts, policies."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/analytics/summary:
+    get:
+      summary: GET /api/automation/v1/analytics/summary (site) — auth=automation
+      operationId: getApiAutomationV1AnalyticsSummary
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope analytics:read. Deterministic click/content/product summary."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/content:
+    get:
+      summary: GET /api/automation/v1/content (site) — auth=automation
+      operationId: getApiAutomationV1Content
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope content:read. Site-scoped content list with keyset pagination."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/content/drafts:
+    post:
+      summary: POST /api/automation/v1/content/drafts (site) — auth=automation
+      operationId: postApiAutomationV1ContentDrafts
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationDraftInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope content:draft. Idempotent (Idempotency-Key). Creates a pending AI draft via the durable action model; publishing stays approval-gated."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/runs:
+    post:
+      summary: POST /api/automation/v1/runs (site) — auth=automation
+      operationId: postApiAutomationV1Runs
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationRunInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope site:read. Opens a durable run grouping subsequent actions."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
 components:
+  schemas:
+    ApiError:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          pattern: "^[A-Z][A-Z0-9_]*$"
+        details: {}
+    CsrfTokenResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - csrfToken
+      properties:
+        csrfToken:
+          type: string
+    AuthMeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+        - email
+        - activeSite
+      properties:
+        role:
+          type: string
+        email:
+          oneOf:
+            - type: string
+            - type: "null"
+        activeSite:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - id
+                - name
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+            - type: "null"
+    NewsletterSignupRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - turnstileToken
+      properties:
+        email:
+          type: string
+          format: email
+        turnstileToken:
+          type: string
+        website:
+          type: string
+          description: Honeypot field; clients should leave it empty.
+    NewsletterSignupResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - message
+      properties:
+        ok:
+          type: boolean
+          const: true
+        message:
+          type: string
+    HealthResponse:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              const: healthy
+        - type: object
+          additionalProperties: false
+          required:
+            - status
+            - timestamp
+            - checks
+          properties:
+            status:
+              type: string
+              enum:
+                - healthy
+                - degraded
+            timestamp:
+              type: string
+              format: date-time
+            checks:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties: false
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                      - warn
+                      - error
+                  latencyMs:
+                    type: integer
+                    minimum: 0
+                  error:
+                    type: string
+  headers:
+    API-Version:
+      description: Numeric major version of the served API contract.
+      schema:
+        type: string
+        pattern: "^[1-9][0-9]*$"
+        example: "1"
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
   parameters:
     siteId:
       name: x-site-id
       in: header
       required: true
-      schema: { type: string }
+      schema:
+        type: string
       description: Tenant identifier
-
 tags:
   - name: System
   - name: Auth
   - name: Newsletter
-  - name: Tracking
-  - name: Privacy
+  - name: Admin
+  - name: Cron
+  - name: Public
+  - name: Internal
   - name: Membership
   - name: Community

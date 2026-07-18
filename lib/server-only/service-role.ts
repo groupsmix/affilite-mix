@@ -127,6 +127,11 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
             fetchWithTimeout(input as string, {
               ...init,
               timeoutMs: 12000,
+              // The privileged client bypasses RLS and is used for admin /
+              // cross-tenant operations; stale fetch-cache entries would make
+              // the dashboard show empty tables after writes, so always fetch
+              // fresh data.
+              cache: "no-store",
             }),
           );
         } catch (error) {

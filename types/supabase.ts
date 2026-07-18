@@ -162,6 +162,60 @@ export type Database = {
           },
         ];
       };
+      admin_api_tokens: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          expires_at: string;
+          id: string;
+          is_active: boolean;
+          last_used_at: string | null;
+          name: string;
+          site_id: string | null;
+          token_hash: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          expires_at: string;
+          id?: string;
+          is_active?: boolean;
+          last_used_at?: string | null;
+          name: string;
+          site_id?: string | null;
+          token_hash: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          expires_at?: string;
+          id?: string;
+          is_active?: boolean;
+          last_used_at?: string | null;
+          name?: string;
+          site_id?: string | null;
+          token_hash?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_api_tokens_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "admin_users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "admin_api_tokens_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       admin_site_memberships: {
         Row: {
           admin_user_id: string;
@@ -514,6 +568,36 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      automation_actions: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_policies: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_runs: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_service_accounts: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_tokens: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
       };
       authors: {
         Row: {
@@ -943,6 +1027,44 @@ export type Database = {
           },
         ];
       };
+      contact_submissions: {
+        Row: {
+          created_at: string;
+          email: string;
+          id: string;
+          message: string;
+          name: string | null;
+          site_id: string;
+          subject: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          email: string;
+          id?: string;
+          message: string;
+          name?: string | null;
+          site_id: string;
+          subject?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          email?: string;
+          id?: string;
+          message?: string;
+          name?: string | null;
+          site_id?: string;
+          subject?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_submissions_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       cron_state: {
         Row: {
           cursor: Json;
@@ -1346,6 +1468,12 @@ export type Database = {
           },
         ];
       };
+      media: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
       newsletter_subscribers: {
         Row: {
           confirmation_token: string | null;
@@ -1575,6 +1703,7 @@ export type Database = {
           product_id: string;
           scraped_at: string;
           site_id: string;
+          snapshot_date: string;
           source: string;
         };
         Insert: {
@@ -1585,6 +1714,7 @@ export type Database = {
           product_id: string;
           scraped_at?: string;
           site_id: string;
+          snapshot_date?: string;
           source?: string;
         };
         Update: {
@@ -1595,6 +1725,7 @@ export type Database = {
           product_id?: string;
           scraped_at?: string;
           site_id?: string;
+          snapshot_date?: string;
           source?: string;
         };
         Relationships: [
@@ -1719,6 +1850,7 @@ export type Database = {
         Row: {
           affiliate_url: string | null;
           category_id: string | null;
+          category_ids: string[] | null;
           cons: string | null;
           created_at: string | null;
           cta_text: string | null;
@@ -1745,6 +1877,7 @@ export type Database = {
         Insert: {
           affiliate_url?: string | null;
           category_id?: string | null;
+          category_ids?: string[] | null;
           cons?: string | null;
           created_at?: string | null;
           cta_text?: string | null;
@@ -1771,6 +1904,7 @@ export type Database = {
         Update: {
           affiliate_url?: string | null;
           category_id?: string | null;
+          category_ids?: string[] | null;
           cons?: string | null;
           created_at?: string | null;
           cta_text?: string | null;
@@ -1970,6 +2104,12 @@ export type Database = {
           label?: string;
           name?: string;
         };
+        Relationships: [];
+      };
+      site_presentations: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
         Relationships: [];
       };
       scheduled_jobs: {

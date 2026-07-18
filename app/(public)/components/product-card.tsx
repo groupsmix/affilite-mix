@@ -1,14 +1,11 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import type { ProductRow } from "@/types/database";
-import Image from "next/image";
-import { useCookieConsent } from "./cookie-consent";
+import type { ReactNode } from "react";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
-import { shimmerPlaceholder } from "@/lib/image-placeholder";
 import { highlightText } from "./highlight-text";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
+import { ProductCardCta, ProductCardImage, ProductCardDealBadge } from "./product-card-client";
 
-interface ProductCardProps {
+export interface ProductCardProps {
   product: ProductRow;
   sourceType?: string;
   ctaLabel?: string;
@@ -23,41 +20,6 @@ interface ProductCardProps {
   variant?: "standard" | "compact" | "detailed";
 }
 
-function isDealActive(expiresAt: string | null): boolean {
-  if (!expiresAt) return true;
-  return new Date(expiresAt) > new Date();
-}
-
-function getDealTimeLeft(expiresAt: string | null): string | null {
-  if (!expiresAt) return null;
-  const now = new Date();
-  const expires = new Date(expiresAt);
-  const diff = expires.getTime() - now.getTime();
-  if (diff <= 0) return null;
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days > 0) return `${days}d left`;
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  return `${hours}h left`;
-}
-
-/**
- * Fire-and-forget click tracking, then navigate to the affiliate URL directly.
- * Decouples tracking from navigation so tracking failures don't block the user.
- */
-function fireTrackingBeacon(slug: string, sourceType: string) {
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=${sourceType}`;
-  try {
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(trackUrl);
-    } else {
-      fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
-    }
-  } catch {
-    // fail-open: best-effort
-    // Tracking failure should never block navigation
-  }
-}
-
 export function ProductCard({
   product,
   sourceType = "content",
@@ -67,80 +29,41 @@ export function ProductCard({
   searchQuery,
   priority = false,
   variant = "standard",
-}: ProductCardProps) {
-  const { accepted: consentAccepted } = useCookieConsent();
-  const [imgError, setImgError] = useState(false);
-  // B-nit: isDealActive / getDealTimeLeft call new Date() which differs between
-  // SSR time and client hydration time, causing a React hydration mismatch on
-  // ISR-cached pages. Guard with `mounted` so the deal badge only renders
-  // client-side (safe fallback: no badge during SSR, shown after hydration).
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
+}: ProductCardProps): ReactNode {
   const buttonLabel = product.cta_text || ctaLabel;
-  const showDeal = mounted && product.deal_text && isDealActive(product.deal_expires_at);
-  const dealTimeLeft = mounted ? getDealTimeLeft(product.deal_expires_at) : null;
 
-  function handleCtaClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    e.preventDefault();
-    const href = e.currentTarget.getAttribute("data-href");
-    if (!href) return;
-
-    // Only track clicks when cookie consent has been accepted
-    if (consentAccepted) {
-      fireTrackingBeacon(product.slug, sourceType);
-    }
-
-    window.open(href, "_blank", "noopener,noreferrer");
+  function Name() {
+    if (!searchQuery) return product.name;
+    return highlightText(product.name, searchQuery);
   }
 
   if (variant === "compact") {
     return (
       <div className="relative flex gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
-        {showDeal && (
-          <div className="absolute -top-2 start-3 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
-            {product.deal_text}
-            {dealTimeLeft && <span className="ms-1 text-red-100">· {dealTimeLeft}</span>}
-          </div>
+        {product.deal_text && (
+          <ProductCardDealBadge
+            dealText={product.deal_text}
+            dealExpiresAt={product.deal_expires_at}
+          />
         )}
         {product.image_url && (
           <div className="shrink-0 overflow-hidden rounded-md">
-            {imgError ? (
-              <div className="flex size-20 items-center justify-center bg-gray-100 text-gray-400">
-                <svg
-                  className="size-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z"
-                  />
-                </svg>
-              </div>
-            ) : (
-              <Image
-                src={product.image_url}
-                alt={product.image_alt || product.name}
-                width={80}
-                height={80}
-                sizes="80px"
-                placeholder="blur"
-                blurDataURL={shimmerPlaceholder(80, 80)}
-                className="size-20 object-contain"
-                priority={priority}
-                loading={priority ? "eager" : "lazy"}
-                onError={() => setImgError(true)}
-              />
-            )}
+            <ProductCardImage
+              src={product.image_url}
+              alt={product.image_alt || product.name}
+              width={80}
+              height={80}
+              sizes="80px"
+              className="size-20 object-contain"
+              priority={priority}
+              loading={priority ? "eager" : "lazy"}
+              fallbackClassName="flex size-20 items-center justify-center bg-gray-100 text-gray-400"
+            />
           </div>
         )}
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold leading-tight">
-            {searchQuery ? highlightText(product.name, searchQuery) : product.name}
+            <Name />
           </h3>
           {product.merchant && <p className="text-xs text-gray-500">{product.merchant}</p>}
           <div className="mt-1 flex items-center gap-2">
@@ -153,18 +76,15 @@ export function ProductCard({
               <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
             )}
           </div>
-          {product.affiliate_url && (
-            <a
+          {hasUsableAffiliateUrl(product.affiliate_url) && (
+            <ProductCardCta
               href={product.affiliate_url}
-              data-href={product.affiliate_url}
-              onClick={handleCtaClick}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
+              slug={product.slug}
+              sourceType={sourceType}
+              label={buttonLabel}
               className="mt-2 inline-block rounded px-3 py-1 text-xs font-medium text-white transition-colors hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #10B981)" }}
-            >
-              {buttonLabel}
-            </a>
+            />
           )}
         </div>
       </div>
@@ -187,50 +107,30 @@ export function ProductCard({
 
     return (
       <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-        {showDeal && (
-          <div className="absolute -top-2 start-3 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
-            {product.deal_text}
-            {dealTimeLeft && <span className="ms-1 text-red-100">· {dealTimeLeft}</span>}
-          </div>
+        {product.deal_text && (
+          <ProductCardDealBadge
+            dealText={product.deal_text}
+            dealExpiresAt={product.deal_expires_at}
+          />
         )}
         {product.image_url && (
           <div className="overflow-hidden">
-            {imgError ? (
-              <div className="flex h-48 w-full items-center justify-center bg-gray-100 text-gray-400">
-                <svg
-                  className="size-10"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z"
-                  />
-                </svg>
-              </div>
-            ) : (
-              <Image
-                src={product.image_url}
-                alt={product.image_alt || product.name}
-                width={400}
-                height={200}
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                placeholder="blur"
-                blurDataURL={shimmerPlaceholder(400, 200)}
-                className="h-48 w-full object-contain"
-                priority={priority}
-                loading={priority ? "eager" : "lazy"}
-                onError={() => setImgError(true)}
-              />
-            )}
+            <ProductCardImage
+              src={product.image_url}
+              alt={product.image_alt || product.name}
+              width={400}
+              height={200}
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="h-48 w-full object-contain"
+              priority={priority}
+              loading={priority ? "eager" : "lazy"}
+              fallbackClassName="flex h-48 w-full items-center justify-center bg-gray-100 text-gray-400"
+            />
           </div>
         )}
         <div className="p-4">
           <h3 className="mb-1 text-lg font-semibold leading-tight">
-            {searchQuery ? highlightText(product.name, searchQuery) : product.name}
+            <Name />
           </h3>
           {product.merchant && <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>}
           {product.description && (
@@ -253,7 +153,11 @@ export function ProductCard({
               {prosArr.length > 0 && (
                 <ul className="space-y-0.5">
                   {prosArr.slice(0, 3).map((pro) => (
-                    <li key={pro} className="flex items-start gap-1 text-green-700">
+                    <li
+                      key={pro}
+                      className="flex items-start gap-1"
+                      style={{ color: "var(--color-accent-text, #059669)" }}
+                    >
                       <svg
                         className="mt-0.5 size-3 shrink-0"
                         fill="currentColor"
@@ -293,18 +197,15 @@ export function ProductCard({
             </div>
           )}
 
-          {product.affiliate_url && (
-            <a
+          {hasUsableAffiliateUrl(product.affiliate_url) && (
+            <ProductCardCta
               href={product.affiliate_url}
-              data-href={product.affiliate_url}
-              onClick={handleCtaClick}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
+              slug={product.slug}
+              sourceType={sourceType}
+              label={buttonLabel}
               className="block w-full rounded-md px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #10B981)" }}
-            >
-              {buttonLabel}
-            </a>
+            />
           )}
           {relatedContentHref && (
             <a
@@ -322,51 +223,31 @@ export function ProductCard({
 
   // Standard variant (default)
   return (
-    <div className="relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="relative rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       {/* Deal badge */}
-      {showDeal && (
-        <div className="absolute -top-2 start-3 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
-          {product.deal_text}
-          {dealTimeLeft && <span className="ms-1 text-red-100">· {dealTimeLeft}</span>}
-        </div>
+      {product.deal_text && (
+        <ProductCardDealBadge
+          dealText={product.deal_text}
+          dealExpiresAt={product.deal_expires_at}
+        />
       )}
       {product.image_url && (
-        <div className="mb-3 overflow-hidden rounded-md">
-          {imgError ? (
-            <div className="flex h-40 w-full items-center justify-center bg-gray-100 text-gray-400">
-              <svg
-                className="h-10 w-10"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z"
-                />
-              </svg>
-            </div>
-          ) : (
-            <Image
-              src={product.image_url}
-              alt={product.image_alt || product.name}
-              width={320}
-              height={160}
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              placeholder="blur"
-              blurDataURL={shimmerPlaceholder(320, 160)}
-              className="h-40 w-full object-contain"
-              priority={priority}
-              loading={priority ? "eager" : "lazy"}
-              onError={() => setImgError(true)}
-            />
-          )}
+        <div className="mb-4 flex h-40 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-white p-4">
+          <ProductCardImage
+            src={product.image_url}
+            alt={product.image_alt || product.name}
+            width={200}
+            height={100}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="max-h-full max-w-full object-contain"
+            priority={priority}
+            loading={priority ? "eager" : "lazy"}
+            fallbackClassName="flex h-full w-full items-center justify-center bg-gray-100 text-gray-400"
+          />
         </div>
       )}
-      <h3 className="mb-1 text-lg font-semibold leading-tight">
-        {searchQuery ? highlightText(product.name, searchQuery) : product.name}
+      <h3 className="mb-1 text-lg font-bold leading-tight tracking-tight">
+        <Name />
       </h3>
       {product.merchant && <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>}
       <div className="mb-3 flex items-center gap-3">
@@ -379,18 +260,15 @@ export function ProductCard({
           <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
         )}
       </div>
-      {product.affiliate_url && (
-        <a
+      {hasUsableAffiliateUrl(product.affiliate_url) && (
+        <ProductCardCta
           href={product.affiliate_url}
-          data-href={product.affiliate_url}
-          onClick={handleCtaClick}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-          className="block w-full rounded-md px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: "var(--color-accent, #10B981)" }}
-        >
-          {buttonLabel}
-        </a>
+          slug={product.slug}
+          sourceType={sourceType}
+          label={buttonLabel}
+          className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
+          style={{ backgroundColor: "var(--color-accent, #16A34A)" }}
+        />
       )}
       {relatedContentHref && (
         <a

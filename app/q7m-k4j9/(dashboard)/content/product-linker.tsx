@@ -62,24 +62,26 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-gray-900">Linked Products</h3>
+    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+        Linked Products
+      </h3>
 
       {links.length === 0 ? (
-        <p className="mb-3 text-sm text-gray-500">No products linked yet.</p>
+        <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">No products linked yet.</p>
       ) : (
         <div className="mb-3 space-y-2">
           {links.map((link, idx) => (
             <div
               key={link.product_id}
-              className="flex items-center gap-2 rounded border border-gray-100 bg-gray-50 p-2"
+              className="flex items-center gap-2 rounded border border-gray-100 bg-gray-50 dark:bg-gray-800/50 p-2"
             >
               <div className="flex flex-col gap-0.5">
                 <button
                   type="button"
                   onClick={() => moveUp(idx)}
                   disabled={idx === 0}
-                  className="text-xs text-gray-500 hover:text-gray-600 disabled:opacity-30"
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-600 disabled:opacity-30"
                   aria-label={`Move ${getProductName(link.product_id)} up`}
                 >
                   ▲
@@ -88,21 +90,21 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                   type="button"
                   onClick={() => moveDown(idx)}
                   disabled={idx === links.length - 1}
-                  className="text-xs text-gray-500 hover:text-gray-600 disabled:opacity-30"
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-600 disabled:opacity-30"
                   aria-label={`Move ${getProductName(link.product_id)} down`}
                 >
                   ▼
                 </button>
               </div>
 
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                 {getProductName(link.product_id)}
               </span>
 
               <select
                 value={link.role}
                 onChange={(e) => updateLink(link.product_id, "role", e.target.value)}
-                className="rounded border border-gray-200 px-2 py-1 text-xs"
+                className="rounded border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -131,13 +133,13 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search ${availableProducts.length} products…`}
-            className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           <div className="flex items-center gap-2">
             <select
               ref={selectRef}
               defaultValue=""
-              className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="flex-1 rounded border border-gray-300 dark:border-gray-700 px-2 py-1.5 text-sm"
             >
               <option value="" disabled>
                 {filteredProducts.length === 0
@@ -160,7 +162,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                   setSearch("");
                 }
               }}
-              className="rounded bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
+              className="rounded bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-300"
             >
               Add
             </button>

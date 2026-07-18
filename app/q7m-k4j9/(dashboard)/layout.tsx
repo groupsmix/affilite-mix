@@ -9,6 +9,16 @@ import { TokenRefresh } from "@/app/q7m-k4j9/(dashboard)/components/token-refres
 import { StepUpDialog } from "@/lib/step-up-client";
 import { Toaster } from "sonner";
 
+// The authenticated admin dashboard renders per-user, per-tenant data that must
+// always reflect the live database. Without this, admin pages can be served
+// from the persisted Full Route Cache (which survives deploys on the Cloudflare
+// OpenNext incremental cache), so pages that were rendered empty before a data
+// fix — or before their tenant client was bound — keep showing stale empty
+// tables (e.g. Users "No admin users yet", Categories "No categories yet")
+// even though the underlying data and APIs are correct. Forcing dynamic
+// rendering opts the whole admin subtree out of that cache.
+export const dynamic = "force-dynamic";
+
 interface ResolvedActiveSite {
   slug: string | null;
   name: string | null;
@@ -55,7 +65,12 @@ async function resolveActiveSite(): Promise<ResolvedActiveSite> {
     };
   }
 
-  const dbSite = await getSiteRowBySlug(slug);
+  // getSiteRowBySlug throws on DB errors (anything but PGRST116). A transient
+  // DB failure here would crash the entire admin shell (layout renders above
+  // every dashboard route, so no inner error boundary can catch it). Degrade
+  // to the neutral fallback branding below instead — same resilience pattern
+  // as the dashboard cards (NicheHealthPanel / RevenuePerSiteCard).
+  const dbSite = await getSiteRowBySlug(slug).catch(() => null);
   if (dbSite) {
     const theme = dbSite.theme as Record<string, string> | null;
     return {

@@ -9,7 +9,7 @@ import { getProductById } from "./products";
 // data layer, rather than leaking it into route handlers. Cross-tenant access
 // is enforced explicitly by the site_id predicates below and by
 // productBelongsToSite(), not by RLS.
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 /** Default client for all price_alerts access: privileged (RLS is service_role-only). */
 const priceAlertClient: DalClientGetter = getPrivilegedSupabaseClient;
@@ -113,6 +113,42 @@ export async function findTriggeredAlerts(
 
   if (error) throw error;
   return assertRows<PriceAlertRow>(data);
+}
+
+/** Find active alerts for a bounded set of priced products */
+export async function findTriggeredAlertsForProducts(
+  products: {
+    site_id: string;
+    product_id: string;
+    current_price: number;
+  }[],
+  getClient: DalClientGetter = priceAlertClient,
+): Promise<PriceAlertRow[]> {
+  if (products.length === 0) return [];
+
+  const sb = await getClient();
+  const siteIds = Array.from(new Set(products.map((product) => product.site_id))).sort();
+  const productIds = Array.from(new Set(products.map((product) => product.product_id))).sort();
+  const prices = new Map(
+    products.map((product) => [
+      `${product.site_id}\u0000${product.product_id}`,
+      product.current_price,
+    ]),
+  );
+
+  const { data, error } = await sb
+    .from(TABLE)
+    .select(ALL_COLUMNS)
+    .in("site_id", siteIds)
+    .in("product_id", productIds)
+    .eq("is_active", true);
+
+  if (error) throw error;
+
+  return assertRows<PriceAlertRow>(data).filter((alert) => {
+    const currentPrice = prices.get(`${alert.site_id}\u0000${alert.product_id}`);
+    return currentPrice !== undefined && alert.target_price >= currentPrice;
+  });
 }
 
 /** Mark an alert as triggered */

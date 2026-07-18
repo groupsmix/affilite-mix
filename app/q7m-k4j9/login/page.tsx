@@ -49,6 +49,20 @@ export default function AdminLoginPage() {
   // attaches __reactFiber$ to DOM nodes).
   useEffect(() => {
     document.body.setAttribute("data-e2e-hydrated", "1");
+
+    // A2: explain a binding/network-triggered logout instead of showing a
+    // bare login form. token-refresh.tsx appends ?reason=network_change when
+    // a mid-session refresh is rejected (commonly a mobile/CGNAT IP change).
+    try {
+      const reason = new URLSearchParams(window.location.search).get("reason");
+      if (reason === "network_change") {
+        setWarning(
+          "Your session ended after a network change (for example switching Wi-Fi or mobile networks). Please sign in again.",
+        );
+      }
+    } catch {
+      // URLSearchParams unavailable — nothing to surface.
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -146,7 +160,7 @@ export default function AdminLoginPage() {
               {(process.env.NEXT_PUBLIC_APP_ENV_NAME ||
                 (process.env.NODE_ENV !== "production" ? "DEV" : "")) && (
                 <span
-                  className="ml-2 inline-block rounded bg-amber-500/20 px-2 py-0.5 align-middle text-xs font-semibold uppercase tracking-wider text-amber-700"
+                  className="ml-2 inline-block rounded bg-amber-500/20 px-2 py-0.5 align-middle text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300"
                   data-testid="admin-login-env-badge"
                 >
                   {process.env.NEXT_PUBLIC_APP_ENV_NAME ?? "DEV"}
@@ -169,8 +183,13 @@ export default function AdminLoginPage() {
         >
           <CardContent className="space-y-4">
             {error && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
-                <AlertDescription className="text-red-600">{error}</AlertDescription>
+              <Alert
+                variant="destructive"
+                className="bg-red-50 dark:bg-red-900/20 border-red-200 text-red-600 dark:text-red-400"
+              >
+                <AlertDescription className="text-red-600 dark:text-red-400">
+                  {error}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -429,8 +448,13 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
           >
             <CardContent className="space-y-4">
               {resetError && (
-                <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
-                  <AlertDescription className="text-red-600">{resetError}</AlertDescription>
+                <Alert
+                  variant="destructive"
+                  className="bg-red-50 dark:bg-red-900/20 border-red-200 text-red-600 dark:text-red-400"
+                >
+                  <AlertDescription className="text-red-600 dark:text-red-400">
+                    {resetError}
+                  </AlertDescription>
                 </Alert>
               )}
 

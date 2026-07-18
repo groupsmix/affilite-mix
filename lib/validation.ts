@@ -139,17 +139,22 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  * JPY/KRW/CLP/ISK are zero-decimal and always round to integer. */
 // ── Enum type guards ─────────────────────────────────────
 
-type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
+type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand" | "style";
 const TAXONOMY_TYPES: ReadonlySet<string> = new Set([
   "general",
   "budget",
   "occasion",
   "recipient",
   "brand",
+  "style",
 ]);
 
 function isTaxonomyType(v: unknown): v is TaxonomyType {
   return isString(v) && TAXONOMY_TYPES.has(v);
+}
+
+function isUuidArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((item) => isUuid(item));
 }
 
 type ProductStatus = "draft" | "active" | "archived";
@@ -233,7 +238,7 @@ export function validateCreateCategory(
 
   if (body.taxonomy_type !== undefined && !isTaxonomyType(body.taxonomy_type)) {
     errors.taxonomy_type =
-      "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
+      "taxonomy_type must be one of: general, budget, occasion, recipient, brand, style";
   }
 
   if (
@@ -288,7 +293,7 @@ export function validateUpdateCategory(
 
   if (body.taxonomy_type !== undefined && !isTaxonomyType(body.taxonomy_type)) {
     errors.taxonomy_type =
-      "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
+      "taxonomy_type must be one of: general, budget, occasion, recipient, brand, style";
   }
 
   if (
@@ -326,6 +331,7 @@ export interface CreateProductInput {
   featured: boolean;
   status: ProductStatus;
   category_id: string | null;
+  category_ids: string[];
   cta_text: string;
   deal_text: string;
   deal_expires_at: string | null;
@@ -407,6 +413,13 @@ export function validateCreateProduct(
   if (body.category_id !== undefined && body.category_id !== null && !isUuid(body.category_id)) {
     errors.category_id = "category_id must be a valid UUID or null";
   }
+  if (
+    body.category_ids !== undefined &&
+    body.category_ids !== null &&
+    !isUuidArray(body.category_ids)
+  ) {
+    errors.category_ids = "category_ids must be an array of valid UUIDs";
+  }
   // V-04: Validate price_currency as ISO 4217 (3 uppercase letters)
   if (
     body.price_currency !== undefined &&
@@ -449,6 +462,7 @@ export function validateCreateProduct(
       featured: isBoolean(body.featured) ? body.featured : false,
       status: isProductStatus(body.status) ? body.status : "active",
       category_id: isUuid(body.category_id) ? body.category_id : null,
+      category_ids: isUuidArray(body.category_ids) ? body.category_ids : [],
       cta_text: isString(body.cta_text) ? body.cta_text : "",
       deal_text: isString(body.deal_text) ? body.deal_text : "",
       deal_expires_at: isString(body.deal_expires_at) ? body.deal_expires_at : null,
@@ -476,6 +490,7 @@ export interface UpdateProductInput {
   featured?: boolean;
   status?: ProductStatus;
   category_id?: string | null;
+  category_ids?: string[];
   cta_text?: string;
   deal_text?: string;
   deal_expires_at?: string | null;
@@ -566,6 +581,13 @@ export function validateUpdateProduct(
   if (body.category_id !== undefined && body.category_id !== null && !isUuid(body.category_id)) {
     errors.category_id = "category_id must be a valid UUID or null";
   }
+  if (
+    body.category_ids !== undefined &&
+    body.category_ids !== null &&
+    !isUuidArray(body.category_ids)
+  ) {
+    errors.category_ids = "category_ids must be an array of valid UUIDs";
+  }
   // A29-001: Validate price_amount as decimal string in updates too
   if (body.price_amount !== undefined && body.price_amount !== null) {
     const parsedAmount = parseDecimalMoney(body.price_amount);
@@ -628,6 +650,9 @@ export function validateUpdateProduct(
   if (isProductStatus(body.status)) data.status = body.status;
   if (body.category_id !== undefined) {
     data.category_id = isUuid(body.category_id) ? body.category_id : null;
+  }
+  if (body.category_ids !== undefined) {
+    data.category_ids = isUuidArray(body.category_ids) ? body.category_ids : [];
   }
   if (isString(body.cta_text)) data.cta_text = body.cta_text;
   if (isString(body.deal_text)) data.deal_text = body.deal_text;
@@ -696,6 +721,7 @@ export function validateCreateContent(
 
   if (
     body.meta_description !== undefined &&
+    body.meta_description !== null &&
     body.meta_description !== "" &&
     (!isString(body.meta_description) || body.meta_description.length > 5000)
   ) {
@@ -797,6 +823,7 @@ export function validateUpdateContent(
   }
   if (
     body.meta_description !== undefined &&
+    body.meta_description !== null &&
     body.meta_description !== "" &&
     (!isString(body.meta_description) || body.meta_description.length > 5000)
   ) {

@@ -18,10 +18,11 @@ All current endpoints at `/api/*` are the implied **v1** contract. We will
 NOT retroactively add `/api/v1/` prefixes to existing routes — that would be
 a breaking change itself. Instead:
 
-1. Document the current request/response schemas as the v1 contract in
-   `docs/api-contracts/` (one YAML/JSON schema per endpoint family).
+1. Preserve the current request/response schemas as the implicit v1 contract
+   in the route metadata and generated OpenAPI document.
 2. Add an `API-Version` response header to all API routes (`1` by default).
-3. The Custom Worker must pin `API-Version: 1` in requests.
+3. Internal consumers may send `Accept-Version: 1` as a compatibility
+   assertion, but request headers do not select a different contract.
 
 ### New Endpoints: Explicit Versioning
 
@@ -32,9 +33,12 @@ New endpoint families introduced after this ADR must use URL-path versioning:
 /api/v2/q7m-k4j9/content     ← new content CRUD schema
 ```
 
+Version identifiers are numeric major versions (`1`, `2`, …), never dates.
+Date-based values are reserved for deprecation and sunset timestamps.
+
 ### Deprecation Policy
 
-1. A deprecated endpoint gets a `Deprecation` response header with a sunset
+1. A deprecated endpoint gets a `Deprecation` response header and a `Sunset`
    date (RFC 8594).
 2. Minimum 90-day deprecation window before removal.
 3. Sentry alert when deprecated endpoints receive > 0 requests/day.
@@ -64,6 +68,12 @@ New endpoint families introduced after this ADR must use URL-path versioning:
 
 ## Implementation
 
-1. Add `API-Version: 1` header in middleware for all `/api/*` responses.
-2. Document existing endpoint contracts.
-3. New endpoints use `/api/v2/` prefix when introducing breaking changes.
+1. `next.config.ts` applies `API-Version: 1` to all `/api/*` responses,
+   including routes excluded from middleware.
+2. The middleware finalizer applies the same header to every matched API
+   response, including short-circuit errors.
+3. `lib/api-route-metadata.ts` is the route registry. Representative
+   machine-readable schemas live in `lib/api-contract-schema.ts`.
+4. `npm run generate:openapi` generates `openapi.yaml` from that metadata and
+   schema model.
+5. New endpoints use `/api/v2/` prefixes when introducing breaking changes.

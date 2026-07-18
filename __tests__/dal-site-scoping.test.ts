@@ -107,6 +107,17 @@ vi.mock("@/lib/supabase-server", () => ({
   },
 }));
 
+// A4: service-role modules (e.g. price-alerts) resolve through the privileged
+// client, which bypasses RLS — so scoping MUST be enforced at the app layer.
+// Mock its module so those queries are recorded and covered here too.
+vi.mock("@/lib/server-only/service-role", () => ({
+  getPrivilegedSupabaseClient: () => {
+    const { client, recorder } = createSupabaseRecorder();
+    sharedState.current = recorder;
+    return client;
+  },
+}));
+
 // Stubs for things DAL functions don't need during site-scoping checks.
 vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
@@ -449,6 +460,47 @@ describe("lib/dal/pages — site-scoped read queries", () => {
   it("getPageBySlug", async () => {
     const mod = await import("@/lib/dal/pages");
     await mod.getPageBySlug(TEST_SITE_ID, "about");
+    expectScopedBySiteId(lastRecorder());
+  });
+});
+
+// ── Price-alerts DAL (A4) ────────────────────────────────────────
+// price-alerts runs on the privileged (service-role) client, which bypasses
+// RLS. These queries are the app's only tenant isolation, so each read/write
+// must carry site_id. Covers the gap the deep audit (A4) flagged.
+describe("lib/dal/price-alerts — service-role queries are site-scoped", () => {
+  it("createPriceAlert insert payload includes site_id", async () => {
+    const mod = await import("@/lib/dal/price-alerts");
+    await mod.createPriceAlert({
+      product_id: OTHER_ID,
+      site_id: TEST_SITE_ID,
+      email: "a@b.co",
+      target_price: 10,
+    });
+    expectInsertContainsSiteId(lastRecorder());
+  });
+
+  it("findTriggeredAlerts", async () => {
+    const mod = await import("@/lib/dal/price-alerts");
+    await mod.findTriggeredAlerts(TEST_SITE_ID, OTHER_ID, 10);
+    expectScopedBySiteId(lastRecorder());
+  });
+
+  it("markAlertTriggered", async () => {
+    const mod = await import("@/lib/dal/price-alerts");
+    await mod.markAlertTriggered(TEST_SITE_ID, OTHER_ID);
+    expectScopedBySiteId(lastRecorder());
+  });
+
+  it("deactivatePriceAlertScoped", async () => {
+    const mod = await import("@/lib/dal/price-alerts");
+    await mod.deactivatePriceAlertScoped(OTHER_ID, TEST_SITE_ID);
+    expectScopedBySiteId(lastRecorder());
+  });
+
+  it("getPriceAlert scopes by site_id when a siteId is supplied", async () => {
+    const mod = await import("@/lib/dal/price-alerts");
+    await mod.getPriceAlert(OTHER_ID, "a@b.co", TEST_SITE_ID);
     expectScopedBySiteId(lastRecorder());
   });
 });

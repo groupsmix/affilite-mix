@@ -59,16 +59,11 @@ export default async function AdsPage() {
     const cpmOverrideRaw = (p.config as Record<string, unknown> | null)?.est_cpm;
     const cpmIsOverride = typeof cpmOverrideRaw === "number" && Number.isFinite(cpmOverrideRaw);
     return {
-      id: p.id,
-      name: p.name,
-      placement_type: p.placement_type,
-      provider: p.provider,
-      is_active: p.is_active,
+      ...p,
       impressions_30d: impressions,
       est_revenue_30d: revenue,
       cpm,
       cpm_is_override: cpmIsOverride,
-      created_at: p.created_at,
     };
   });
 

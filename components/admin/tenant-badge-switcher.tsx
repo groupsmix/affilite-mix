@@ -14,6 +14,31 @@ interface SiteInfo {
   domain: string;
 }
 
+/** Runtime type guard for SiteInfo */
+function isSiteInfo(val: unknown): val is SiteInfo {
+  return (
+    typeof val === "object" &&
+    val !== null &&
+    typeof (val as Record<string, unknown>).id === "string" &&
+    typeof (val as Record<string, unknown>).name === "string" &&
+    typeof (val as Record<string, unknown>).domain === "string"
+  );
+}
+
+/** Runtime type guard for the sites list response */
+function isSitesResponse(val: unknown): val is { sites: SiteInfo[] } {
+  if (typeof val !== "object" || val === null) return false;
+  const sites = (val as Record<string, unknown>).sites;
+  return Array.isArray(sites) && sites.every(isSiteInfo);
+}
+
+/** Runtime type guard for the active site response */
+function isActiveSiteResponse(val: unknown): val is { activeSiteId: string | null } {
+  if (typeof val !== "object" || val === null) return false;
+  const id = (val as Record<string, unknown>).activeSiteId;
+  return id === null || typeof id === "string";
+}
+
 interface TenantBadgeSwitcherProps {
   /** Site name resolved on the server (from the active-site cookie). */
   initialSiteName: string | null;
@@ -35,6 +60,7 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   // Lazy-load the sites list + active-site id the first time the popover opens.
   useEffect(() => {
@@ -47,16 +73,11 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
           fetch("/api/admin/sites/active"),
         ]);
         if (cancelled) return;
-        if (sitesRes.ok) {
-          const data = (await sitesRes.json()) as { sites: SiteInfo[] };
-          setSites(data.sites);
-        } else {
-          setLoadError("Failed to load sites");
-        }
-        if (activeRes.ok) {
-          const active = (await activeRes.json()) as { activeSiteId: string | null };
-          setActiveSiteId(active.activeSiteId);
-        }
+        const sitesData = await sitesRes.json();
+        if (isSitesResponse(sitesData)) setSites(sitesData.sites);
+        else setLoadError("Invalid site list response");
+        const activeData = await activeRes.json();
+        if (isActiveSiteResponse(activeData)) setActiveSiteId(activeData.activeSiteId);
       } catch {
         // fail-open: site list fetch failure shows error badge to admin
         if (!cancelled) setLoadError("Failed to load sites");
@@ -78,8 +99,11 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
       });
       if (res.ok) {
         setActiveSiteId(siteId);
+        setSwitchError(null);
         setOpen(false);
         router.refresh();
+      } else {
+        setSwitchError("Failed to switch site. Please try again.");
       }
     } finally {
       setSwitching(false);
@@ -123,6 +147,11 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
         <div className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Switch site
         </div>
+        {switchError && (
+          <div role="alert" className="px-3 py-2 text-sm text-destructive">
+            {switchError}
+          </div>
+        )}
         <div className="max-h-80 overflow-y-auto">
           {sites === null && !loadError && (
             <div className="space-y-2 p-3">

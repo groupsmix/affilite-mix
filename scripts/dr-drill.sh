@@ -75,19 +75,18 @@ verify_schema() {
     fi
   done
 
-  # RLS enforcement — only meaningful on the live public schema; dr_test is a
-  # throwaway restore target and RLS policies are not included in plain dumps.
-  if [ "$SCHEMA" = "public" ]; then
-    local RLS_TABLES=(sites content products affiliate_clicks)
-    for table in "${RLS_TABLES[@]}"; do
-      if psql "$DB_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE schemaname='$SCHEMA' AND tablename='$table'" 2>/dev/null | grep -q "t"; then
-        echo "    ✓ RLS on $table"
-      else
-        echo "    ✗ RLS NOT on $table"
-        FAILED=$((FAILED + 1))
-      fi
-    done
-  fi
+  # RLS enforcement — meaningful on the live public schema and on the restored
+  # scratch schema. A successful restore must carry RLS policies so tenants
+  # remain isolated after recovery.
+  local RLS_TABLES=(sites content products affiliate_clicks)
+  for table in "${RLS_TABLES[@]}"; do
+    if psql "$DB_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE schemaname='$SCHEMA' AND tablename='$table'" 2>/dev/null | grep -q "t"; then
+      echo "    ✓ RLS on $table"
+    else
+      echo "    ✗ RLS NOT on $table"
+      FAILED=$((FAILED + 1))
+    fi
+  done
 
   # Migration parity
   local DISK_COUNT
@@ -106,16 +105,18 @@ restore() {
   backup
 
   echo "==> Restore drill: creating scratch schema dr_test..."
-  psql "$DB_URL" -c "DROP SCHEMA IF EXISTS dr_test CASCADE; CREATE SCHEMA dr_test;" 2>/dev/null || true
+  psql "$DB_URL" -c "DROP SCHEMA IF EXISTS dr_test CASCADE; CREATE SCHEMA dr_test;"
 
   echo "==> Restoring backup into dr_test schema..."
   # T4-#8: plain pg_dump sets `SET search_path = public, pg_catalog;` before all
   # DDL and uses unqualified names thereafter. Rename that to dr_test so every
   # restored object lands in dr_test, not in the live public schema. This makes
   # the restore a genuine exercise of the recovery path without touching live data.
+  # Fail fast: abort the restore on any SQL error instead of silently producing
+  # a partial restore.
   gunzip -c "$DUMP_FILE" \
     | sed 's/SET search_path = public/SET search_path = dr_test/g' \
-    | psql "$DB_URL" --single-transaction -v ON_ERROR_STOP=0 >/dev/null 2>&1 || true
+    | psql "$DB_URL" --single-transaction -v ON_ERROR_STOP=1
 
   # Verify the restore ACTUALLY populated dr_test. A count of 0 means the
   # restore path is broken — fail loudly rather than silently always-passing.
@@ -133,6 +134,17 @@ restore() {
 
   echo "==> Verifying restored schema (dr_test)..."
   verify_schema "dr_test"
+
+  # DR_KEEP_SCHEMA=1 leaves the restored dr_test schema in place so an external
+  # caller (the backup-restore-drill workflow) can run additional validation
+  # against the RESTORED data rather than the live public schema. The caller is
+  # then responsible for dropping dr_test.
+  if [ "${DR_KEEP_SCHEMA:-}" = "1" ]; then
+    echo "==> DR_KEEP_SCHEMA=1 — leaving dr_test in place for external validation."
+    echo "==> DR drill restore verified. Cleaning up dump file..."
+    rm -f "$DUMP_FILE"
+    return 0
+  fi
 
   echo "==> Cleaning up test schema..."
   psql "$DB_URL" -c "DROP SCHEMA IF EXISTS dr_test CASCADE;" 2>/dev/null || true

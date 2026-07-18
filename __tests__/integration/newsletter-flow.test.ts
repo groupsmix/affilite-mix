@@ -12,14 +12,18 @@
  * the double opt-in flow end-to-end.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { shouldRunSupabaseIntegration } from "./helpers/should-run";
 
 describe.skipIf(!shouldRunSupabaseIntegration)("Newsletter Flow Integration", () => {
-  const sb = getPrivilegedSupabaseClient();
+  let sb!: ReturnType<typeof getPrivilegedSupabaseClient>;
   let testSiteId: string;
   let testEmail: string;
+
+  beforeAll(() => {
+    sb = getPrivilegedSupabaseClient();
+  });
 
   beforeEach(async () => {
     // Create a test site

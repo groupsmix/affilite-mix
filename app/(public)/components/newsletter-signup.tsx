@@ -120,7 +120,11 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
               tabIndex={-1}
             />
           </div>
+          <label htmlFor="newsletter-email" className="sr-only">
+            {isAr ? "بريدك الإلكتروني" : "Email address"}
+          </label>
           <input
+            id="newsletter-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}

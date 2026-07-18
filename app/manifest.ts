@@ -1,19 +1,21 @@
 import type { MetadataRoute } from "next";
 import { getCurrentSite } from "@/lib/site-context";
-import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
+import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { isStaticConfigSite } from "@/lib/site-config-authority";
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const site = await getCurrentSite();
 
-  // Read per-site theme color from DB, falling back to config
+  // Database-managed tenants read branding from their row. Static tenants use
+  // config/sites exclusively.
   let themeColor = site.theme.accentColor;
   let siteName = site.name;
   let siteDescription = site.brand.description;
 
-  if (!shouldSkipDbCall()) {
+  if (!shouldSkipDbCall() && !isStaticConfigSite(site)) {
     try {
-      const dbSite = await resolveDbSiteBySlug(site.id);
+      const dbSite = await getSiteRowByDomain(site.domain);
       if (dbSite) {
         const t = dbSite.theme as Record<string, string> | null;
         if (t?.accent_color) themeColor = t.accent_color;

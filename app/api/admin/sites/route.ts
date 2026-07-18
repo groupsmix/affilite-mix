@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession, assertRole } from "@/lib/admin-guard";
-import { allSites } from "@/config/sites";
-import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
+import { getSiteById, toSiteRow } from "@/config/sites";
+import {
+  listSites,
+  createSite,
+  updateSite,
+  deleteSite,
+  getSiteRowById,
+  upsertConfigSite,
+} from "@/lib/dal/sites";
 import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
+import { buildAdminSiteRegistry, isStaticConfigSiteSlug } from "@/lib/site-config-authority";
+import type { SiteRow } from "@/types/database";
 
 /** GET /api/admin/sites — list all available sites (super_admin: all, admin: membership-filtered) */
 export async function GET() {
@@ -32,74 +41,19 @@ export async function GET() {
       allowedSiteIds = new Set(memberships.map((m) => m.site_id));
     }
 
-    // Try DB first — returns full SiteRow data with all fields
-    let dbSites: {
-      id: string;
-      slug: string;
-      name: string;
-      domain: string;
-      language: string;
-      direction: string;
-      is_active: boolean;
-      monetization_type: string;
-      est_revenue_per_click: number;
-      theme: Record<string, unknown>;
-      features: Record<string, boolean>;
-      meta_title: string | null;
-      meta_description: string | null;
-      source: "database";
-      db_id: string;
-      created_at: string;
-    }[] = [];
+    let dbSites: SiteRow[] = [];
     try {
-      // Pass privileged client — listSites uses getTenantClient() by default
-      // which mints HS256 JWTs that fail with asymmetric Supabase JWT keys.
-      const rows = await listSites(() => getPrivilegedSupabaseClient("admin-sites-list"));
-      dbSites = rows.map((r) => ({
-        id: r.slug,
-        slug: r.slug,
-        name: r.name,
-        domain: r.domain,
-        language: r.language,
-        direction: r.direction,
-        is_active: r.is_active,
-        monetization_type: r.monetization_type,
-        est_revenue_per_click: r.est_revenue_per_click,
-        theme: r.theme,
-        features: r.features,
-        meta_title: r.meta_title,
-        meta_description: r.meta_description,
-        source: "database" as const,
-        created_at: r.created_at,
-        db_id: r.id,
-      }));
+      dbSites = await listSites(() => getPrivilegedSupabaseClient("admin-sites-list"));
     } catch {
       // fail-open: best-effort [criticality:non-critical]
       // DB might not be reachable; fall back to config-only
     }
 
-    // Config fallback for sites not in DB
-    const configSites = allSites.map((s) => ({
-      id: s.id,
-      slug: s.id,
-      name: s.name,
-      domain: s.domain,
-      language: s.language,
-      direction: s.direction,
-      monetization_type: s.monetizationType,
-      theme: {
-        primaryColor: s.theme.primaryColor,
-        accentColor: s.theme.accentColor,
-      } as Record<string, unknown>,
-      source: "config" as const,
-    }));
-
-    const dbSlugs = new Set(dbSites.map((s) => s.id));
-    let mergedSites = [...dbSites, ...configSites.filter((s) => !dbSlugs.has(s.id))];
+    let mergedSites = buildAdminSiteRegistry(dbSites);
 
     // Filter to membership-allowed sites for non-super_admin users
     if (allowedSiteIds) {
-      mergedSites = mergedSites.filter((s) => allowedSiteIds.has("db_id" in s ? s.db_id : s.id));
+      mergedSites = mergedSites.filter((s) => allowedSiteIds.has(s.db_id ?? s.id));
     }
 
     return NextResponse.json({ sites: mergedSites });
@@ -166,47 +120,58 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // FIX: pass privileged client so the INSERT bypasses RLS on the `sites`
-    // table. The default getTenantClient() has no INSERT/UPDATE/DELETE policy
-    // for authenticated users — only service_role may write to `sites`.
     const createPrivileged = () => getPrivilegedSupabaseClient("admin-sites-create");
-    const site = await createSite(
-      {
-        slug,
-        name,
-        domain,
-        language: body.language as string | undefined,
-        direction: body.direction as "ltr" | "rtl" | undefined,
-        is_active: body.is_active as boolean | undefined,
-        monetization_type: body.monetization_type as "affiliate" | "ads" | "both" | undefined,
-        est_revenue_per_click: body.est_revenue_per_click as number | undefined,
-        ad_config: body.ad_config as Record<string, unknown> | undefined,
-        theme: body.theme as Record<string, unknown> | undefined,
-        logo_url: body.logo_url as string | null | undefined,
-        favicon_url: body.favicon_url as string | null | undefined,
-        nav_items: body.nav_items as { label: string; href: string; icon?: string }[] | undefined,
-        footer_nav: body.footer_nav as { label: string; href: string; icon?: string }[] | undefined,
-        features: body.features as Record<string, boolean> | undefined,
-        meta_title: body.meta_title as string | null | undefined,
-        meta_description: body.meta_description as string | null | undefined,
-        og_image_url: body.og_image_url as string | null | undefined,
-        social_links: body.social_links as Record<string, string> | undefined,
-        homepage_template: body.homepage_template as
-          | "standard"
-          | "cinematic"
-          | "minimal"
-          | "editorial"
-          | "top10"
-          | "compare"
-          | undefined,
-        product_card_style: body.product_card_style as
-          | "standard"
-          | "compact"
-          | "detailed"
-          | undefined,
-      },
-      createPrivileged,
-    );
+    const configSite = getSiteById(slug);
+    if (configSite && (name !== configSite.name || domain !== configSite.domain)) {
+      return NextResponse.json(
+        { error: "Static-config site identity must match config/sites" },
+        { status: 409 },
+      );
+    }
+
+    const site = configSite
+      ? await upsertConfigSite(toSiteRow(configSite), createPrivileged)
+      : await createSite(
+          {
+            slug,
+            name,
+            domain,
+            language: body.language as string | undefined,
+            direction: body.direction as "ltr" | "rtl" | undefined,
+            is_active: body.is_active as boolean | undefined,
+            monetization_type: body.monetization_type as "affiliate" | "ads" | "both" | undefined,
+            est_revenue_per_click: body.est_revenue_per_click as number | undefined,
+            ad_config: body.ad_config as Record<string, unknown> | undefined,
+            theme: body.theme as Record<string, unknown> | undefined,
+            logo_url: body.logo_url as string | null | undefined,
+            favicon_url: body.favicon_url as string | null | undefined,
+            nav_items: body.nav_items as
+              | { label: string; href: string; icon?: string }[]
+              | undefined,
+            footer_nav: body.footer_nav as
+              | { label: string; href: string; icon?: string }[]
+              | undefined,
+            features: body.features as Record<string, boolean> | undefined,
+            meta_title: body.meta_title as string | null | undefined,
+            meta_description: body.meta_description as string | null | undefined,
+            og_image_url: body.og_image_url as string | null | undefined,
+            social_links: body.social_links as Record<string, string> | undefined,
+            homepage_template: body.homepage_template as
+              | "standard"
+              | "cinematic"
+              | "minimal"
+              | "editorial"
+              | "top10"
+              | "compare"
+              | undefined,
+            product_card_style: body.product_card_style as
+              | "standard"
+              | "compact"
+              | "detailed"
+              | undefined,
+          },
+          createPrivileged,
+        );
     void recordAuditEvent({
       site_id: site.id,
       actor: session.email ?? "admin",
@@ -298,8 +263,17 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    // FIX: privileged client required — same RLS reason as createSite above.
     const updatePrivileged = () => getPrivilegedSupabaseClient("admin-sites-update");
+    const existing = await getSiteRowById(id, updatePrivileged);
+    if (!existing) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+    if (isStaticConfigSiteSlug(existing.slug)) {
+      return NextResponse.json(
+        { error: "Static-config sites are read-only in the admin API" },
+        { status: 409 },
+      );
+    }
     const site = await updateSite(id, updates, updatePrivileged);
     void recordAuditEvent({
       site_id: id,
@@ -337,11 +311,17 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    // FIX: privileged client required — same RLS reason as createSite above.
     const deletePrivileged = () => getPrivilegedSupabaseClient("admin-sites-delete");
-    // F5: deleteSite requires callerRole === "super_admin" (lib/dal/sites.ts:361);
-    // both deletion routes were forwarding two args and triggering the
-    // fail-closed throw. Forward the role so the guard passes.
+    const existing = await getSiteRowById(id, deletePrivileged);
+    if (!existing) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+    if (isStaticConfigSiteSlug(existing.slug)) {
+      return NextResponse.json(
+        { error: "Static-config sites cannot be deleted through the admin API" },
+        { status: 409 },
+      );
+    }
     await deleteSite(id, deletePrivileged, session.role);
     // S0-FP-002: await audit for destructive actions so the trail is durable.
     await recordAuditEvent({

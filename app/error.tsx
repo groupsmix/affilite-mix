@@ -24,9 +24,9 @@ export default function RootError({
 
   return (
     <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-4 py-16 text-center">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
         <svg
-          className="h-8 w-8 text-red-500"
+          className="h-8 w-8 text-red-500 dark:text-red-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -41,8 +41,10 @@ export default function RootError({
         </svg>
       </div>
 
-      <h2 className="mb-2 text-2xl font-bold text-gray-900">Something went wrong</h2>
-      <p className="mb-8 text-sm text-gray-500">
+      <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+        Something went wrong
+      </h2>
+      <p className="mb-8 text-sm text-gray-500 dark:text-gray-400">
         {process.env.NODE_ENV === "development"
           ? error.message || "An unexpected error occurred."
           : "We\u2019re sorry for the inconvenience. Please try again."}
@@ -51,13 +53,13 @@ export default function RootError({
       <div className="flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={reset}
-          className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+          className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
         >
           Try again
         </button>
         <Link
           href="/"
-          className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           Go to Homepage
         </Link>

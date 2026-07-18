@@ -18,6 +18,15 @@ import type {
 } from "@/types/database";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { authzPrimaryRead } from "@/lib/read-after-write";
+// AUTHZ-FIX: admin_users, roles, permissions, role_permissions and
+// user_site_roles are global RBAC tables whose RLS policies grant access
+// only to service_role. The tenant-scoped client minted by getTenantClient()
+// therefore returns zero rows for these queries, causing hasPermission() to
+// throw and every /api/admin/* route to return 503. Use the privileged client
+// for authz reads, with the existing site_id filters and tenant opt-outs as
+// the in-code guard.
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 // A23-01: Explicit column lists for all three tables in this DAL.
 const ROLE_COLUMNS = "id, name, label, description, is_system, created_at" as const;
@@ -111,7 +120,7 @@ export async function listSiteUserRoles(
 async function getUserSiteRole(
   userId: string,
   siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAuthzClientGetter,
   signal?: AbortSignal,
 ): Promise<UserSiteRoleRow | null> {
   const sb = await getClient();
@@ -175,6 +184,13 @@ export async function removeUserSiteRole(
 /* ------------------------------------------------------------------ */
 
 /**
+ * Authz queries must use the privileged client because the RBAC tables are
+ * globally scoped (no site_id) and are only readable by service_role.
+ */
+const defaultAuthzClientGetter: DalClientGetter = () =>
+  getPrivilegedSupabaseClient("permissions:authz");
+
+/**
  * Check if a user has a specific permission for a site.
  * Checks the user's role on that site, then looks up whether that role
  * has the requested feature+action permission.
@@ -191,7 +207,7 @@ export async function removeUserSiteRole(
 // F-11: Removed cache to support AbortSignal propagation
 async function getGlobalRole(
   userId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAuthzClientGetter,
   signal?: AbortSignal,
 ): Promise<string | null> {
   const sb = await getClient();
@@ -212,14 +228,15 @@ async function getRolePermissionCheck(
   roleId: string,
   feature: string,
   action: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAuthzClientGetter,
   signal?: AbortSignal,
 ): Promise<boolean> {
   const sb = await getClient();
-  // We can do this in one join query instead of two to save a round-trip
   const { data, error } = await sb
     .from("permissions")
     .select("id, role_permissions!inner(role_id)")
+    // SAFE: permissions and role_permissions are global RBAC tables with no site_id; the privileged client requires the explicit tenant opt-out.
+    .unsafeNoSiteFilter()
     .eq("feature", feature)
     .eq("action", action)
     .eq("role_permissions.role_id", roleId)
@@ -236,7 +253,7 @@ export async function hasPermission(
   siteId: string,
   feature: PermissionFeature,
   action: PermissionAction,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAuthzClientGetter,
   signal?: AbortSignal,
 ): Promise<boolean> {
   // A30-006: Authz reads must use primary to prevent stale replica data

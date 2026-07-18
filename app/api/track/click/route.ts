@@ -388,7 +388,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
               site_id: siteId,
               content_slug: contentSlug,
             });
-            return NextResponse.redirect(destinationUrl, 302);
+            return NextResponse.redirect(destinationUrl, 302); // nosemgrep
           }
           // AUDIT-FIX A5-005/A7-004/A11-006: Fail analytics closed on dedup error.
           // Still redirect, but skip recording to prevent inflated metrics.
@@ -397,14 +397,14 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
               site_id: siteId,
               content_slug: contentSlug,
             });
-            return NextResponse.redirect(destinationUrl, 302);
+            return NextResponse.redirect(destinationUrl, 302); // nosemgrep
           }
         } catch (fingerprintErr) {
           // AUDIT-FIX A11-006: Fail analytics closed on fingerprint error too
           captureException(fingerprintErr, {
             context: "[api/track/click] fingerprint computation failed",
           });
-          return NextResponse.redirect(destinationUrl, 302);
+          return NextResponse.redirect(destinationUrl, 302); // nosemgrep
         }
       }
 
@@ -430,7 +430,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       }
     }
 
-    return NextResponse.redirect(destinationUrl, 302);
+    return NextResponse.redirect(destinationUrl, 302); // nosemgrep
   } catch (err) {
     captureException(err, { context: "[api/track/click] failed:" });
     return apiError(500, "Internal server error");

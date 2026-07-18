@@ -12,13 +12,14 @@ import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { saveErrorResponse } from "@/lib/save-error";
-import { parseJsonBody } from "@/lib/api-error";
+import { apiError, parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isUsableUuid } from "@/lib/security/uuid";
 import { getTenantClientForSite } from "@/lib/supabase-server";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 export const GET = withAuthz(
   "products",
@@ -53,13 +54,17 @@ export const GET = withAuthz(
     }
 
     try {
-      const products = await listProducts({
-        siteId,
-        categoryId,
-        status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
-        limit: pagination.limit,
-        offset: pagination.offset,
-      });
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      const products = await listProducts(
+        {
+          siteId,
+          categoryId,
+          status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
+          limit: pagination.limit,
+          offset: pagination.offset,
+        },
+        getClient,
+      );
 
       return NextResponse.json(products);
     } catch (err) {
@@ -100,6 +105,14 @@ export const POST = withAuthz(
     }
 
     const data = parsed.data;
+    // F-012: Active products must have a real affiliate URL, not a placeholder
+    // or empty string. Drafts may still store placeholders while links are sourced.
+    if (data.status === "active" && isPlaceholderAffiliateUrl(data.affiliate_url)) {
+      return NextResponse.json(
+        { error: "Active products require a real, non-placeholder affiliate URL" },
+        { status: 400 },
+      );
+    }
     // G-01: validate URL-typed fields before persistence.
     const urlErr = validateAdminUrlFields({
       affiliate_url: data.affiliate_url,
@@ -129,7 +142,9 @@ export const POST = withAuthz(
           score: data.score,
           featured: data.featured,
           status: data.status,
-          category_id: data.category_id,
+          category_id:
+            (data.category_ids?.length ? data.category_ids[0] : data.category_id) ?? null,
+          category_ids: data.category_ids ?? (data.category_id ? [data.category_id] : []),
           cta_text: data.cta_text ?? "",
           deal_text: data.deal_text ?? "",
           deal_expires_at: data.deal_expires_at ?? null,
@@ -192,6 +207,14 @@ export const PATCH = withAuthz(
     // The DB trigger manages the version column server-side; client-supplied version is only for optimistic lock check.
     const { id, version: _clientVersion, ...updates } = parsed.data;
 
+    // F-012: Active products must have a real affiliate URL, not a placeholder.
+    if (updates.status === "active" && isPlaceholderAffiliateUrl(updates.affiliate_url)) {
+      return NextResponse.json(
+        { error: "Active products require a real, non-placeholder affiliate URL" },
+        { status: 400 },
+      );
+    }
+
     // SECURITY-FIX: Validate UUID format for id (IDOR-002)
     if (!id || !isUsableUuid(id)) {
       return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
@@ -209,6 +232,10 @@ export const PATCH = withAuthz(
     });
     if (!authzResult.ok) {
       return authorizationErrorResponse(authzResult);
+    }
+
+    if (updates.category_ids !== undefined) {
+      updates.category_id = updates.category_ids.length ? updates.category_ids[0] : null;
     }
 
     // G-01: validate URL fields on edit too (not just create).
@@ -255,13 +282,12 @@ export const PATCH = withAuthz(
           siteId,
           level: "warning",
         });
-        return NextResponse.json(
-          {
-            error: err.message,
-            code: "CONFLICT",
-            hint: "Refresh the product and retry with the latest version.",
-          },
-          { status: 409, headers: { "Retry-After": "0" } },
+        return apiError(
+          409,
+          err.message,
+          "Refresh the product and retry with the latest version.",
+          { "Retry-After": "0" },
+          "CONFLICT",
         );
       }
       // F-010: actionable message + error reference id for non-conflict failures.

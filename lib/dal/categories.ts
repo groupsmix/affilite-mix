@@ -1,6 +1,8 @@
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
-import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
+import { assertRows, assertRow, rowOrNull, hasStringProp, untypedRpc } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
@@ -66,7 +68,7 @@ type CategoriesQueryBuilder = {
  * ("description" or "taxonomy_type"), retries with narrower column sets.
  */
 async function queryCategoriesWithFallback(
-  sb: ReturnType<typeof getAnonClient>,
+  sb: SupabaseClient<Database>,
   siteId: string,
   addFilters?: (builder: CategoriesQueryBuilder) => CategoriesQueryBuilder,
 ): Promise<QueryResult> {
@@ -95,9 +97,10 @@ async function queryCategoriesWithFallback(
 export async function listCategories(
   siteId: string,
   opts: ListCategoriesOptions = {},
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CategoryRow[]> {
   if (shouldSkipDbCall()) return [];
-  const sb = getAnonClient();
+  const sb = await getClient();
   const ilikePattern = buildCategoryNameIlikePattern(opts.q);
 
   const result = await queryCategoriesWithFallback(
@@ -114,9 +117,10 @@ export async function listCategories(
 export async function listCategoriesByTaxonomy(
   siteId: string,
   taxonomyType: TaxonomyType,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CategoryRow[]> {
   if (shouldSkipDbCall()) return [];
-  const sb = getAnonClient();
+  const sb = await getClient();
 
   const result = await queryCategoriesWithFallback(sb, siteId, (b) =>
     b.eq("taxonomy_type", taxonomyType),
@@ -152,12 +156,16 @@ export async function getCategoryById(
 }
 
 /** Get a single category by slug */
-export async function getCategoryBySlug(siteId: string, slug: string): Promise<CategoryRow | null> {
+export async function getCategoryBySlug(
+  siteId: string,
+  slug: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<CategoryRow | null> {
   if (shouldSkipDbCall()) {
     return null;
   }
 
-  const sb = getAnonClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(FULL_COLUMNS)
@@ -172,27 +180,28 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
 /** List categories with product counts, sorted by product count descending */
 export async function listCategoriesWithProductCount(
   siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<(CategoryRow & { product_count: number })[]> {
   if (shouldSkipDbCall()) return [];
 
-  const sb = getAnonClient();
+  const sb = await getClient();
   const catsResult = await queryCategoriesWithFallback(sb, siteId);
   if (catsResult.error) return [];
 
-  const { data: counts, error: countError } = await sb
-    .from("products")
-    .select("category_id")
-    .eq("site_id", siteId)
-    .eq("status", "active")
-    .not("category_id", "is", null);
+  // PERF-2: push product-count aggregation down to PostgreSQL instead of
+  // loading every active product row and counting in application memory.
+  const { data: counts, error: countError } = await untypedRpc(sb, "get_category_product_counts", {
+    p_site_id: siteId,
+  });
 
-  if (countError)
+  if (countError) {
     return normalizeCategoryRows(catsResult.data).map((cat) => ({ ...cat, product_count: 0 }));
+  }
 
   const countMap = new Map<string, number>();
-  for (const row of counts ?? []) {
-    if (hasStringProp(row, "category_id")) {
-      countMap.set(row.category_id, (countMap.get(row.category_id) ?? 0) + 1);
+  for (const row of assertRows<Record<string, unknown>>(counts)) {
+    if (typeof row.category_id === "string" && typeof row.product_count === "number") {
+      countMap.set(row.category_id, row.product_count);
     }
   }
 

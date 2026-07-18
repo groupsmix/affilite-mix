@@ -74,14 +74,16 @@ export async function TaxonomyIndexPage({ config }: { config: TaxonomyIndexConfi
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <JsonLd data={breadcrumbs} />
 
       <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: config.label }]} />
 
       <header className="mb-10">
-        <h1 className="mb-3 text-3xl font-bold">{config.label}</h1>
-        <p className="max-w-2xl text-gray-600">{config.description}</p>
+        <h1 className="max-w-3xl text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+          {config.label}
+        </h1>
+        <p className="mt-3 max-w-2xl text-lg leading-relaxed text-gray-600">{config.description}</p>
       </header>
 
       {categories.length > 0 ? (
@@ -90,26 +92,30 @@ export async function TaxonomyIndexPage({ config }: { config: TaxonomyIndexConfi
             <Link
               key={cat.id}
               href={`/${config.prefix}/${cat.slug}`}
-              className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md"
+              className="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[color:var(--color-accent,#16A34A)]/20 hover:shadow-md"
             >
-              <h2 className="mb-2 text-lg font-semibold text-gray-900 group-hover:text-blue-600">
+              <h2 className="mb-2 text-lg font-bold text-gray-900 transition-colors group-hover:[color:var(--color-accent-text,#15803D)]">
                 {cat.name}
               </h2>
-              {cat.description && <p className="text-sm text-gray-500">{cat.description}</p>}
+              {cat.description && (
+                <p className="text-sm leading-relaxed text-gray-500">{cat.description}</p>
+              )}
             </Link>
           ))}
         </div>
       ) : (
-        <div className="py-16 text-center text-gray-500">
+        <div className="rounded-2xl border border-gray-100 bg-gray-50 py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar" ? "لا توجد تصنيفات بعد" : "No categories yet"}
           </p>
         </div>
       )}
 
-      <section className="mt-12">
-        <NewsletterSignup siteLanguage={site.language} />
-      </section>
-    </div>
+      {site.features.newsletter && (
+        <section className="mt-12">
+          <NewsletterSignup siteLanguage={site.language} />
+        </section>
+      )}
+    </main>
   );
 }

@@ -88,12 +88,15 @@ function getSentryConnectHost(): string {
 export function getCspExternalHosts(): {
   supabase: string | null;
   r2: string | null;
+  r2Upload: string | null;
 } {
   const supabaseHost = hostnameFromEnv("NEXT_PUBLIC_SUPABASE_URL");
   const r2Host = hostnameFromEnv("R2_PUBLIC_URL");
+  const r2AccountId = process.env.R2_ACCOUNT_ID;
   return {
     supabase: supabaseHost ? `https://${supabaseHost}` : null,
     r2: r2Host ? `https://${r2Host}` : null,
+    r2Upload: r2AccountId ? `https://${r2AccountId}.r2.cloudflarestorage.com` : null,
   };
 }
 
@@ -106,7 +109,7 @@ export function getCspExternalHosts(): {
  * browser actually enforces the policy).
  */
 export function buildCspHeader(nonce: string): string {
-  const { supabase, r2 } = getCspExternalHosts();
+  const { supabase, r2, r2Upload } = getCspExternalHosts();
   // G-03 / G-04: build img-src and connect-src from the resolved host
   // list rather than interpolating wildcard-bearing strings. Supabase
   // and R2 origins are only included when their env var resolved to a
@@ -132,10 +135,16 @@ export function buildCspHeader(nonce: string): string {
   // existing product image_url rows and will migrate to R2 ingest
   // per G-48 follow-up.
   imgSources.push("https://m.media-amazon.com", "https://images-na.ssl-images-amazon.com");
+  // G-GA4: Google Analytics 4 measurement endpoints (tracking pixels,
+  // collect requests) and GTM image beacons.
+  imgSources.push("https://www.google-analytics.com", "https://www.googletagmanager.com");
 
   const connectSources = ["'self'"];
   if (supabase) connectSources.push(supabase);
+  if (r2Upload) connectSources.push(r2Upload);
   connectSources.push("https://challenges.cloudflare.com");
+  // G-GA4: allow GA4/gtag network beacons and GTM collect endpoints.
+  connectSources.push("https://www.google-analytics.com", "https://www.googletagmanager.com");
   const sentryHost = getSentryConnectHost();
   if (sentryHost) connectSources.push(sentryHost);
 
@@ -145,7 +154,9 @@ export function buildCspHeader(nonce: string): string {
     // per-request nonce generated in middleware.ts.  `'strict-dynamic'` lets
     // the nonced entry-point script load additional scripts (required for
     // Next.js runtime chunks).  No Level-2 fallback remains.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com`,
+    // G-GA4: the gtag loader script has a nonce, so `strict-dynamic` covers
+    // child scripts; the explicit hosts are a fallback for older CSP2 UAs.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com`,
     // ACCEPTED-RISK (A68/A106/SEC-07 style-src unsafe-inline):
     // CSP nonces only protect <style> elements, not style *attributes*
     // (ThemeProvider CSS-var injection, component inline backgrounds).
@@ -178,6 +189,13 @@ export function buildCspHeader(nonce: string): string {
     // (and dynamic element.style writes) work again. Nonce protection on
     // <style> elements via style-src is unaffected.
     "style-src-attr 'unsafe-inline'",
+    // style-src-elem: same rationale as style-src-attr above. When style-src
+    // carries a nonce, CSP Level-3 browsers ignore its 'unsafe-inline' and
+    // the style-src-elem fallback inherits that restriction — silently
+    // blocking <style> elements injected by Next.js (styled-jsx) and React
+    // that don't carry the nonce. Setting style-src-elem explicitly without
+    // a nonce ensures 'unsafe-inline' is honoured for <style> elements.
+    "style-src-elem 'self' 'unsafe-inline'",
     "font-src 'self'",
     `img-src ${imgSources.join(" ")}`,
     `connect-src ${connectSources.join(" ")}`,

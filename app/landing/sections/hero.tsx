@@ -76,14 +76,11 @@ export function HeroSection() {
         transition={{ delay: 1.2, duration: 0.6 }}
         className="relative z-10 mt-10 flex flex-col items-center gap-4 sm:flex-row"
       >
-        <button className="cta-glow interactive-cursor rounded-lg bg-ultraviolet px-8 py-3.5 text-sm font-medium text-white transition-transform hover:scale-[1.03]">
-          Spin up a tenant →
-        </button>
         <a
-          href="#walkthrough"
-          className="font-mono-accent text-sm text-white/40 transition-colors hover:text-white/70"
+          href="#ship-command"
+          className="cta-glow interactive-cursor inline-block rounded-lg bg-ultraviolet px-8 py-3.5 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
         >
-          Watch a 90-second walkthrough
+          Spin up a tenant →
         </a>
       </motion.div>
     </section>

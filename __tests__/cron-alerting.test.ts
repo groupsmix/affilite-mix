@@ -36,14 +36,15 @@ describe("OBS-CRON-01 (#588): Cron dispatch error alerting", () => {
     expect(blockBeforeReturn).toContain("captureException");
   });
 
-  it("calls captureException in the fetch error catch block", () => {
-    // The .catch block for the fetch call must call captureException.
-    // FR-06: anchor updated for the structured-logger message format.
-    const anchor = workerSource.indexOf("cron dispatch fetch error");
+  it("calls captureException on a non-2xx dispatch response", () => {
+    // The fetch is now awaited and a non-2xx response builds an error, logs it,
+    // calls captureException, and re-throws so Cloudflare can retry/back-off.
+    const anchor = workerSource.indexOf("cron dispatch failed");
     expect(anchor).toBeGreaterThan(-1);
-    const catchBlock = workerSource.slice(anchor);
-    const closingParen = catchBlock.indexOf("}),");
-    const blockContent = catchBlock.slice(0, closingParen);
+    const block = workerSource.slice(anchor);
+    const throwAnchor = block.indexOf("throw dispatchErr");
+    expect(throwAnchor).toBeGreaterThan(-1);
+    const blockContent = block.slice(0, throwAnchor);
     expect(blockContent).toContain("captureException");
   });
 

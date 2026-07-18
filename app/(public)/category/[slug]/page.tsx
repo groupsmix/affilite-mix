@@ -2,8 +2,8 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getCategoryBySlug } from "@/lib/dal/categories";
 import { listContent, countContent } from "@/lib/dal/content";
 import { listActiveProducts } from "@/lib/dal/products";
-import { getAnonClient } from "@/lib/supabase-server";
-import { ContentCard } from "../../components/content-card";
+import { getTenantClient } from "@/lib/supabase-server";
+import { ContentCardGrid } from "../../components/content-card-grid";
 import { ProductCard } from "../../components/product-card";
 import { Pagination, PaginationHead } from "../../components/pagination";
 import { Breadcrumbs } from "../../components/breadcrumbs";
@@ -78,7 +78,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         limit: PAGE_SIZE,
         offset: (currentPage - 1) * PAGE_SIZE,
       },
-      getAnonClient,
+      getTenantClient,
     ),
     countContent(
       {
@@ -86,7 +86,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         categoryId: category.id,
         status: "published",
       },
-      getAnonClient,
+      getTenantClient,
     ),
     listActiveProducts(site.id, slug),
   ]);
@@ -100,21 +100,29 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <JsonLd data={breadcrumbs} />
 
       <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: category.name }]} />
 
-      <header className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
-        {category.description && <p className="text-gray-600">{category.description}</p>}
+      <header className="mb-10">
+        <h1 className="max-w-3xl text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+          {category.name}
+        </h1>
+        {category.description && (
+          <p className="mt-3 max-w-3xl text-lg leading-relaxed text-gray-600">
+            {category.description}
+          </p>
+        )}
       </header>
 
       {/* Products */}
       {products.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-4 text-xl font-bold">{site.productLabelPlural}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-5 text-xl font-extrabold tracking-tight text-gray-900">
+            {site.productLabelPlural}
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => (
               <ProductCard
                 key={product.id}
@@ -129,13 +137,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
       {/* Content */}
       {content.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {content.map((item) => (
-            <ContentCard key={item.id} content={item} locale={locale} />
-          ))}
-        </div>
+        <section>
+          <h2 className="mb-5 text-xl font-extrabold tracking-tight text-gray-900">
+            {site.language === "ar" ? "قراءات ذات صلة" : "Related reading"}
+          </h2>
+          <ContentCardGrid items={content} locale={locale} />
+        </section>
       ) : products.length === 0 ? (
-        <div className="py-16 text-center text-gray-500">
+        <div className="rounded-2xl border border-gray-100 bg-gray-50 py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? "لا يوجد محتوى في هذا التصنيف بعد"
@@ -156,6 +165,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         pageSize={PAGE_SIZE}
         basePath={`/category/${category.slug}`}
       />
-    </div>
+    </main>
   );
 }

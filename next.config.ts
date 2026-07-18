@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { allSites } from "./config/sites";
+import { API_VERSION_HEADER, CURRENT_API_VERSION } from "./lib/api-version";
 
 // G-03 / G-04: pin remotePatterns to the exact Supabase subdomain + exact
 // R2 public host rather than the historical `*.supabase.co` / `*.r2.dev`
@@ -71,8 +72,25 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },
     ],
   },
+  // Redirect the common plural spellings of content-type routes to their
+  // canonical singular slugs (routes resolve via /[contentType], where the
+  // slugs are singular: review/comparison/guide). Nav labels are plural
+  // ("Reviews"/"Comparisons"/"Guides"), so users and inbound links guess the
+  // plural and would otherwise hit a 404.
+  redirects: async () => [
+    { source: "/reviews", destination: "/review", permanent: true },
+    { source: "/reviews/:slug", destination: "/review/:slug", permanent: true },
+    { source: "/comparisons", destination: "/comparison", permanent: true },
+    { source: "/comparisons/:slug", destination: "/comparison/:slug", permanent: true },
+    { source: "/guides", destination: "/guide", permanent: true },
+    { source: "/guides/:slug", destination: "/guide/:slug", permanent: true },
+  ],
   // Cloudflare Pages deployment via @opennextjs/cloudflare
   headers: async () => [
+    {
+      source: "/api/:path*",
+      headers: [{ key: API_VERSION_HEADER, value: CURRENT_API_VERSION }],
+    },
     {
       // FP-01: stricter Referrer-Policy on the password-reset route so the
       // reset token in the query string cannot leak via the Referer header.

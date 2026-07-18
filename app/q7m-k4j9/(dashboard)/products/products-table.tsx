@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -10,6 +10,7 @@ import {
   CopyIcon,
   LinkIcon,
   MoreHorizontalIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -30,7 +31,10 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { ProductBulkActions } from "./bulk-actions";
-import { ProductDeleteButton } from "./product-delete-button";
+import { ProductDeleteDialog } from "./product-delete-button";
+import type { CategoryRow } from "@/types/database";
+import { AlertDialog } from "@/components/ui/alert-dialog";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 export interface ProductsTableRow {
   id: string;
@@ -56,14 +60,16 @@ interface ProductsTableProps {
   statusOptions: { label: string; value: string }[];
   categoryOptions: { label: string; value: string }[];
   networkOptions: { label: string; value: string }[];
+  /** Full category rows for the bulk category selector. */
+  categories: CategoryRow[];
   /** Whether the missing-URL quick filter is currently active. */
   missingUrlActive: boolean;
 }
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
-  active: "bg-green-100 text-green-700 hover:bg-green-100",
+  active: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
   draft: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-  archived: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+  archived: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100",
 };
 
 function initialsFromName(name: string): string {
@@ -112,7 +118,7 @@ function ProductThumbnail({ row }: { row: ProductsTableRow }) {
     );
   }
   return (
-    <div className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
+    <div className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600 dark:text-gray-400">
       {initialsFromName(row.name)}
     </div>
   );
@@ -120,6 +126,24 @@ function ProductThumbnail({ row }: { row: ProductsTableRow }) {
 
 function AffiliateUrlIcon({ row }: { row: ProductsTableRow }) {
   const hasUrl = Boolean(row.affiliate_url && row.affiliate_url.trim().length > 0);
+  const isPlaceholder = hasUrl && isPlaceholderAffiliateUrl(row.affiliate_url);
+  if (isPlaceholder) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className="inline-flex items-center text-amber-500"
+              aria-label="Affiliate URL is a placeholder"
+            >
+              <TriangleAlertIcon className="size-4" aria-hidden="true" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Affiliate URL looks like a placeholder</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
   if (hasUrl) {
     return (
       <TooltipProvider>
@@ -142,7 +166,7 @@ function AffiliateUrlIcon({ row }: { row: ProductsTableRow }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <span
-            className="inline-flex items-center text-red-600"
+            className="inline-flex items-center text-red-600 dark:text-red-400"
             aria-label="Missing affiliate URL"
           >
             <AlertCircleIcon className="size-4" aria-hidden="true" />
@@ -155,6 +179,8 @@ function AffiliateUrlIcon({ row }: { row: ProductsTableRow }) {
 }
 
 function RowActions({ row }: { row: ProductsTableRow }) {
+  const [showConfirm, setShowConfirm] = useState(false);
+
   async function handleCopy() {
     if (!row.affiliate_url) {
       toast.error("No affiliate URL to copy");
@@ -170,33 +196,36 @@ function RowActions({ row }: { row: ProductsTableRow }) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/q7m-k4j9/products/${row.id}`}>Edit</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            void handleCopy();
-          }}
-          disabled={!row.affiliate_url}
-        >
-          <CopyIcon className="size-4" />
-          Copy affiliate URL
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild variant="destructive">
-          <div className="flex w-full" onClick={(event) => event.stopPropagation()}>
-            <ProductDeleteButton id={row.id} name={row.name} />
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/q7m-k4j9/products/${row.id}`}>Edit</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              void handleCopy();
+            }}
+            disabled={!row.affiliate_url}
+          >
+            <CopyIcon className="size-4" />
+            Copy affiliate URL
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setShowConfirm(true)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {showConfirm && (
+        <ProductDeleteDialog id={row.id} name={row.name} onOpenChange={setShowConfirm} />
+      )}
+    </AlertDialog>
   );
 }
 
@@ -343,7 +372,9 @@ function MissingUrlPill({ active }: { active: boolean }) {
       variant={active ? "default" : "outline"}
       size="sm"
       className={`h-8 border-dashed ${
-        active ? "bg-red-600 text-white hover:bg-red-700" : "text-red-700 hover:bg-red-50"
+        active
+          ? "bg-red-600 text-white dark:text-gray-900 hover:bg-red-700"
+          : "text-red-700 dark:text-red-300 hover:bg-red-50"
       }`}
       onClick={toggle}
       aria-pressed={active}
@@ -362,6 +393,7 @@ export function ProductsTable({
   statusOptions,
   categoryOptions,
   networkOptions,
+  categories,
   missingUrlActive,
 }: ProductsTableProps) {
   const memoColumns = useMemo(() => columns, []);
@@ -411,6 +443,7 @@ export function ProductsTable({
                 <ProductBulkActions
                   selectedIds={selectedIds}
                   onClear={() => table.resetRowSelection()}
+                  categories={categories}
                 />
               </div>
             )}

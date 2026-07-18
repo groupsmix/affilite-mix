@@ -61,7 +61,7 @@ runs:
           exit 1
         fi
 
-    - name: Dry-run validation
+    - name: Dry-run keyword presence check
       if: inputs.dry-run == 'true'
       shell: bash
       env:
@@ -74,4 +74,4 @@ runs:
             echo "::warning::$(basename "$file") may not contain standard SQL statements"
           fi
         done
-        echo "Dry-run validation complete"
+        echo "Dry-run keyword check complete"

@@ -16,19 +16,21 @@ export function AdminDataError({
     <Card className="border-amber-200 bg-amber-50/70">
       <CardContent className="py-6 text-center">
         <h2 className="text-base font-semibold text-amber-950">{title}</h2>
-        <p className="mx-auto mt-2 max-w-xl text-sm text-amber-900">{description}</p>
+        <p className="mx-auto mt-2 max-w-xl text-sm text-amber-900 dark:text-amber-200">
+          {description}
+        </p>
         <div className="mt-4 flex justify-center gap-3">
           {retryHref ? (
             <Link
               href={retryHref}
-              className="rounded-md bg-amber-900 px-4 py-2 text-sm font-medium text-white hover:bg-amber-950"
+              className="rounded-md bg-amber-900 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-amber-950"
             >
               Retry
             </Link>
           ) : null}
           <Link
             href="/q7m-k4j9/sites"
-            className="rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100"
+            className="rounded-md border border-amber-300 bg-white dark:bg-gray-900 px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100"
           >
             Check active site
           </Link>

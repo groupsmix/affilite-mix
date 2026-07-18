@@ -108,6 +108,10 @@ interface SiteInfo {
   source: "config" | "database";
 
   db_id?: string;
+
+  is_provisioned?: boolean;
+
+  database_is_active?: boolean;
 }
 
 interface SiteStats {
@@ -172,7 +176,10 @@ function MonetizationBadge({ type }: { type: string | undefined }) {
   const label = type === "both" ? "Affiliate + Ads" : type === "ads" ? "Ads" : "Affiliate";
 
   return (
-    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+    <Badge
+      variant="outline"
+      className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300"
+    >
       {label}
     </Badge>
   );
@@ -180,7 +187,10 @@ function MonetizationBadge({ type }: { type: string | undefined }) {
 
 function SourceBadge({ source }: { source: "config" | "database" }) {
   return source === "database" ? (
-    <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
+    <Badge
+      variant="outline"
+      className="border-blue-200 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+    >
       DB
     </Badge>
   ) : (
@@ -190,13 +200,12 @@ function SourceBadge({ source }: { source: "config" | "database" }) {
   );
 }
 
-// F-007 / Property 1: a configured tenant (config/sites/*) whose `sites` row is
-// missing surfaces as a config-source site here — i.e. it is NOT provisioned in
-// the database. Flag it so an admin knows the active-site resolution / module
-// load will fail until the row is provisioned.
 function NotProvisionedBadge() {
   return (
-    <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+    <Badge
+      variant="outline"
+      className="border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300"
+    >
       <AlertTriangleIcon className="size-3" aria-hidden />
       Not provisioned
     </Badge>
@@ -284,12 +293,11 @@ function SiteCardView({
 
   const isConfigSite = site.source === "config";
 
-  // A configured tenant whose `sites` row is missing (it only resolves from
-  // static config, not the DB). Until it is provisioned, site-scoped modules
-  // cannot resolve its active site (F-007 / Property 1).
-  const isNotProvisioned = isConfigSite;
+  const isNotProvisioned = isConfigSite && site.is_provisioned === false;
 
-  const isEnabled = site.is_active ?? true;
+  const isEnabled = isConfigSite ? true : (site.is_active ?? true);
+
+  const hasIgnoredDatabaseStatus = isConfigSite && site.database_is_active === false;
 
   return (
     <Card
@@ -321,7 +329,7 @@ function SiteCardView({
       <CardHeader className="gap-3 pt-5">
         <div className="flex items-start gap-3">
           <span
-            className="flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-bold text-white"
+            className="flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-bold text-white dark:text-gray-900"
             style={{ background: primary }}
           >
             {initialFor(site.name)}
@@ -347,10 +355,26 @@ function SiteCardView({
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
-                  <DropdownMenuItem onSelect={() => onEdit(site)}>
-                    <PencilIcon />
-                    Edit
-                  </DropdownMenuItem>
+                  {isConfigSite ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <DropdownMenuItem disabled>
+                            <PencilIcon />
+                            Edit
+                          </DropdownMenuItem>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">
+                        Runtime settings come from config/sites and are read-only here.
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <DropdownMenuItem onSelect={() => onEdit(site)}>
+                      <PencilIcon />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
 
                   {!isActive && (
                     <DropdownMenuItem onSelect={() => onSetActive(site)} disabled={selecting}>
@@ -420,7 +444,10 @@ function SiteCardView({
 
         <div className="flex flex-wrap items-center gap-1.5">
           {isActive && (
-            <Badge className="border-transparent text-white" style={{ background: primary }}>
+            <Badge
+              className="border-transparent text-white dark:text-gray-900"
+              style={{ background: primary }}
+            >
               Editing now
             </Badge>
           )}
@@ -440,18 +467,27 @@ function SiteCardView({
           <SourceBadge source={site.source} />
 
           {isNotProvisioned && <NotProvisionedBadge />}
+
+          {hasIgnoredDatabaseStatus && (
+            <Badge
+              variant="outline"
+              className="border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300"
+            >
+              DB status ignored
+            </Badge>
+          )}
         </div>
       </CardHeader>
 
       <CardContent className="pb-4 pt-4">
         {isNotProvisioned && (
-          <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+          <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-300">
             <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
 
             <div className="flex-1 space-y-1.5">
               <p className="font-medium">Not provisioned — run site provisioning</p>
 
-              <p className="text-amber-700">
+              <p className="text-amber-700 dark:text-amber-300">
                 This tenant is defined in config but has no database row yet, so its dashboard
                 modules can&apos;t load until it&apos;s provisioned.
               </p>
@@ -459,7 +495,7 @@ function SiteCardView({
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-1 h-7 border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                className="mt-1 h-7 border-amber-300 bg-white dark:bg-gray-900 text-amber-800 dark:text-amber-300 hover:bg-amber-100"
                 onClick={() => onProvision(site)}
                 disabled={provisioning}
               >
@@ -473,6 +509,13 @@ function SiteCardView({
                 )}
               </Button>
             </div>
+          </div>
+        )}
+
+        {hasIgnoredDatabaseStatus && (
+          <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+            This site remains online because config/sites is authoritative. Its database row is
+            inactive and must be reconciled before strict drift checks can pass.
           </div>
         )}
 
@@ -517,7 +560,7 @@ function SiteCardView({
                 names two different concepts (the working-context control below
                 remains "Set as active"). This disambiguates the overloaded
                 "Active" affordance on the fresh-login Sites page. */}
-            {isEnabled ? "Enabled" : "Disabled"}
+            {isConfigSite ? "Enabled in code" : isEnabled ? "Enabled" : "Disabled"}
           </label>
         </div>
 
@@ -588,7 +631,13 @@ function SiteCardSkeleton() {
 
 /* ------------------------------------------------------------------ */
 
-export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
+export function SiteManager({
+  needsSite = false,
+  isSuperAdmin = false,
+}: {
+  needsSite?: boolean;
+  isSuperAdmin?: boolean;
+}) {
   const router = useRouter();
 
   const [sites, setSites] = useState<SiteInfo[]>([]);
@@ -882,6 +931,19 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
     [activeSiteId, handleSetActive, router],
   );
 
+  const handleEdit = useCallback(
+    async (site: SiteInfo) => {
+      // Modules are configured against the active site, so editing a site must
+      // switch context to that site before the module toggles can load.
+      if (site.id !== activeSiteId) {
+        const ok = await handleSetActive(site);
+        if (!ok) return;
+      }
+      setEditStubSite(site);
+    },
+    [activeSiteId, handleSetActive],
+  );
+
   const cards = useMemo(() => {
     return sites.map((site) => (
       <SiteCardView
@@ -902,7 +964,9 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
         onProvision={(site) => {
           void handleProvision(site);
         }}
-        onEdit={setEditStubSite}
+        onEdit={(site) => {
+          void handleEdit(site);
+        }}
         onDelete={setDeleteTarget}
         onViewAnalytics={(site) => {
           void handleViewAnalytics(site);
@@ -931,6 +995,8 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
     handleProvision,
 
     handleViewAnalytics,
+
+    handleEdit,
   ]);
 
   return (
@@ -978,19 +1044,23 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
 
       {/* Site create/edit form */}
       <SiteFormDialog
+        key="site-create"
         open={addOpen}
         onOpenChange={setAddOpen}
         onSuccess={() => void Promise.all([loadSites(), loadStats()])}
         mode="create"
+        isSuperAdmin={isSuperAdmin}
       />
 
       <SiteFormDialog
+        key={editStubSite ? `site-edit-${editStubSite.id}` : "site-edit"}
         open={editStubSite != null}
         onOpenChange={(open) => {
           if (!open) setEditStubSite(null);
         }}
         onSuccess={() => void Promise.all([loadSites(), loadStats()])}
         mode="edit"
+        isSuperAdmin={isSuperAdmin}
         initialData={
           editStubSite
             ? {

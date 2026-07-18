@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloudIcon, XIcon } from "lucide-react";
+import { UploadCloudIcon, XIcon, ImageIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,20 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
+import { MediaPickerDialog } from "./media-picker-dialog";
+
 interface ImageUploaderProps {
   value: string;
   onChange: (url: string) => void;
+  /** Called when a file is successfully uploaded to storage. */
+  onUpload?: (url: string) => void;
+  /** Called when a file is selected from the media library. Receives the URL and alt text. */
+  onMediaSelect?: (url: string, alt: string) => void;
   label?: string;
+  /** Placeholder for the URL input. */
+  placeholder?: string;
+  /** Show a button to pick an existing image from the media library. */
+  showMediaPicker?: boolean;
   /** DOM id for the visible input, used to pair the Label via htmlFor. */
   id?: string;
 }
@@ -26,12 +36,17 @@ interface ImageUploaderProps {
 export function ImageUploader({
   value,
   onChange,
+  onUpload,
+  onMediaSelect,
   label = "Image",
+  placeholder = "https://example.com/image.jpg",
+  showMediaPicker = true,
   id: idProp,
 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reactId = typeof idProp === "string" ? idProp : "image-uploader";
@@ -40,9 +55,30 @@ export function ImageUploader({
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
+  // Bound every network leg so a mis-/unconfigured R2 endpoint can no
+  // longer hang the uploader forever. A stalled cross-origin PUT to R2
+  // (e.g. missing bucket CORS or a wrong endpoint host) has no browser
+  // timeout by default, which is what leaves the "Uploading…" spinner
+  // spinning indefinitely. Abort and surface a real error instead.
+  const PRESIGN_TIMEOUT_MS = 20_000;
+  const UPLOAD_TIMEOUT_MS = 60_000;
+  const FINALIZE_TIMEOUT_MS = 30_000;
+
   const uploadFile = useCallback(
     async (file: File) => {
       setError("");
+
+      // Reject empty/0-byte files before the round-trip. The server signs
+      // Content-Length and requires a positive size, so a 0-byte file would
+      // otherwise fail with a cryptic "fileSize must be a positive integer".
+      // The usual culprit is a cloud placeholder (OneDrive/iCloud "online-only"
+      // file not yet downloaded locally) or an empty/corrupt file.
+      if (!Number.isFinite(file.size) || file.size <= 0) {
+        setError(
+          "That file is empty (0 bytes). If it's stored in the cloud (OneDrive/iCloud), open it once so it downloads to this device, then upload again — or choose a different image.",
+        );
+        return;
+      }
 
       // Client-side file size validation
       if (file.size > MAX_FILE_SIZE) {
@@ -52,20 +88,33 @@ export function ImageUploader({
 
       setUploading(true);
 
+      const withTimeout = (ms: number): { signal: AbortSignal; done: () => void } => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        return { signal: controller.signal, done: () => clearTimeout(timer) };
+      };
+
       try {
         // 1. Ask the server for a presigned URL targeting the private
         //    staging bucket. The server returns the exact headers we
         //    must echo on the PUT — Content-Length is signed so we can
         //    no longer lie about the upload size.
-        const presignRes = await fetchWithCsrf("/api/admin/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: file.name,
-            contentType: file.type,
-            fileSize: file.size,
-          }),
-        });
+        const presignTimeout = withTimeout(PRESIGN_TIMEOUT_MS);
+        let presignRes: Response;
+        try {
+          presignRes = await fetchWithCsrf("/api/admin/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: file.name,
+              contentType: file.type,
+              fileSize: file.size,
+            }),
+            signal: presignTimeout.signal,
+          });
+        } finally {
+          presignTimeout.done();
+        }
 
         if (!presignRes.ok) {
           const data = await presignRes.json().catch(() => ({}));
@@ -82,11 +131,18 @@ export function ImageUploader({
         };
 
         // 2. PUT to R2 with the exact headers the server signed.
-        const uploadRes = await fetch(presigned.uploadUrl, {
-          method: "PUT",
-          headers: presigned.requiredHeaders,
-          body: file,
-        });
+        const uploadTimeout = withTimeout(UPLOAD_TIMEOUT_MS);
+        let uploadRes: Response;
+        try {
+          uploadRes = await fetch(presigned.uploadUrl, {
+            method: "PUT",
+            headers: presigned.requiredHeaders,
+            body: file,
+            signal: uploadTimeout.signal,
+          });
+        } finally {
+          uploadTimeout.done();
+        }
 
         if (!uploadRes.ok) {
           setError("Failed to upload file to storage");
@@ -97,14 +153,22 @@ export function ImageUploader({
         // 3. Ask the server to magic-byte validate and promote the
         //    upload to the public bucket. Only after this succeeds is
         //    publicUrl actually reachable.
-        const finalizeRes = await fetchWithCsrf("/api/admin/upload/finalize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            stagingKey: presigned.stagingKey,
-            expectedType: file.type,
-          }),
-        });
+        const finalizeTimeout = withTimeout(FINALIZE_TIMEOUT_MS);
+        let finalizeRes: Response;
+        try {
+          finalizeRes = await fetchWithCsrf("/api/admin/upload/finalize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              stagingKey: presigned.stagingKey,
+              expectedType: file.type,
+              fileName: file.name,
+            }),
+            signal: finalizeTimeout.signal,
+          });
+        } finally {
+          finalizeTimeout.done();
+        }
 
         if (!finalizeRes.ok) {
           const data = await finalizeRes.json().catch(() => ({}));
@@ -115,14 +179,23 @@ export function ImageUploader({
 
         const finalized = (await finalizeRes.json()) as { publicUrl: string };
         onChange(finalized.publicUrl);
-      } catch {
-        // fail-open: best-effort
-        setError("Upload failed. You can paste an image URL instead.");
+        onUpload?.(finalized.publicUrl);
+      } catch (err) {
+        // fail-open: best-effort. An AbortError means one of the legs hit
+        // its timeout (most likely a stalled R2 PUT) — say so explicitly
+        // rather than leaving the spinner running.
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setError(
+            "Upload timed out. Check that image storage (R2) is configured and reachable, or paste an image URL instead.",
+          );
+        } else {
+          setError("Upload failed. You can paste an image URL instead.");
+        }
       } finally {
         setUploading(false);
       }
     },
-    [onChange, MAX_FILE_SIZE],
+    [onChange, onUpload, MAX_FILE_SIZE, PRESIGN_TIMEOUT_MS, UPLOAD_TIMEOUT_MS, FINALIZE_TIMEOUT_MS],
   );
 
   function handleDrop(e: React.DragEvent) {
@@ -131,9 +204,18 @@ export function ImageUploader({
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith("image/")) {
       void uploadFile(file);
-    } else {
-      setError("Please drop an image file");
+      return;
     }
+    // Dragging an image straight from another web page yields a URL, not a
+    // File. Accept it as a pasted image URL instead of failing.
+    const dropped = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+    const url = dropped.trim();
+    if (/^https?:\/\/\S+$/i.test(url)) {
+      setError("");
+      onChange(url);
+      return;
+    }
+    setError("Please drop an image file (or paste an image URL in the field above)");
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -154,13 +236,36 @@ export function ImageUploader({
     <div className="space-y-2">
       <Label htmlFor={urlInputId}>{label}</Label>
 
-      <Input
-        id={urlInputId}
-        type="url"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="https://example.com/image.jpg"
-        aria-invalid={!!error || undefined}
+      <div className="flex items-center gap-2">
+        <Input
+          id={urlInputId}
+          type="url"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          aria-invalid={!!error || undefined}
+        />
+        {showMediaPicker && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPickerOpen(true)}
+            className="shrink-0 gap-1.5"
+          >
+            <ImageIcon className="size-4" />
+            <span className="hidden sm:inline">Library</span>
+          </Button>
+        )}
+      </div>
+
+      <MediaPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(url, alt) => {
+          onChange(url);
+          onMediaSelect?.(url, alt);
+        }}
       />
 
       <div

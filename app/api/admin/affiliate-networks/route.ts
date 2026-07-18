@@ -10,8 +10,9 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
-const VALID_NETWORKS = new Set(["cj", "partnerstack", "admitad", "direct"]);
+const VALID_NETWORKS = new Set(Object.keys(NETWORK_CONFIGS));
 
 /** GET — List affiliate network configs for the active site */
 export const GET = withAuthz("integrations", "view", async (_request, { session, siteId }) => {
@@ -19,7 +20,9 @@ export const GET = withAuthz("integrations", "view", async (_request, { session,
   if (rlResponse) return rlResponse;
 
   try {
-    const networks = await listAffiliateNetworks(siteId);
+    const networks = await listAffiliateNetworks(siteId, () =>
+      getTenantClientForSite(siteId, session.userId),
+    );
     const enriched = networks.map((row) => ({
       ...row,
       meta: NETWORK_CONFIGS[row.network as keyof typeof NETWORK_CONFIGS] ?? null,
@@ -50,7 +53,7 @@ export const POST = withAuthz(
     const network = typeof body.network === "string" ? body.network : "";
     if (!VALID_NETWORKS.has(network)) {
       return NextResponse.json(
-        { error: "network must be one of: cj, partnerstack, admitad, direct" },
+        { error: `network must be one of: ${Object.keys(NETWORK_CONFIGS).join(", ")}` },
         { status: 400 },
       );
     }
@@ -70,14 +73,17 @@ export const POST = withAuthz(
         : {};
 
     try {
-      const result = await upsertAffiliateNetwork({
-        site_id: siteId,
-        network,
-        publisher_id: publisherId,
-        api_key_ref: apiKeyRef,
-        is_active: isActive,
-        config,
-      });
+      const result = await upsertAffiliateNetwork(
+        {
+          site_id: siteId,
+          network,
+          publisher_id: publisherId,
+          api_key_ref: apiKeyRef,
+          is_active: isActive,
+          config,
+        },
+        () => getTenantClientForSite(siteId, session.userId),
+      );
 
       void recordAuditEvent({
         site_id: siteId,
@@ -117,7 +123,9 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await deleteAffiliateNetwork(siteId, id);
+      await deleteAffiliateNetwork(siteId, id, () =>
+        getTenantClientForSite(siteId, session.userId),
+      );
 
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({

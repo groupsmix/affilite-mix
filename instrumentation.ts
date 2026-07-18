@@ -7,6 +7,7 @@
 
 import { checkSentryConfig } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { parseTriBoolEnv } from "@/lib/env-bool";
 import { validateServerEnv, formatMissingEnvMessage } from "@/lib/server-env";
 import { checkRotationWindowExpiry } from "@/lib/jwt-secret";
 import { allSites, WILDCARD_PARENT_DOMAINS } from "@/config/sites";
@@ -90,6 +91,32 @@ export function register() {
         `ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 is set but APP_URL (${appUrl}) resolves to a ` +
           "public host. This is a security misconfiguration — remove the env var or set " +
           "APP_URL to a localhost address. Refusing to start.",
+      );
+    }
+  }
+
+  // Deep-audit B3/B4: alert on the admin-token revocation break-glass flag.
+  // ADMIN_SESSION_TOKEN_REVOCATION_STRICT is tri-state (see lib/auth.ts):
+  //   "true"  → revocation checked, fail-CLOSED on KV outage (expected prod value)
+  //   unset   → revocation checked, fail-OPEN on KV outage (leaked admin
+  //             token replayable during an outage — warn in prod)
+  //   "false" → revocation NOT CHECKED AT ALL (emergency escape hatch —
+  //             error loudly so Sentry fires if this is ever live in prod)
+  if (process.env.NODE_ENV === "production" && !isBuild) {
+    const revocationStrict = parseTriBoolEnv("ADMIN_SESSION_TOKEN_REVOCATION_STRICT");
+    if (revocationStrict === false) {
+      logger.error(
+        "BREAK-GLASS ACTIVE: ADMIN_SESSION_TOKEN_REVOCATION_STRICT=false — admin JWT " +
+          "revocation checks are DISABLED. Logout, password reset, and forced session " +
+          "invalidation have no effect on already-issued admin tokens. This flag must " +
+          "only be set during a declared incident (see docs/runbooks/kv-outage.md) and " +
+          "reverted immediately after recovery.",
+      );
+    } else if (revocationStrict === null) {
+      logger.warn(
+        "ADMIN_SESSION_TOKEN_REVOCATION_STRICT is unset — revocation checks fail OPEN " +
+          "on KV outage, so a leaked admin token remains replayable while KV is down. " +
+          "Set it to 'true' in wrangler.jsonc vars for production (deep-audit B3).",
       );
     }
   }

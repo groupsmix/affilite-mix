@@ -17,7 +17,7 @@ import { type DalClientGetter } from "./dal-client";
 // reached only from requireAdminSession()/requireAdmin()-gated callers (and the
 // rate-limited login path). See the CLIENT DEFAULT note in the file header.
 // nosemgrep: service-role-import
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { clampPagination } from "./pagination-guard";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";

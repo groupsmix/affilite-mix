@@ -34,15 +34,15 @@ export default async function NotFound() {
         >
           404
         </h1>
-        <h2 className="mt-4 text-2xl font-bold text-gray-900">
+        <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
           {isAr ? "الصفحة غير موجودة" : "Page not found"}
         </h2>
-        <p className="mt-2 text-gray-500">
+        <p className="mt-2 text-gray-500 dark:text-gray-400">
           {isAr
             ? "عذرًا، الصفحة التي تبحث عنها غير موجودة أو تم نقلها."
             : "Sorry, the page you\u2019re looking for doesn\u2019t exist or has been moved."}
         </p>
-        {siteName && <p className="mt-1 text-sm text-gray-500">{siteName}</p>}
+        {siteName && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{siteName}</p>}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/"
@@ -53,7 +53,7 @@ export default async function NotFound() {
           </Link>
           <Link
             href="/search"
-            className="inline-flex min-h-[44px] items-center rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+            className="inline-flex min-h-[44px] items-center rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             {isAr ? "البحث" : "Search"}
           </Link>

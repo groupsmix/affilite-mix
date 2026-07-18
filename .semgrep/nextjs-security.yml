@@ -3,10 +3,16 @@ rules:
   # All routes must use getClientIp() for consistent, safe IP extraction.
   # Raw header parsing can miss CF-Connecting-IP, be spoofed, or return
   # undefined in edge cases.
+  #
+  # Medium 5: use $REQ metavariable instead of hardcoded `request`.
+  # Medium 6: match common casings of x-forwarded-for via pattern-either.
   - id: raw-ip-header-parsing
     patterns:
-      - pattern: |
-          request.headers.get("x-forwarded-for")
+      - pattern-either:
+          - pattern: $REQ.headers.get("x-forwarded-for")
+          - pattern: $REQ.headers.get("X-Forwarded-For")
+          - pattern: $REQ.headers.get("X-FORWARDED-FOR")
+          - pattern: $REQ.headers.get("x-forwarded-for")
       - pattern-not-inside: |
           function getClientIp(...) { ... }
     message: >
@@ -20,10 +26,16 @@ rules:
       audit-ref: audit-risk-6
 
   # ── Missing auth wrapper in admin routes ───────────────────────────
-  - id: admin-route-missing-auth
+  # High 3: cover sync handlers + const-arrow handlers.
+  # Low 7: constrain $METHOD to HTTP verbs only (GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS)
+  #         to avoid flagging helper exports like buildQuery().
+  - id: admin-route-missing-auth-async
     patterns:
       - pattern: |
           export async function $METHOD(...) { ... }
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$
       - pattern-not: |
           export async function $METHOD(...) {
             ...
@@ -42,16 +54,138 @@ rules:
             await requireAdminSession(...)
             ...
           }
+      - pattern-not: |
+          export async function $METHOD(...) {
+            ...
+            await withAuthz(...)
+            ...
+          }
     paths:
       include:
         - "**/app/api/admin/**/route.ts"
         - "**/app/api/admin/**/route.tsx"
     message: >
       Admin API route handler does not call an approved authz guard
-        (`requireAdmin()`, `requireSuperAdmin()`, or `requireAdminSession()`).
-        All admin `export async function` route handlers must gate on one of
-        these. Routes that use the `withAuthz(...)` wrapper export a `const`
-        handler and are not matched by this rule.
+      (requireAdmin, requireSuperAdmin, requireAdminSession, or withAuthz).
+      All admin route handlers must gate on one of these.
+    languages: [typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      audit-ref: F-003
+
+  # High 3b: catch sync function handlers (export function GET() {})
+  # Note: Semgrep normalizes `async function` to `function` in its AST, so
+  # this rule also matches `export async function GET()`. The pattern-not
+  # blocks include both sync and async (await) guard calls to avoid false
+  # positives on async handlers that use requireAdminSession/withAuthz.
+  - id: admin-route-missing-auth-sync
+    patterns:
+      - pattern: |
+          export function $METHOD(...) { ... }
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            requireAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            await requireAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            requireSuperAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            await requireSuperAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            requireAdminSession(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            await requireAdminSession(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            withAuthz(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            await withAuthz(...)
+            ...
+          }
+    paths:
+      include:
+        - "**/app/api/admin/**/route.ts"
+        - "**/app/api/admin/**/route.tsx"
+    message: >
+      Admin API route handler (sync) does not call an approved authz guard.
+      All admin route handlers must gate on requireAdmin/requireSuperAdmin/
+      requireAdminSession/withAuthz.
+    languages: [typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      audit-ref: F-003
+
+  # High 3c: catch const-arrow handlers (export const GET = async () => {})
+  #          that do NOT wrap withAuthz. This is the exact bypass the audit
+  #          flagged: someone writes a bare const handler with no auth.
+  - id: admin-route-missing-auth-const
+    patterns:
+      - pattern: |
+          export const $METHOD = async (...) => { ... }
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$
+      - pattern-not: |
+          export const $METHOD = withAuthz(...)
+      - pattern-not: |
+          export const $METHOD = async (...) => {
+            ...
+            await requireAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export const $METHOD = async (...) => {
+            ...
+            await requireSuperAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export const $METHOD = async (...) => {
+            ...
+            await requireAdminSession(...)
+            ...
+          }
+    paths:
+      include:
+        - "**/app/api/admin/**/route.ts"
+        - "**/app/api/admin/**/route.tsx"
+    message: >
+      Admin API route handler (const-arrow) does not use withAuthz() or
+      call an approved authz guard. A bare const handler with no auth
+      wrapper is an unauthenticated admin endpoint.
     languages: [typescript]
     severity: ERROR
     metadata:
@@ -59,33 +193,96 @@ rules:
       audit-ref: F-003
 
   # ── Service-role import outside allowlist ──────────────────────────
+  # High 4: cover ALL import forms (named, namespace, default, dynamic require).
+  #         Raised severity from WARNING to ERROR — this primitive bypasses RLS.
   - id: service-role-import
-    pattern: |
-      import { ... } from "@/lib/server-only/service-role"
+    pattern-either:
+      - pattern: import { ... } from "@/lib/server-only/service-role"
+      - pattern: import * as $ALIAS from "@/lib/server-only/service-role"
+      - pattern: import $DEFAULT from "@/lib/server-only/service-role"
+      - pattern: await import("@/lib/server-only/service-role")
+      - pattern: require("@/lib/server-only/service-role")
     message: >
       Importing the privileged Supabase client bypasses RLS. This import
-      must be listed in `lib/security/service-role-allowlist.ts` and
-      reviewed by the security CODEOWNER.
+      must be listed in lib/security/service-role-allowlist.ts and reviewed
+      by the security CODEOWNER. If this is an approved usage, suppress with
+      // nosemgrep: service-role-import and reference the allowlist entry.
     languages: [typescript, javascript]
-    severity: WARNING
+    severity: ERROR
+    paths:
+      exclude:
+        - "**/__tests__/**"
+        - "**/*.test.ts"
+        - "**/*.test.tsx"
+        - "**/*.spec.ts"
+        - "**/*.spec.tsx"
     metadata:
       category: security
-      audit-ref: risk-8
+      audit-ref: audit-risk-8
 
   # ── Unsafe redirect without validation ─────────────────────────────
-  - id: unsafe-redirect
+  # High 1: removed the pattern-not for new URL(..., request.url) which
+  #         blessed absolute URLs (the base is ignored for absolute first args).
+  #         All redirects must go through safeRedirectUrl().
+  # High 2: catch redirects with explicit status codes (redirect(url, 307)).
+  #         Also catch Response.redirect() and next/navigation redirect().
+  # Medium 5: use $REQ metavariable instead of hardcoded `request`.
+  - id: unsafe-redirect-nextresponse-single
     patterns:
-      - pattern: |
-          NextResponse.redirect($URL)
-      - pattern-not: |
-          NextResponse.redirect(safeRedirectUrl(...))
-      - pattern-not: |
-          NextResponse.redirect(new URL(..., request.url))
+      - pattern: NextResponse.redirect($URL)
+      - pattern-not: NextResponse.redirect(safeRedirectUrl(...))
     message: >
-      Use `safeRedirectUrl()` from `@/lib/safe-redirect` to validate
-      redirect targets. Open redirects allow phishing attacks.
+      Use safeRedirectUrl() from @/lib/safe-redirect to validate redirect
+      targets. Open redirects allow phishing attacks. Never use new URL()
+      with an unvalidated first argument — an absolute URL ignores the base.
     languages: [typescript, javascript]
     severity: WARNING
     metadata:
       category: security
-      audit-ref: general
+      audit-ref: audit-redirect-1
+
+  - id: unsafe-redirect-nextresponse-status
+    patterns:
+      - pattern: NextResponse.redirect($URL, $STATUS, ...)
+      - pattern-not: NextResponse.redirect(safeRedirectUrl(...), $STATUS, ...)
+    message: >
+      Use safeRedirectUrl() from @/lib/safe-redirect to validate redirect
+      targets. Open redirects allow phishing attacks. This redirect uses an
+      explicit status code which was not covered by the original rule.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      audit-ref: audit-redirect-2
+
+  - id: unsafe-redirect-response
+    patterns:
+      - pattern: Response.redirect($URL)
+      - pattern-not: Response.redirect(safeRedirectUrl(...))
+    message: >
+      Use safeRedirectUrl() from @/lib/safe-redirect to validate redirect
+      targets. Response.redirect() is also vulnerable to open redirects.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      audit-ref: audit-redirect-3
+
+  - id: unsafe-redirect-navigation
+    patterns:
+      - pattern: redirect($URL)
+      - pattern-not: redirect(safeRedirectUrl(...))
+      - pattern-not-inside: |
+          import { ... } from "next/navigation"
+          ...
+      - pattern-inside: |
+          import { redirect } from "next/navigation"
+          ...
+    message: >
+      Use safeRedirectUrl() from @/lib/safe-redirect to validate redirect
+      targets before calling redirect() from next/navigation.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      audit-ref: audit-redirect-4

@@ -1,46 +1,22 @@
 /**
- * API versioning strategy (R-005 / E3#13).
+ * API versioning strategy (R-005 / E3#13 / ADR-0008).
  *
- * We use date-based API versions in the `API-Version` response header.
- * Clients can request a specific version via `Accept-Version` request header.
- * If no version is requested, the current stable version is used.
+ * All current `/api/*` endpoints are the implicit v1 contract. New endpoint
+ * families that introduce breaking changes will use an `/api/vN/` URL prefix.
  *
- * Migration path:
- *   1. Breaking changes get a new dated version (e.g. "2026-06-01")
- *   2. Previous version remains supported for one quarter
- *   3. Sunset header advertises the deprecation date
+ * We communicate the served numeric major version in the `API-Version`
+ * response header. Version selection is URL-based; request headers do not
+ * select a different contract.
  */
 
-const CURRENT_API_VERSION = "2026-05-25";
-
-/** Header names for API versioning. */
-const API_VERSION_HEADER = "API-Version";
-const SUNSET_HEADER = "Sunset";
+export const CURRENT_API_VERSION = "1";
+export const API_VERSION_HEADER = "API-Version";
 
 /**
  * Set API version headers on a response.
- * Called by middleware for all /api/* responses.
+ * Called by the middleware finalizer for matched API routes. Routes excluded
+ * from middleware receive the same header from next.config.ts.
  */
-export function setApiVersionHeaders(
-  responseHeaders: Headers,
-  requestedVersion?: string | null,
-): void {
-  const version = requestedVersion ?? CURRENT_API_VERSION;
-  responseHeaders.set(API_VERSION_HEADER, version);
-
-  if (requestedVersion && requestedVersion !== CURRENT_API_VERSION) {
-    responseHeaders.set(SUNSET_HEADER, getSunsetDate(requestedVersion));
-    responseHeaders.set("Deprecation", `version="${requestedVersion}"`);
-  }
-}
-
-function getSunsetDate(version: string): string {
-  try {
-    const date = new Date(version);
-    date.setMonth(date.getMonth() + 3);
-    return date.toUTCString();
-  } catch {
-    // fail-open: version header parse failure defaults to current version
-    return new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString();
-  }
+export function setApiVersionHeaders(responseHeaders: Headers): void {
+  responseHeaders.set(API_VERSION_HEADER, CURRENT_API_VERSION);
 }

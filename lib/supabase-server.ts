@@ -6,15 +6,17 @@ import { SignJWT } from "jose";
 import { logger } from "@/lib/logger";
 import { headers, cookies } from "next/headers";
 import { getAdminSession } from "@/lib/auth";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 import { authzPrimaryRead } from "@/lib/read-after-write";
 import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
+import { allSiteTags } from "@/lib/cache-tags";
 // F-1: signSiteIdFallback moved to lib/site-id-signer.ts (Edge-safe leaf)
 // to avoid pulling bcryptjs + jose/deflate into the middleware bundle.
 // Callers should import directly from @/lib/site-id-signer.
 import { signSiteIdFallback } from "@/lib/site-id-signer";
+import { PATHNAME_HEADER } from "@/lib/request-path";
 
 /**
  * F-API-01 companion shim for the RLS-enforced clients.
@@ -137,53 +139,69 @@ const ACTIVE_SITE_COOKIE = "nh_active_site";
 
 export async function getTenantClient(): Promise<SupabaseClient<Database>> {
   let siteId: string | null = null;
+  let userId: string | null = null;
+
+  // P-01: Admin routes operate on the active site selected in the dashboard;
+  // public routes must respect the URL/domain via the signed x-site-id header.
+  // Relying on the admin active-site cookie for public pages (e.g. preview)
+  // causes a 404 when the cookie points to a different tenant than the request.
+  let isAdminRoute = false;
+  try {
+    const h = await headers();
+    const pathname = h.get(PATHNAME_HEADER) ?? "";
+    if (pathname.startsWith("/q7m-k4j9") || pathname.startsWith("/api/admin")) {
+      isAdminRoute = true;
+    }
+  } catch {
+    // fail-open: headers not available (e.g. outside request scope)
+  }
 
   // A-017: In admin contexts, resolve site_id from the session cookie rather
   // than the x-site-id header (which can be spoofed by a compromised client).
   // P1-9: Verify server-side membership before honoring nh_active_site.
-  let userId: string | null = null;
-  try {
-    const session = await getAdminSession();
-    if (session?.userId) {
-      userId = session.userId;
-      const cookieStore = await cookies();
-      const activeSlug = cookieStore.get(ACTIVE_SITE_COOKIE)?.value ?? null;
-      if (activeSlug) {
-        // Use a privileged client to resolve the slug → UUID so we don't
-        // recurse through getTenantClient().
-        const priv = getPrivilegedSupabaseClient();
-        const dbSite = await getSiteRowBySlugWithClient(activeSlug, async () => priv);
-        if (dbSite) {
-          // P1-9: Verify the admin user actually has membership on this site.
-          // super_admin users bypass the membership check (they have access to all sites).
-          if (session.role === "super_admin") {
-            siteId = dbSite.id;
-          } else {
-            // A30-006: Primary read for authz — membership check must not see stale replica data
-            const { data: membership } = await authzPrimaryRead(async () =>
-              priv
-                .from("admin_site_memberships")
-                .select("id")
-                .eq("admin_user_id", userId!)
-                .eq("site_id", dbSite.id)
-                .single(),
-            );
-            if (membership) {
+  if (isAdminRoute) {
+    try {
+      const session = await getAdminSession();
+      if (session?.userId) {
+        userId = session.userId;
+        const cookieStore = await cookies();
+        const activeSlug = cookieStore.get(ACTIVE_SITE_COOKIE)?.value ?? null;
+        if (activeSlug) {
+          // Use a privileged client to resolve the slug → UUID so we don't
+          // recurse through getTenantClient().
+          const priv = getPrivilegedSupabaseClient();
+          const dbSite = await getSiteRowBySlugWithClient(activeSlug, async () => priv);
+          if (dbSite) {
+            // P1-9: Verify the admin user actually has membership on this site.
+            // super_admin users bypass the membership check (they have access to all sites).
+            if (session.role === "super_admin") {
               siteId = dbSite.id;
+            } else {
+              // A30-006: Primary read for authz — membership check must not see stale replica data
+              const { data: membership } = await authzPrimaryRead(async () =>
+                priv
+                  .from("admin_site_memberships")
+                  .select("id")
+                  .eq("admin_user_id", userId!)
+                  .eq("site_id", dbSite.id)
+                  .single(),
+              );
+              if (membership) {
+                siteId = dbSite.id;
+              }
+              // If no membership, siteId stays null — falls back to x-site-id header
             }
-            // If no membership, siteId stays null — falls back to x-site-id header
           }
         }
       }
+    } catch {
+      // fail-open: best-effort [criticality:non-critical]
+      // If not in a request context where cookies work, ignore
     }
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    // If not in a request context where cookies work, ignore
   }
 
-  // Public pages (no admin session): fall back to the header injected by middleware.
-  // A7-005: Verify the x-site-id header is HMAC-signed by middleware to prevent
-  // tenant fixation via a spoofed x-site-id header (when no active-site cookie exists).
+  // Public pages: use the middleware-injected, HMAC-signed x-site-id header.
+  // A7-005: Verify the signature to prevent tenant fixation.
   if (!siteId) {
     const h = await headers();
     const rawSiteId = h.get("x-site-id");
@@ -193,8 +211,7 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
       // before minting the JWT: the tenant_isolation RLS policy runs
       // current_request_site_ids(), which casts the app_metadata.site_id claim
       // to uuid. A slug there throws `22P02 invalid input syntax for type uuid`
-      // and every public tenant-scoped query fails. (The admin branch above
-      // already resolves slug -> UUID via the privileged client.)
+      // and every public tenant-scoped query fails.
       try {
         const priv = getPrivilegedSupabaseClient();
         const dbSite = await getSiteRowBySlugWithClient(rawSiteId, async () => priv);
@@ -206,7 +223,14 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
     }
   }
 
-  return withNoopSiteFilterOptOut(await getAuthenticatedClient(siteId, userId, "authenticated"));
+  return withNoopSiteFilterOptOut(
+    await getAuthenticatedClient(
+      siteId,
+      userId,
+      "authenticated",
+      siteId ? allSiteTags(siteId) : [],
+    ),
+  );
 }
 
 /**
@@ -350,6 +374,7 @@ async function getAuthenticatedClient(
   siteId?: string | null,
   userId?: string | null,
   role = "authenticated",
+  cacheTags: string[] = [],
 ): Promise<SupabaseClient<Database>> {
   const url = getSupabaseUrl();
   const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
@@ -374,9 +399,30 @@ async function getAuthenticatedClient(
         Authorization: `Bearer ${token}`,
       },
       fetch: async (input, init) => {
+        const nextOptions = (init as FetchWithTimeoutOptions | undefined)?.next;
+        // Admin requests (minted with a user sub) must never be served from a
+        // stale fetch cache; the dashboard shows empty tables after writes
+        // otherwise. Public/anonymous requests can still use the ISR-friendly
+        // revalidate tags.
+        const isAdmin = typeof userId === "string" && userId.length > 0;
+        if (isAdmin) {
+          return fetchWithTimeout(input as string, {
+            ...init,
+            timeoutMs: 12000,
+            cache: "no-store",
+          });
+        }
         return fetchWithTimeout(input as string, {
           ...init,
           timeoutMs: 12000,
+          ...(cacheTags.length > 0
+            ? {
+                next: {
+                  revalidate: nextOptions?.revalidate ?? 60,
+                  tags: Array.from(new Set([...cacheTags, ...(nextOptions?.tags ?? [])])),
+                },
+              }
+            : {}),
         });
       },
     },

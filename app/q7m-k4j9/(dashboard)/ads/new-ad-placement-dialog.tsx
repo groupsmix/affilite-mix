@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -26,7 +27,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
-import type { AdPlacementType, AdProvider } from "@/types/database";
+import type { AdPlacementRow, AdPlacementType, AdProvider } from "@/types/database";
+import { ImageUploader } from "../components/image-uploader";
 
 const PLACEMENT_TYPES: { value: AdPlacementType; label: string }[] = [
   { value: "sidebar", label: "Sidebar" },
@@ -37,66 +39,124 @@ const PLACEMENT_TYPES: { value: AdPlacementType; label: string }[] = [
 ];
 
 const PROVIDERS: { value: AdProvider; label: string }[] = [
+  { value: "image", label: "Image / banner (self-served)" },
   { value: "adsense", label: "Google AdSense" },
   { value: "carbon", label: "Carbon Ads" },
   { value: "ethicalads", label: "EthicalAds" },
   { value: "custom", label: "Custom HTML" },
 ];
 
+interface NewAdPlacementDialogProps {
+  ad?: AdPlacementRow | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: React.ReactNode;
+}
+
 /**
- * Minimal "Add placement" dialog. Reuses the existing
- * `POST /api/admin/ads` route — no new server surface area. Mirrors the
- * fields from the legacy inline form in `<AdPlacementList>` that this task
- * is retiring.
+ * Ad placement dialog. Supports both creating a new placement and editing an
+ * existing one via the optional `ad` prop. Reuses `POST /api/admin/ads` and
+ * `PUT /api/admin/ads/:id`.
  */
-export function NewAdPlacementDialog() {
+export function NewAdPlacementDialog({
+  ad,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  children,
+}: NewAdPlacementDialogProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const onOpenChange = onOpenChangeProp ?? setInternalOpen;
+
+  const isEdit = Boolean(ad);
+
   const [name, setName] = useState("");
   const [placementType, setPlacementType] = useState<AdPlacementType>("sidebar");
-  const [provider, setProvider] = useState<AdProvider>("adsense");
+  const [provider, setProvider] = useState<AdProvider>("image");
   const [adCode, setAdCode] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [clickUrl, setClickUrl] = useState("");
+  const [alt, setAlt] = useState("");
   const [priority, setPriority] = useState(0);
+  const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const isImage = provider === "image";
+
   function resetForm() {
-    setName("");
-    setPlacementType("sidebar");
-    setProvider("adsense");
-    setAdCode("");
-    setPriority(0);
+    if (ad) {
+      const cfg = (ad.config ?? {}) as Record<string, unknown>;
+      setName(ad.name);
+      setPlacementType(ad.placement_type);
+      setProvider(ad.provider);
+      setAdCode(ad.ad_code ?? "");
+      setImageUrl(typeof cfg.image_url === "string" ? cfg.image_url : "");
+      setClickUrl(typeof cfg.click_url === "string" ? cfg.click_url : "");
+      setAlt(typeof cfg.alt === "string" ? cfg.alt : "");
+      setPriority(ad.priority ?? 0);
+      setIsActive(ad.is_active);
+    } else {
+      setName("");
+      setPlacementType("sidebar");
+      setProvider("image");
+      setAdCode("");
+      setImageUrl("");
+      setClickUrl("");
+      setAlt("");
+      setPriority(0);
+      setIsActive(true);
+    }
     setError("");
   }
+
+  useEffect(() => {
+    resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ad?.id]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
     setError("");
 
-    try {
-      const res = await fetchWithCsrf("/api/admin/ads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    const body = isImage
+      ? {
+          name,
+          placement_type: placementType,
+          provider,
+          ad_code: null,
+          config: { ...(ad?.config ?? {}), image_url: imageUrl, click_url: clickUrl, alt },
+          is_active: isActive,
+          priority,
+        }
+      : {
           name,
           placement_type: placementType,
           provider,
           ad_code: adCode || null,
-          config: {},
-          is_active: true,
+          config: ad?.config ?? {},
+          is_active: isActive,
           priority,
-        }),
+        };
+    const url = isEdit && ad ? `/api/admin/ads/${ad.id}` : "/api/admin/ads";
+
+    try {
+      const res = await fetchWithCsrf(url, {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
-        toast.success("Ad placement created");
-        setOpen(false);
-        resetForm();
+        toast.success(isEdit ? "Ad placement updated" : "Ad placement created");
+        onOpenChange(false);
+        if (!isEdit) resetForm();
         router.refresh();
       } else {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        const msg = data.error ?? "Failed to create ad placement";
+        const msg = data.error ?? "Failed to save ad placement";
         setError(msg);
         toast.error(msg);
       }
@@ -109,19 +169,22 @@ export function NewAdPlacementDialog() {
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        setOpen(next);
+        onOpenChange(next);
         if (!next) resetForm();
       }}
     >
-      <DialogTrigger asChild>
-        <Button>Add placement</Button>
-      </DialogTrigger>
+      {children || (
+        <DialogTrigger asChild>
+          <Button>Add placement</Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add ad placement</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit ad placement" : "Add ad placement"}</DialogTitle>
           <DialogDescription>
-            Create a new ad slot. You can fine-tune the config (including a custom CPM) after it is
-            created.
+            {isEdit
+              ? "Update this ad slot. Changes take effect immediately on the public site."
+              : "Create a new ad slot. You can fine-tune the config (including a custom CPM) after it is created."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -192,16 +255,77 @@ export function NewAdPlacementDialog() {
             />
             <p className="text-xs text-muted-foreground">Lower numbers appear first.</p>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="new-ad-code">Ad code</Label>
-            <Textarea
-              id="new-ad-code"
-              rows={4}
-              placeholder="Paste your ad code (HTML/JS snippet) here…"
-              value={adCode}
-              onChange={(e) => setAdCode(e.target.value)}
-              className="font-mono text-xs"
+          {isImage ? (
+            <>
+              <ImageUploader
+                value={imageUrl}
+                onChange={setImageUrl}
+                label="Ad image"
+                placeholder="Upload a banner/creative"
+                id="new-ad-image"
+              />
+              <p className="-mt-2 text-xs text-muted-foreground">
+                For a CPA/affiliate offer, download the network&apos;s banner and upload it here
+                (creatives must be hosted on this site&apos;s own CDN to display), then paste the
+                offer&apos;s tracking link below as the click-through URL.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Renders in whichever slot you pick: header, footer, in-article, sidebar (article
+                pages), or between posts (listing pages).
+              </p>
+              <div className="grid gap-2">
+                <Label htmlFor="new-ad-click-url">Click-through URL</Label>
+                <Input
+                  id="new-ad-click-url"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://example.com/landing-page"
+                  value={clickUrl}
+                  onChange={(e) => setClickUrl(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Where the ad links when clicked (opens in a new tab, marked
+                  rel=&quot;sponsored&quot;).
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-ad-alt">Alt text</Label>
+                <Input
+                  id="new-ad-alt"
+                  type="text"
+                  placeholder="Describe the ad for screen readers"
+                  value={alt}
+                  onChange={(e) => setAlt(e.target.value)}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-2">
+              <Label htmlFor="new-ad-code">Ad code</Label>
+              <Textarea
+                id="new-ad-code"
+                rows={4}
+                placeholder="Paste your ad code (HTML/JS snippet) here…"
+                value={adCode}
+                onChange={(e) => setAdCode(e.target.value)}
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Note: script/HTML ad networks are stored but not yet rendered on the public site.
+                Use “Image / banner” for ads that display today.
+              </p>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="new-ad-active"
+              checked={isActive}
+              onCheckedChange={(checked) => setIsActive(Boolean(checked))}
             />
+            <Label htmlFor="new-ad-active" className="text-sm font-normal">
+              Active placement
+            </Label>
           </div>
           <DialogFooter className="mt-2">
             <DialogClose asChild>
@@ -210,7 +334,13 @@ export function NewAdPlacementDialog() {
               </Button>
             </DialogClose>
             <Button type="submit" disabled={saving}>
-              {saving ? "Creating…" : "Create placement"}
+              {saving
+                ? isEdit
+                  ? "Saving…"
+                  : "Creating…"
+                : isEdit
+                  ? "Save changes"
+                  : "Create placement"}
             </Button>
           </DialogFooter>
         </form>

@@ -34,7 +34,7 @@ import { hasPermission } from "./dal/permissions";
 import type { PermissionFeature, PermissionAction } from "@/types/database";
 import { apiError } from "./api-error";
 import { requireAdmin } from "./admin-guard";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { getCircuitBreaker } from "@/lib/ai/circuit-breaker";
 import { untypedFrom } from "@/lib/dal/type-guards";
 
@@ -67,6 +67,56 @@ export type AuthenticatedDynamicRouteHandler = (
 ) => Promise<NextResponse> | NextResponse;
 
 /**
+ * Evaluate `hasPermission` with fail-closed error handling.
+ *
+ * A thrown error from `hasPermission` means the permission *check itself*
+ * failed — e.g. the tenant-scoped Supabase JWT (signed with
+ * `SUPABASE_JWT_SECRET`) was rejected by PostgREST, or the `admin_users`
+ * lookup errored — NOT that the user lacks access. Previously such throws
+ * propagated uncaught out of `withAuthz` / `withAuthzDynamic`, so Next.js
+ * returned an unstructured 500. Admin clients parse error bodies as JSON and
+ * fall back to a generic "Failed to save" when parsing fails, hiding the real
+ * cause. We now log the underlying error server-side and return a structured
+ * JSON response the client can surface.
+ *
+ * Returns a `NextResponse` when the request must be rejected (permission
+ * denied, or the check failed), or `null` when the caller may proceed.
+ */
+async function evaluatePermission(
+  userId: string,
+  siteId: string,
+  feature: PermissionFeature,
+  action: PermissionAction,
+  signal: AbortSignal,
+): Promise<NextResponse | null> {
+  let allowed: boolean;
+  try {
+    allowed = await hasPermission(userId, siteId, feature, action, undefined, signal);
+  } catch (err) {
+    if (signal.aborted) {
+      // eslint-disable-next-line no-console -- timeout diagnostic
+      console.error("[authz] permission check aborted due to timeout", { feature, action });
+      return apiError(503, "Permission check timed out. Please retry.");
+    }
+    // fail-closed: a check failure must never be treated as "allowed"
+    // eslint-disable-next-line no-console -- security-relevant diagnostic
+    console.error("[authz] permission check failed", {
+      feature,
+      action,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return apiError(
+      503,
+      "Permission check failed. This usually indicates a backend configuration issue.",
+    );
+  }
+  if (!allowed) {
+    return apiError(403, "Forbidden");
+  }
+  return null;
+}
+
+/**
  * Guard a non-dynamic route (no `[param]` segments) by feature+action
  * against the **server-derived** active site. Use this in place of any
  * handler that previously read `request.nextUrl.searchParams.get("site_id")`
@@ -89,17 +139,8 @@ export function withAuthz(
     // F-11: Extract signal from request for timeout propagation
     const signal = request.signal;
 
-    const allowed = await hasPermission(
-      session.userId,
-      dbSiteId,
-      feature,
-      action,
-      undefined,
-      signal,
-    );
-    if (!allowed) {
-      return apiError(403, "Forbidden");
-    }
+    const denied = await evaluatePermission(session.userId, dbSiteId, feature, action, signal);
+    if (denied) return denied;
 
     const res = await handler(request, {
       session,
@@ -138,17 +179,8 @@ export function withAuthzDynamic(
     // F-11: Extract signal from request for timeout propagation
     const signal = request.signal;
 
-    const allowed = await hasPermission(
-      session.userId,
-      dbSiteId,
-      feature,
-      action,
-      undefined,
-      signal,
-    );
-    if (!allowed) {
-      return apiError(403, "Forbidden");
-    }
+    const denied = await evaluatePermission(session.userId, dbSiteId, feature, action, signal);
+    if (denied) return denied;
 
     const resolvedParams = await params;
     return handler(request, {
@@ -274,6 +306,10 @@ export async function authorizeResource(
       const sb = getPrivilegedSupabaseClient();
       const result = await untypedFrom(sb, table)
         .select("site_id")
+        // SAFE: resource ownership is resolved here; site_id is checked
+        // against the expected site below. The table is accessed with the
+        // privileged client which enforces an explicit site-filter opt-out.
+        .unsafeNoSiteFilter()
         .eq("id", opts.resourceId)
         .abortSignal(signal)
         .maybeSingle();

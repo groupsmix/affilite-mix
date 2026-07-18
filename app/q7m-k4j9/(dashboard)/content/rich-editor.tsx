@@ -8,6 +8,8 @@ import Underline from "@tiptap/extension-underline";
 import Youtube from "@tiptap/extension-youtube";
 import { useEffect, useState, useRef } from "react";
 import { isSafeUrl, sanitizeHtml } from "@/lib/sanitize-html";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 /**
  * Only http(s) URLs are permitted inside the editor for images and videos.
@@ -25,6 +27,15 @@ interface RichEditorProps {
   value: string;
   onChange: (html: string) => void;
 }
+
+type RewriteAction = "expand" | "rewrite" | "rephrase" | "summarize";
+
+const REWRITE_ACTIONS: { value: RewriteAction; label: string }[] = [
+  { value: "expand", label: "Expand" },
+  { value: "rewrite", label: "Rewrite" },
+  { value: "rephrase", label: "Rephrase" },
+  { value: "summarize", label: "Summarize" },
+];
 
 /** Inline popover for entering a URL (used for both links and images). */
 function UrlPopover({
@@ -46,8 +57,8 @@ function UrlPopover({
   }, []);
 
   return (
-    <div className="absolute left-0 top-full z-50 mt-1 flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
-      <label className="text-xs font-medium text-gray-500">{label}</label>
+    <div className="absolute left-0 top-full z-50 mt-1 flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 shadow-lg">
+      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</label>
       <input
         ref={inputRef}
         type="url"
@@ -61,21 +72,100 @@ function UrlPopover({
           if (e.key === "Escape") onCancel();
         }}
         placeholder={placeholder}
-        className="w-56 rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-56 rounded border border-gray-300 dark:border-gray-700 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
       />
       <button
         type="button"
         onClick={() => {
           if (url) onSubmit(url);
         }}
-        className="rounded bg-gray-800 px-2 py-1 text-xs font-medium text-white hover:bg-gray-700"
+        className="rounded bg-gray-800 px-2 py-1 text-xs font-medium text-white dark:text-gray-900 hover:bg-gray-700"
       >
         Add
       </button>
       <button
         type="button"
         onClick={onCancel}
-        className="rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100"
+        className="rounded px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function AiPopover({
+  editor,
+  open,
+  onClose,
+}: {
+  editor: Exclude<ReturnType<typeof useEditor>, null>;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  if (!open) return null;
+
+  const { from, to } = editor.state.selection;
+  const selected = editor.state.doc.textBetween(from, to, " ");
+  const empty = from === to;
+
+  async function handleAction(action: RewriteAction) {
+    if (empty) {
+      toast.error("Select some text first");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetchWithCsrf("/api/admin/ai/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: selected, action }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(data.error ?? "AI rewrite failed");
+        return;
+      }
+      const data = (await res.json()) as { text?: string };
+      if (!data.text) {
+        toast.error("AI returned empty text");
+        return;
+      }
+      editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, data.text).run();
+      onClose();
+    } catch {
+      toast.error("AI rewrite failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="absolute left-0 top-full z-50 mt-1 flex w-56 flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 shadow-lg">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+        {empty
+          ? "Select text in the editor"
+          : `Selected: ${selected.slice(0, 40)}${selected.length > 40 ? "…" : ""}`}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {REWRITE_ACTIONS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            disabled={loading || empty}
+            onClick={() => void handleAction(value)}
+            className="rounded bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {loading ? "…" : label}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100"
       >
         Cancel
       </button>
@@ -87,16 +177,19 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   const [showLinkPopover, setShowLinkPopover] = useState(false);
   const [showImagePopover, setShowImagePopover] = useState(false);
   const [showVideoPopover, setShowVideoPopover] = useState(false);
+  const [showAiPopover, setShowAiPopover] = useState(false);
 
   if (!editor) return null;
 
   const btnClass = (active: boolean) =>
     `rounded px-2 py-1 text-xs font-medium transition-colors ${
-      active ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      active
+        ? "bg-gray-800 text-white dark:text-gray-900"
+        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200"
     }`;
 
   return (
-    <div className="flex flex-wrap gap-1 border-b border-gray-200 bg-gray-50 px-2 py-1.5">
+    <div className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5">
       <button
         type="button"
         onClick={() => editor.chain().focus().toggleBold().run()}
@@ -130,7 +223,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         S
       </button>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
 
       <button
         type="button"
@@ -157,7 +250,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         H4
       </button>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
 
       <button
         type="button"
@@ -176,7 +269,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         1. List
       </button>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
 
       <button
         type="button"
@@ -203,7 +296,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         &mdash;
       </button>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
 
       <div className="relative">
         <button
@@ -292,6 +385,27 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           />
         )}
       </div>
+
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setShowAiPopover(!showAiPopover);
+            setShowLinkPopover(false);
+            setShowImagePopover(false);
+            setShowVideoPopover(false);
+          }}
+          className={btnClass(showAiPopover)}
+          title="AI rewrite / expand"
+        >
+          AI
+        </button>
+        {showAiPopover && (
+          <AiPopover editor={editor} open={showAiPopover} onClose={() => setShowAiPopover(false)} />
+        )}
+      </div>
     </div>
   );
 }
@@ -301,6 +415,12 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3, 4] },
+        // StarterKit v3 includes Link and Underline by default. We add them
+        // separately below with custom configuration (openOnClick, validate,
+        // HTMLAttributes) that StarterKit's options don't support. Disabling
+        // them here prevents the "Duplicate extension names" warning.
+        link: false,
+        underline: false,
       }),
       Link.configure({
         openOnClick: false,
@@ -352,7 +472,7 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
   }, [editor, value]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+    <div className="overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
       <MenuBar editor={editor} />
       <EditorContent editor={editor} />
     </div>

@@ -16,6 +16,11 @@ import Link from "next/link";
 import { NewsletterSignup } from "./newsletter-signup";
 import { CookieSettingsButton } from "./cookie-settings-button";
 
+/** Turn a camelCase footerNav section key (e.g. "quickLinks") into spaced words. */
+function humanizeSection(section: string): string {
+  return section.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
 interface SiteFooterCompareProps {
   site: SiteDefinition;
   hideNewsletter?: boolean;
@@ -54,7 +59,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
           </div>
           {/* Trust tagline */}
           <p className="text-xs italic text-gray-400">
-            Independent reviews. No sponsored rankings.
+            {site.brand.tagline ?? "Independent reviews. No sponsored rankings."}
           </p>
         </div>
 
@@ -64,7 +69,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
           {Object.entries(site.footerNav).map(([section, items]) => (
             <div key={section}>
               <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">
-                {section}
+                {humanizeSection(section)}
               </h4>
               <ul className="space-y-2">
                 {items.map((item) => (

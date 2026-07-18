@@ -1,4 +1,6 @@
-/** Site configuration — single source of truth for all site-specific behavior */
+/** Static tenant configuration — authoritative for sites registered in config/sites. */
+
+import type { HeaderConfig, FooterConfig, HeaderTokens } from "./presentation";
 
 /**
  * Controls the chrome (header + footer) rendered around every page of a site.
@@ -28,6 +30,8 @@ export interface SiteDefinition {
     niche: string;
     logo?: string;
     faviconUrl?: string;
+    /** Optional short trust/positioning tagline shown in branded footers. */
+    tagline?: string;
   };
 
   theme: {
@@ -92,14 +96,34 @@ export interface SiteDefinition {
   };
 
   /** Homepage template preset. Defaults to "standard". */
-  homepageTemplate?: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+  homepageTemplate?:
+    | "standard"
+    | "cinematic"
+    | "minimal"
+    | "editorial"
+    | "top10"
+    | "compare"
+    | "showcase"
+    | "taxfinder";
 
   /**
    * Chrome variant — controls the header and footer design for this site.
-   * Defaults to "standard". Can be overridden at runtime via the DB
-   * `theme.layout_variant` field (admin panel → Site Settings).
+   * Defaults to "standard". Kept as the shared fallback for the more specific
+   * `headerVariant` / `footerVariant` below.
    */
   layoutVariant?: LayoutVariant;
+
+  /**
+   * Optional per-surface overrides so the header and footer can use different
+   * designs. When unset each falls back to `layoutVariant`, then "standard".
+   */
+  headerVariant?: LayoutVariant;
+  footerVariant?: LayoutVariant;
+
+  /** Optional static presentation config + header design tokens. */
+  headerConfig?: Partial<HeaderConfig>;
+  footerConfig?: Partial<FooterConfig>;
+  headerTokens?: Partial<HeaderTokens>;
 
   /** Product card display variant. Defaults to "standard". */
   productCardStyle?: "standard" | "compact" | "detailed";
@@ -163,6 +187,12 @@ export interface FeatureFlags {
   cookieConsent?: boolean;
   taxonomyPages?: boolean;
   customHomepage?: boolean;
+  /** Enable membership checkout and lifecycle pages for this tenant. */
+  membership?: boolean;
+  /** Enable public media-kit page with real analytics only. */
+  mediaKit?: boolean;
+  /** Enable public community APIs (comments, wrist-shots) and moderation surface. */
+  community?: boolean;
 }
 
 export interface ContentTypeConfig {

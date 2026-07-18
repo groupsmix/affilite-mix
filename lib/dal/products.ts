@@ -1,4 +1,4 @@
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
@@ -18,7 +18,7 @@ const TABLE = "products";
 // translated by toProductDbWrite() below. Selecting a literal `price` here would
 // 400 ("column products.price does not exist") on any DB where 00089 has run.
 const LIST_COLUMNS =
-  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at" as const;
+  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, category_ids, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at" as const;
 
 /**
  * Translate the app-facing `price` field to the real DB column `price_label`
@@ -342,7 +342,7 @@ export async function listActiveProducts(
   if (shouldSkipDbCall()) {
     return [];
   }
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const joinType = categorySlug ? "categories!inner(slug)" : "*, categories(slug)";
   // DB-11/00089: expose the renamed `price_label` column under the app-facing
   // `price` key so product.price is populated on the public anon path too
@@ -391,7 +391,7 @@ export async function searchProducts(
 ): Promise<ProductRow[]> {
   // A73-F2: Truncate overly long search queries to prevent expensive DB plans
   const trimmedQuery = query.slice(0, MAX_SEARCH_QUERY_LENGTH);
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const tsq = toTsquery(trimmedQuery);
 
   if (tsq) {
@@ -446,11 +446,11 @@ export async function listProductsByNames(
   return results;
 }
 
-export async function listFeaturedProducts(siteId: string, limit = 6): Promise<ProductRow[]> {
+export async function listFeaturedProducts(siteId: string, limit = 12): Promise<ProductRow[]> {
   if (shouldSkipDbCall()) {
     return [];
   }
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)

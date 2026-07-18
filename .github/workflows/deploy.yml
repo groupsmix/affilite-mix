@@ -133,6 +133,13 @@ env:
   # know which site's metadata/layout to render for paths outside the
   # dynamic routes. Must be a valid slug from config/sites/ or the DB.
   NEXT_PUBLIC_DEFAULT_SITE: ${{ vars.NEXT_PUBLIC_DEFAULT_SITE }}
+  # Required at build time by next.config.ts: `remotePatterns` pins the
+  # Next image optimizer to the exact R2 public host derived from this URL.
+  # It is also pushed as a runtime Worker secret below, but the build reads
+  # it here — without it the R2 host is omitted from remotePatterns and the
+  # optimizer rejects every R2-hosted image with "url parameter is not
+  # allowed" (blank product/media thumbnails).
+  R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
   SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -1548,6 +1555,10 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Post-deploy health gate
+        env:
+          # Interim, documented escape hatch for the Cloudflare-challenge case
+          # only. Defaults to unset (fail closed). See docs/rollback-strategy.md.
+          ALLOW_HEALTH_CHALLENGE_BYPASS: ${{ vars.ALLOW_HEALTH_CHALLENGE_BYPASS }}
         run: |
           set -euo pipefail
           CRON_HOST="${{ vars.CRON_HOST }}"
@@ -1587,11 +1598,23 @@ jobs:
           echo "Final health response (HTTP $HTTP_STATUS):"
           cat /tmp/health.json || true
 
-          # If still blocked by Cloudflare challenge after retries, warn but don't fail.
-          # The deploy itself succeeded; the health endpoint is just behind CF challenge.
+          # P1-4: a persistent Cloudflare challenge means the post-deploy health
+          # gate never actually reached the application — it verified nothing.
+          # Fail closed by default so an unreachable health endpoint cannot be
+          # reported as a healthy deploy. The correct fix is a WAF skip rule for
+          # /api/health or a CF Service Auth token so the probe reaches the app.
+          # A deliberate, documented bypass is available for the interim via
+          # ALLOW_HEALTH_CHALLENGE_BYPASS=true (see docs/rollback-strategy.md);
+          # it is intentionally NOT the default and is logged when used.
           if [ "$HTTP_STATUS" = "403" ] && grep -q "challenges.cloudflare.com" /tmp/health.json 2>/dev/null; then
-            echo "::warning::Health check blocked by Cloudflare Bot Fight Mode (HTTP 403). Deploy succeeded but health endpoint is behind a JS challenge. Consider adding a WAF skip rule for the health endpoint or using a CF Service Auth token."
-            exit 0
+            if [ "${ALLOW_HEALTH_CHALLENGE_BYPASS:-}" = "true" ]; then
+              echo "::warning::Health check blocked by Cloudflare Bot Fight Mode (HTTP 403). ALLOW_HEALTH_CHALLENGE_BYPASS=true — treating as non-fatal. The health endpoint was NOT verified; add a WAF skip rule or CF Service Auth token."
+              exit 0
+            fi
+            echo "::error::Health check blocked by Cloudflare challenge (HTTP 403) — the probe never reached the application, so health is UNVERIFIED."
+            echo "::error::Add a WAF skip rule for /api/health or use a CF Service Auth token so the gate can reach the app."
+            echo "::error::To deploy anyway (interim only), set ALLOW_HEALTH_CHALLENGE_BYPASS=true. See docs/rollback-strategy.md."
+            exit 1
           fi
 
           if [ "$HTTP_STATUS" != "200" ]; then
@@ -1812,19 +1835,28 @@ jobs:
           fi
           echo "All declared Worker bindings present on the live Worker."
 
+      # P1-4: a missing production secret silently breaks auth, DB access, or
+      # cron dispatch — it must BLOCK the deploy, not warn-and-continue. This
+      # gate is therefore blocking (no continue-on-error) and treats an
+      # unavailable Cloudflare API read as a hard failure, matching the
+      # blocking Worker-bindings gate above.
       - name: Runtime drift — Worker secrets
-        continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
-            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping secret drift check"
-            exit 0
+            echo "::error::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required for the live Worker secret drift gate"
+            exit 1
           fi
           # Canonical list of production secrets. Keep in sync with
           # wrangler.jsonc / scripts/validate-cloudflare-bindings.sh.
+          # NOTE: APP_URL is intentionally NOT listed here. It is a plaintext
+          # `var` in wrangler.jsonc (deployed with the Worker and asserted by
+          # __tests__/wrangler-binding-drift.test.ts), not a Worker secret, so
+          # it never appears in `wrangler secret list` — including it here made
+          # this gate fail on every production deploy.
           REQUIRED_SECRETS=(
             SUPABASE_SERVICE_ROLE_KEY
             SUPABASE_JWT_SECRET
@@ -1833,11 +1865,27 @@ jobs:
             JWT_SECRET
             CRON_SECRET
             INTERNAL_API_TOKEN
-            APP_URL
           )
-          LIVE_SECRETS=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/secrets" \
-            | jq -r '(.result // [])[].name' | sort -u)
+          # Retry + success validation so a single flaky API response does not
+          # either hard-fail a good deploy or (worse) return an empty list that
+          # looks like "all secrets missing". Only a trusted read is compared.
+          LIVE_SECRETS=""
+          GOOD_READ=""
+          for attempt in 1 2 3 4; do
+            RESP=$(curl -sS --max-time 30 -H "Authorization: Bearer $CF_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/secrets" || true)
+            if [ -n "$RESP" ] && [ "$(echo "$RESP" | jq -r '.success // false')" = "true" ]; then
+              LIVE_SECRETS=$(echo "$RESP" | jq -r '(.result // [])[].name' | sort -u)
+              GOOD_READ=1
+              break
+            fi
+            echo "Secret read attempt $attempt did not return a trusted result — retrying after backoff..."
+            sleep $((attempt * 5))
+          done
+          if [ -z "$GOOD_READ" ]; then
+            echo "::error::Could not obtain a trusted live-secrets read from the Cloudflare API after 4 attempts — cannot verify the secret drift gate. Retry the deploy or verify manually with: wrangler secret list"
+            exit 1
+          fi
           MISSING=""
           for s in "${REQUIRED_SECRETS[@]}"; do
             if ! echo "$LIVE_SECRETS" | grep -qx "$s"; then
@@ -1851,16 +1899,18 @@ jobs:
           fi
           echo "All canonical Worker secrets present on the live Worker."
 
+      # P1-4: a cron schedule declared in wrangler.jsonc but missing on the live
+      # Worker means that scheduled job never runs — a silent liveness gap that
+      # must BLOCK the deploy rather than warn-and-continue.
       - name: Runtime drift — Cron schedules
-        continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
-            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping cron drift check"
-            exit 0
+            echo "::error::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required for the live cron schedule drift gate"
+            exit 1
           fi
           WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
             | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
@@ -1869,9 +1919,25 @@ jobs:
           # `.result.schedules`, not `.schedules`. Reading the wrong path made
           # this gate see zero live crons and (warning-only) report every
           # declared cron as missing. Fall back to the legacy path for safety.
-          LIVE=$(curl -sS --max-time 30 -H "Authorization: Bearer $CF_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/schedules" \
-            | jq -r '((.result.schedules // .schedules) // [])[].cron' | sort -u)
+          # Retry + success validation so a flaky read is not mistaken for
+          # "every cron missing" now that this gate is blocking.
+          LIVE=""
+          GOOD_READ=""
+          for attempt in 1 2 3 4; do
+            RESP=$(curl -sS --max-time 30 -H "Authorization: Bearer $CF_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/schedules" || true)
+            if [ -n "$RESP" ] && [ "$(echo "$RESP" | jq -r '.success // false')" = "true" ]; then
+              LIVE=$(echo "$RESP" | jq -r '((.result.schedules // .schedules) // [])[].cron' | sort -u)
+              GOOD_READ=1
+              break
+            fi
+            echo "Cron schedule read attempt $attempt did not return a trusted result — retrying after backoff..."
+            sleep $((attempt * 5))
+          done
+          if [ -z "$GOOD_READ" ]; then
+            echo "::error::Could not obtain a trusted live cron-schedule read from the Cloudflare API after 4 attempts — cannot verify the cron drift gate. Retry the deploy or verify manually with: wrangler deployments list"
+            exit 1
+          fi
           MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
           EXTRA=$(comm -13 <(echo "$DECL") <(echo "$LIVE"))
           if [ -n "$MISSING" ] || [ -n "$EXTRA" ]; then
@@ -1913,7 +1979,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -1946,6 +2012,12 @@ jobs:
   # migrations were applied, this job runs the corresponding down-
   # migration files in reverse order to restore the production schema
   # to its pre-deploy state.
+  #
+  # P1-3: automatic DB rollback is only attempted for migrations whose
+  # down file is classified `auto` by scripts/classify-migration-rollback.sh.
+  # Placeholder (`-- NO DOWN`), forward-only, or data-loss down files are
+  # classified `manual`; the job then HALTS with a clear error instead of
+  # executing a no-op file and falsely reporting a successful rollback.
   # ═══════════════════════════════════════════════════════════════════
   rollback-migrations:
     if: failure() && needs.migrate-production.outputs.migrations_applied > 0
@@ -1974,7 +2046,7 @@ jobs:
             exit 1
           fi
 
-          echo "::warning::H-5: Deploy failed after migrations. Running automated rollback..."
+          echo "::warning::H-5: Deploy failed after migrations. Evaluating automated rollback..."
 
           # Get the list of migrations applied in this run from the ledger.
           # We identify "this run's" migrations as the N most recently applied,
@@ -1989,6 +2061,16 @@ jobs:
             LIMIT $ROLLBACK_COUNT;
           ")
 
+          # P1-3: an automated down-migration must NEVER produce a silent false
+          # success. Two failure modes are guarded here:
+          #   1. A comment-only / placeholder down file (`-- NO DOWN: ...`)
+          #      executes cleanly through psql and would otherwise be reported
+          #      as a successful rollback while the schema was never reverted.
+          #   2. An irreversible / data-loss down file (e.g. a type-narrowing
+          #      revert) must not be applied automatically at the worst possible
+          #      time. Classify every target BEFORE touching the database and
+          #      refuse the automated path — halting for the manual DR runbook —
+          #      the moment any target is not auto-rollback-safe.
           ROLLBACK_FAILED=0
           for migration in $RECENT_MIGRATIONS; do
             # Derive the down-migration filename
@@ -1996,10 +2078,21 @@ jobs:
             if [ ! -f "$down_file" ]; then
               echo "::error::Down-migration not found: $down_file"
               ROLLBACK_FAILED=1
-              continue
+              break
             fi
 
-            echo "Rolling back: $migration (using $down_file)"
+            CLASSIFICATION=$(bash scripts/classify-migration-rollback.sh "$down_file" || true)
+            if ! bash scripts/classify-migration-rollback.sh "$down_file" >/dev/null 2>&1; then
+              echo "::error::Refusing automatic rollback of $migration — $CLASSIFICATION"
+              echo "::error::This migration is not auto-rollback-safe (irreversible, data-loss, or placeholder down file)."
+              echo "::error::Automatic DB rollback is DISABLED for it to avoid a silent false success."
+              echo "::error::Prefer application rollback / roll-forward; if a DB revert is truly required,"
+              echo "::error::follow the manual procedure in docs/DR-RUNBOOK.md."
+              ROLLBACK_FAILED=1
+              break
+            fi
+
+            echo "Rolling back: $migration (using $down_file) — $CLASSIFICATION"
             if psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$down_file"; then
               # Remove from ledger
               psql "$DB_URL" -c \
@@ -2013,7 +2106,7 @@ jobs:
           done
 
           if [ "$ROLLBACK_FAILED" = "1" ]; then
-            echo "::error::Automated rollback incomplete — manual intervention required."
+            echo "::error::Automated rollback halted — manual intervention required."
             echo "::error::See docs/DR-RUNBOOK.md for manual rollback procedures."
             exit 1
           fi

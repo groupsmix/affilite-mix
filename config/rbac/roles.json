@@ -34,7 +34,6 @@
         "modules:*",
         "scheduling:*",
         "publishing:*",
-        "feature-flags:*",
         "ads:*",
         "pages:*",
         "privacy:view",
@@ -61,7 +60,9 @@
         "pages:view",
         "pages:create",
         "pages:edit",
-        "upload:create"
+        "upload:view",
+        "upload:create",
+        "upload:delete"
       ]
     },
     {
@@ -74,6 +75,7 @@
         "content:create",
         "content:edit",
         "analytics:view",
+        "upload:view",
         "upload:create"
       ]
     },
@@ -87,7 +89,8 @@
         "products:view",
         "categories:view",
         "content:approve",
-        "analytics:view"
+        "analytics:view",
+        "upload:view"
       ]
     },
     {
@@ -101,7 +104,8 @@
         "seo:view",
         "seo:edit",
         "seo:manage",
-        "analytics:view"
+        "analytics:view",
+        "upload:view"
       ]
     },
     {
@@ -109,7 +113,13 @@
       "label": "Translator",
       "description": "Can view and edit content for translation purposes. Cannot publish or manage structure.",
       "is_system": true,
-      "permissions": ["content:view", "content:edit", "products:view", "categories:view"]
+      "permissions": [
+        "content:view",
+        "content:edit",
+        "products:view",
+        "categories:view",
+        "upload:view"
+      ]
     },
     {
       "name": "analyst",
@@ -121,7 +131,8 @@
         "products:view",
         "categories:view",
         "analytics:view",
-        "seo:view"
+        "seo:view",
+        "upload:view"
       ]
     }
   ],
@@ -138,7 +149,6 @@
     "modules",
     "scheduling",
     "publishing",
-    "feature-flags",
     "ads",
     "pages",
     "privacy",
@@ -167,8 +177,7 @@
       "User creation requires super_admin; user cannot self-elevate",
       "Publishing requires editor or above; authors cannot self-publish",
       "Settings changes require admin; editors cannot modify site config",
-      "Privacy/DSAR operations require admin with privacy:view permission",
-      "Feature flag toggles require admin with feature-flags:manage permission"
+      "Privacy/DSAR operations require admin with privacy:view permission"
     ]
   }
 }

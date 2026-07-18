@@ -21,23 +21,6 @@
  *                                          is intentionally NOT regenerated.
  */
 
-// ── Newsletter Subscribers ─────────────────────────────────────────────
-
-type NewsletterStatus = "pending" | "active" | "unsubscribed";
-
-interface NewsletterSubscriberRow {
-  id: string;
-  site_id: string;
-  email: string;
-  status: NewsletterStatus;
-  /** Double opt-in token — cleared after confirmation */
-  confirmation_token: string | null;
-  confirmed_at: string | null;
-  /** Opaque capability token for one-click unsubscribe links */
-  unsubscribe_token: string | null;
-  created_at: string;
-}
-
 // ── Affiliate Clicks ───────────────────────────────────────────────────
 
 export interface AffiliateClickRow {
@@ -93,10 +76,17 @@ export interface SiteRow {
   updated_at: string;
 }
 
-type HomepageTemplate = "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+type HomepageTemplate =
+  | "standard"
+  | "cinematic"
+  | "minimal"
+  | "editorial"
+  | "top10"
+  | "compare"
+  | "showcase";
 type ProductCardStyle = "standard" | "compact" | "detailed";
 
-export type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
+export type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand" | "style";
 
 export interface CategoryRow {
   id: string;
@@ -125,6 +115,7 @@ export interface ProductRow {
   featured: boolean;
   status: "draft" | "active" | "archived";
   category_id: string | null;
+  category_ids?: string[] | null;
   cta_text: string;
   deal_text: string;
   deal_expires_at: string | null;
@@ -182,7 +173,7 @@ export interface PageRow {
 }
 
 export type AdPlacementType = "sidebar" | "in_content" | "header" | "footer" | "between_posts";
-export type AdProvider = "adsense" | "carbon" | "ethicalads" | "custom";
+export type AdProvider = "adsense" | "carbon" | "ethicalads" | "custom" | "image";
 
 export interface AdPlacementRow {
   id: string;
@@ -197,20 +188,6 @@ export interface AdPlacementRow {
   created_at: string;
 }
 
-interface AdImpressionRow {
-  id: string;
-  site_id: string;
-  ad_placement_id: string;
-  // T4-#14: page_path is nullable per the DB schema.
-  page_path: string | null;
-  impression_date: string;
-  // T4-#14: real column is `impression_count` (not `count`).
-  // lib/dal/ad-impressions.ts already selects/reads `impression_count` correctly;
-  // this type was drifted from the actual schema.
-  impression_count: number;
-  created_at: string;
-}
-
 // ── Module Registry ────────────────────────────────────────────────────
 
 export interface SiteModuleRow {
@@ -219,18 +196,6 @@ export interface SiteModuleRow {
   module_key: string;
   is_enabled: boolean;
   config: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
-// ── Site Feature Flags ─────────────────────────────────────────────────
-
-export interface SiteFeatureFlagRow {
-  id: string;
-  site_id: string;
-  flag_key: string;
-  is_enabled: boolean;
-  description: string;
   created_at: string;
   updated_at: string;
 }
@@ -294,11 +259,6 @@ export interface PermissionRow {
   description: string;
 }
 
-interface RolePermissionRow {
-  role_id: string;
-  permission_id: string;
-}
-
 export interface UserSiteRoleRow {
   id: string;
   user_id: string;
@@ -309,7 +269,7 @@ export interface UserSiteRoleRow {
 
 // ── Admin Site Memberships ──────────────────────────────────────────────
 
-interface AdminSiteMembershipRow {
+export interface AdminSiteMembershipRow {
   id: string;
   admin_user_id: string;
   site_id: string;
@@ -349,56 +309,39 @@ export interface SiteIntegrationRow {
   updated_at: string;
 }
 
-// ── Web Vitals ─────────────────────────────────────────────────────────
+// ── Media Library ───────────────────────────────────────────────────────
 
-interface WebVitalRow {
-  id: string;
-  name: string;
-  value: number;
-  metric_id: string | null;
-  page: string | null;
-  href: string | null;
-  rating: string | null;
-  created_at: string;
-}
-
-// ── AI Drafts ──────────────────────────────────────────────────────────
-
-type AiDraftStatus = "pending" | "approved" | "rejected" | "published";
-
-interface AiDraftRow {
+export interface MediaRow {
   id: string;
   site_id: string;
-  title: string;
-  slug: string;
-  body: string;
-  excerpt: string;
-  content_type: string;
-  topic: string;
-  keywords: string[];
-  ai_provider: string;
-  status: AiDraftStatus;
-  generated_at: string;
-  reviewed_at: string | null;
-  reviewed_by: string | null;
-  meta_title: string | null;
-  meta_description: string | null;
+  public_key: string;
+  url: string;
+  filename: string | null;
+  content_type: string | null;
+  size_bytes: number | null;
+  alt_text: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// ── Affiliate Networks ─────────────────────────────────────────────────
+// ── Site Presentations (DB-authoritative header/footer design) ──────────
 
-type AffiliateNetwork = "cj" | "partnerstack" | "admitad" | "direct";
+export type SitePresentationStatus = "draft" | "published" | "archived";
 
-interface AffiliateNetworkRow {
+export interface SitePresentationRow {
   id: string;
   site_id: string;
-  network: AffiliateNetwork;
-  publisher_id: string;
-  api_key_ref: string;
-  is_active: boolean;
-  config: Record<string, unknown>;
+  status: SitePresentationStatus;
+  version: number | null;
+  header_variant: string | null;
+  footer_variant: string | null;
+  header_config: Record<string, unknown>;
+  footer_config: Record<string, unknown>;
+  header_tokens: Record<string, unknown>;
+  created_by: string | null;
+  published_by: string | null;
   created_at: string;
   updated_at: string;
+  published_at: string | null;
 }

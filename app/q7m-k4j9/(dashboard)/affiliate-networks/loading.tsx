@@ -7,7 +7,7 @@ export default function Loading() {
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}
-            className="h-40 animate-pulse rounded-lg border border-gray-200 bg-gray-50"
+            className="h-40 animate-pulse rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50"
           />
         ))}
       </div>

@@ -1,4 +1,4 @@
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
@@ -125,7 +125,7 @@ export async function getContentBySlug(
   includePreview = false,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentRow | null> {
-  const sb = includePreview ? await getClient() : getAnonClient();
+  const sb = includePreview ? await getClient() : await getTenantClient();
   let query = sb.from(TABLE).select(DETAIL_COLUMNS).eq("site_id", siteId).eq("slug", slug);
 
   if (!includePreview) {
@@ -136,6 +136,31 @@ export async function getContentBySlug(
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<ContentRow>(data);
+}
+
+interface ContentTitleRow {
+  id: string;
+  slug: string;
+  title: string;
+}
+
+/** Resolve real titles for a set of content slugs. */
+export async function getContentTitlesBySlugs(
+  siteId: string,
+  slugs: string[],
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<Record<string, ContentTitleRow>> {
+  if (slugs.length === 0) return {};
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("id, slug, title")
+    .eq("site_id", siteId)
+    .in("slug", [...new Set(slugs)]);
+
+  if (error) throw error;
+  const rows = assertRows<ContentTitleRow>(data);
+  return Object.fromEntries(rows.map((row) => [row.slug, row]));
 }
 
 /** Create content */
@@ -257,7 +282,7 @@ export async function listPublishedContent(
   }
   // S4-A98.2: Clamp pagination parameters.
   const { limit: safeLimit, offset: safeOffset } = clampPagination({ limit, offset });
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -285,7 +310,7 @@ export async function countPublishedContent(siteId: string, contentType?: string
   if (shouldSkipDbCall()) {
     return 0;
   }
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   let query = sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })
@@ -309,7 +334,7 @@ export async function searchContent(
   query: string,
   limit = 20,
 ): Promise<ContentRow[]> {
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const tsq = toTsquery(query);
 
   if (tsq) {
@@ -346,7 +371,7 @@ export async function getRelatedContent(
   excludeId: string,
   limit = 4,
 ): Promise<ContentRow[]> {
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)

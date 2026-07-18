@@ -162,6 +162,7 @@ export const POST = withAuthz("products", "create", async (request, { session, s
           featured: row.featured === "true",
           status: (row.status as "draft" | "active" | "archived") || "active",
           category_id: null,
+          category_ids: [],
           cta_text: row.cta_text ?? "",
           deal_text: row.deal_text ?? "",
           deal_expires_at: row.deal_expires_at || null,

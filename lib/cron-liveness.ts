@@ -26,7 +26,11 @@
 
 import { cronJobs, type CronJob } from "@/lib/cron-registry";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 import { getAppCacheKV, readGlobalBinding } from "@/lib/runtime-env";
+
+/** Best-effort deployment timestamp for first-run alerting. */
+let deploymentTimestamp = Date.now();
 
 /** KV key prefix for liveness timestamps. */
 const KV_PREFIX = "cron-liveness:";
@@ -75,9 +79,13 @@ export async function recordCronLiveness(jobName: string): Promise<void> {
     await kv.put(`${KV_PREFIX}${jobName}`, String(Date.now()), {
       expirationTtl: 86400 * 7, // 7 days — enough for weekly jobs
     });
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    // Non-critical — liveness tracking must not break the cron job itself
+  } catch (err) {
+    // Liveness tracking must not break the cron job itself, but a persistent
+    // KV failure should still be alerted so missed-cron detection is not blind.
+    captureException(err, {
+      context: "[cron-liveness] Failed to record cron liveness",
+      extra: { job: jobName },
+    });
   }
 }
 
@@ -96,28 +104,66 @@ export async function checkCronLiveness(): Promise<void> {
   lastLivenessCheckAt = now;
 
   const kv = readKVBinding();
-  if (!kv) return;
+  if (!kv) {
+    const err = new Error(
+      "[cron-liveness] APP_CACHE_KV binding unavailable; cannot check cron liveness",
+    );
+    logger.error(err.message);
+    captureException(err, { context: "[cron-liveness] KV binding unavailable" });
+    return;
+  }
 
   for (const job of cronJobs) {
     if (!job.alertOnFailure) continue; // skip low-stakes jobs
 
+    const expectedIntervalSec = parseCronIntervalSeconds(job.schedule);
+    const maxSkewSec = expectedIntervalSec * 2 + 600; // 2x + 10min buffer
+
     try {
       const raw = await kv.get(`${KV_PREFIX}${job.name}`);
       if (!raw) {
-        // No liveness record yet — could be first deploy. Log info only.
-        logger.info("[cron-liveness] No liveness record yet", { job: job.name });
+        // No liveness record yet — could be first deploy. After the expected
+        // window has elapsed since deployment, treat a missing first success as
+        // a missed window so "never ran after deploy" does not stay silent.
+        const firstRunDeadline = deploymentTimestamp + maxSkewSec * 1000;
+        if (now > firstRunDeadline) {
+          const msg = `Cron job "${job.name}" has never reported since deployment (expected every ${Math.round(expectedIntervalSec / 60)}min)`;
+          const livenessError = new Error(msg);
+          logger.error(`[cron-liveness] ${msg}`, {
+            job: job.name,
+            schedule: job.schedule,
+            expectedIntervalSec,
+            deploymentTimestamp,
+          });
+          logger.error("cron_liveness_first_run_missed", {
+            job: job.name,
+            schedule: job.schedule,
+            expected_interval_sec: expectedIntervalSec,
+            deployment_timestamp: deploymentTimestamp,
+          });
+          captureException(livenessError, {
+            context: "[cron-liveness] Cron job never reported since deployment",
+            extra: {
+              job: job.name,
+              schedule: job.schedule,
+              expected_interval_sec: expectedIntervalSec,
+              deployment_timestamp: deploymentTimestamp,
+            },
+          });
+        } else {
+          logger.info("[cron-liveness] No liveness record yet", { job: job.name });
+        }
         continue;
       }
 
       const lastRun = Number(raw);
       if (!Number.isFinite(lastRun)) continue;
 
-      const expectedIntervalSec = parseCronIntervalSeconds(job.schedule);
-      const maxSkewSec = expectedIntervalSec * 2 + 600; // 2x + 10min buffer
       const elapsed = (now - lastRun) / 1000;
 
       if (elapsed > maxSkewSec) {
         const msg = `Cron job "${job.name}" has not reported for ${Math.round(elapsed / 60)}min (expected every ${Math.round(expectedIntervalSec / 60)}min)`;
+        const livenessError = new Error(msg);
         logger.error(`[cron-liveness] ${msg}`, {
           job: job.name,
           schedule: job.schedule,
@@ -130,10 +176,26 @@ export async function checkCronLiveness(): Promise<void> {
           last_run_ago_sec: Math.round(elapsed),
           expected_interval_sec: expectedIntervalSec,
         });
+        // SRE-1: surface missed cron runs to the configured alert destination
+        // (Sentry / Logpush) instead of relying only on log-based detection.
+        captureException(livenessError, {
+          context: "[cron-liveness] Cron job missed expected window",
+          extra: {
+            job: job.name,
+            schedule: job.schedule,
+            last_run_ago_sec: Math.round(elapsed),
+            expected_interval_sec: expectedIntervalSec,
+          },
+        });
       }
-    } catch {
+    } catch (err) {
       // fail-open: best-effort [criticality:non-critical]
-      // Non-critical
+      // Non-critical — but surface the failure so the liveness monitor itself
+      // does not become an invisible blind spot.
+      captureException(err instanceof Error ? err : new Error(String(err)), {
+        context: "[cron-liveness] KV read failed",
+        extra: { job: job.name },
+      });
     }
   }
 }
@@ -147,9 +209,12 @@ function readKV(): KVNamespace | undefined {
     if (kv) {
       return kv as KVNamespace;
     }
-  } catch {
+  } catch (err) {
     // fail-open: best-effort [criticality:non-critical]
-    // process.env not available
+    // process.env not available — surface so the liveness monitor is not silent.
+    captureException(err instanceof Error ? err : new Error(String(err)), {
+      context: "[cron-liveness] Failed to read APP_CACHE_KV binding",
+    });
   }
   return undefined;
 }

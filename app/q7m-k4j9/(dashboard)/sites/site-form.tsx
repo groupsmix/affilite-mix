@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { ModulesManager } from "@/app/q7m-k4j9/(dashboard)/platform/modules/modules-manager";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -37,7 +38,14 @@ interface SiteFormData {
   language: string;
   direction: "ltr" | "rtl";
   monetization_type: "affiliate" | "ads" | "both";
-  homepage_template: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+  homepage_template:
+    | "standard"
+    | "cinematic"
+    | "minimal"
+    | "editorial"
+    | "top10"
+    | "compare"
+    | "showcase";
   product_card_style: "standard" | "compact" | "detailed";
   meta_title: string;
   meta_description: string;
@@ -59,6 +67,7 @@ interface SiteFormProps {
     db_id?: string;
     theme?: Record<string, string>;
   };
+  isSuperAdmin?: boolean;
 }
 
 const HOMEPAGE_TEMPLATES = [
@@ -91,6 +100,11 @@ const HOMEPAGE_TEMPLATES = [
     value: "compare",
     label: "Compare",
     description: "Side-by-side product comparison layout for comparison sites",
+  },
+  {
+    value: "showcase",
+    label: "Showcase",
+    description: "Immersive 3D product hero with scroll-driven animation",
   },
 ] as const;
 
@@ -166,6 +180,7 @@ export function SiteFormDialog({
   onSuccess,
   mode,
   initialData,
+  isSuperAdmin = false,
 }: SiteFormProps) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<SiteFormData>(() => {
@@ -456,8 +471,8 @@ export function SiteFormDialog({
                     disabled={saving}
                     className={`rounded-lg border p-3 text-left transition-all ${
                       form.homepage_template === t.value
-                        ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200"
-                        : "border-gray-200 hover:border-gray-400"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200"
+                        : "border-gray-200 dark:border-gray-800 hover:border-gray-400"
                     }`}
                   >
                     <div className="text-sm font-medium">{t.label}</div>
@@ -478,8 +493,8 @@ export function SiteFormDialog({
                     disabled={saving}
                     className={`rounded-lg border p-3 text-left transition-all ${
                       form.product_card_style === s.value
-                        ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200"
-                        : "border-gray-200 hover:border-gray-400"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200"
+                        : "border-gray-200 dark:border-gray-800 hover:border-gray-400"
                     }`}
                   >
                     <div className="text-sm font-medium">{s.label}</div>
@@ -573,7 +588,7 @@ export function SiteFormDialog({
               {FEATURE_FLAGS.map((f) => (
                 <div
                   key={f.key}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 px-3 py-2"
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-medium">{f.label}</div>
@@ -589,6 +604,22 @@ export function SiteFormDialog({
               ))}
             </div>
           </section>
+
+          {mode === "edit" && isSuperAdmin && initialData?.db_id && (
+            <>
+              <Separator />
+              <section className="space-y-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Modules
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Enable or disable modules for this site. Only super admins can change module
+                  toggles.
+                </p>
+                <ModulesManager siteId={initialData.db_id} />
+              </section>
+            </>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">

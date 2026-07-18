@@ -1,3 +1,5 @@
+import type { ApiSchemaName } from "@/lib/api-contract-schema";
+
 /**
  * Route-by-route API metadata registry.
  *
@@ -25,7 +27,10 @@ type AuthRequirement =
   /** Stripe-signed webhook (HMAC on raw body, no cookie auth). */
   | "stripe-webhook"
   /** Endpoint validates a signed single-use token instead of a session. */
-  | "token";
+  | "token"
+  /** Machine automation: `Authorization: Bearer <automation-token>`, scoped
+   *  to one site by the token's service account (no cookie, no CSRF). */
+  | "automation";
 
 type TenantScope =
   /** Scoped to the admin's active site (cookie + membership check). */
@@ -56,6 +61,19 @@ export interface RouteMetadata {
   responseSchema: string | null;
   /** Fields that must be redacted from logs/audit entries (passwords, tokens, PII). */
   sensitiveFields: ReadonlyArray<string>;
+  /** Machine-readable schemas for high-value routes included in generated OpenAPI. */
+  contract?: {
+    requestSchema?: ApiSchemaName;
+    responses: Readonly<
+      Record<
+        string,
+        {
+          description: string;
+          schema: ApiSchemaName;
+        }
+      >
+    >;
+  };
   /** Free-form notes. */
   notes?: string;
 }
@@ -119,6 +137,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/ai/rewrite",
+    methods: ["POST"],
+    requestSchema: "AiRewriteInput",
+    responseSchema: "AiRewriteOutput",
+    sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/analytics",
     methods: ["GET"],
     requestSchema: null,
@@ -164,6 +190,58 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "AnalyticsSummary",
     sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/api-tokens",
+    methods: ["GET", "POST"],
+    requestSchema: "AdminApiTokenInput",
+    responseSchema: "AdminApiToken | AdminApiToken[]",
+    sensitiveFields: ["token"],
+    notes: "Creating API tokens is super_admin-only. The raw token is returned once on creation.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/api-tokens/[id]",
+    methods: ["DELETE"],
+    requestSchema: null,
+    responseSchema: "{ ok: true }",
+    sensitiveFields: [],
+    notes: "Revoking an API token is super_admin-only.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/automation/service-accounts",
+    methods: ["GET", "POST"],
+    requestSchema: "AutomationServiceAccountInput",
+    responseSchema: "AutomationServiceAccount | AutomationServiceAccount[]",
+    sensitiveFields: ["plain_token", "token"],
+    notes:
+      "super_admin-only. Provisions a site-bound automation service account and issues its first bearer token (raw token returned once).",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/automation/service-accounts/[id]",
+    methods: ["DELETE"],
+    requestSchema: null,
+    responseSchema: "{ ok: true }",
+    sensitiveFields: [],
+    notes: "super_admin-only kill switch: revokes an automation service account.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/audit-log/export",
+    methods: ["GET"],
+    requestSchema: "AuditLogQuery",
+    responseSchema: "CSV",
+    sensitiveFields: [],
+    notes:
+      "super_admin-only. Exports audit_log for the active site as CSV using the privileged client.",
   },
   {
     ...ADMIN_DEFAULTS,
@@ -215,19 +293,19 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
-    path: "/api/admin/feature-flags",
-    methods: ["GET", "PATCH"],
-    requestSchema: "FeatureFlagInput",
-    responseSchema: "FeatureFlag[]",
-    sensitiveFields: [],
-  },
-  {
-    ...ADMIN_DEFAULTS,
     path: "/api/admin/integrations",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "IntegrationInput",
     responseSchema: "Integration",
     sensitiveFields: ["api_key", "secret", "token", "webhook_secret"],
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    path: "/api/admin/media",
+    methods: ["GET", "DELETE"],
+    requestSchema: "MediaQuery | { id: string }",
+    responseSchema: "Media[] | { ok: true }",
+    sensitiveFields: [],
   },
   {
     ...ADMIN_DEFAULTS,
@@ -351,6 +429,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     methods: ["POST"],
     requestSchema: "ProductImportInput (multipart CSV)",
     responseSchema: "{ imported: number; errors: ImportError[] }",
+    sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    path: "/api/admin/presentations",
+    methods: ["GET", "PUT", "POST"],
+    requestSchema: "PresentationDraftInput",
+    responseSchema: "{ published: Presentation | null; draft: Presentation | null }",
     sensitiveFields: [],
   },
   {
@@ -482,6 +568,12 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "{ csrfToken: string }",
     sensitiveFields: ["csrfToken"],
+    contract: {
+      responses: {
+        "200": { description: "CSRF token issued", schema: "CsrfTokenResponse" },
+        "429": { description: "Rate limited", schema: "ApiError" },
+      },
+    },
     notes: "Issues a double-submit CSRF token; sets an httpOnly cookie.",
   },
   {
@@ -533,6 +625,13 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "AdminUser (self)",
     sensitiveFields: [],
+    contract: {
+      responses: {
+        "200": { description: "Current admin session", schema: "AuthMeResponse" },
+        "401": { description: "Not authenticated", schema: "ApiError" },
+        "429": { description: "Rate limited", schema: "ApiError" },
+      },
+    },
   },
   {
     path: "/api/auth/refresh",
@@ -573,6 +672,20 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: "{ token: string; newPassword: string }",
     responseSchema: "Ok",
     sensitiveFields: ["token", "newPassword"],
+  },
+  {
+    path: "/api/auth/token-login",
+    methods: ["POST"],
+    auth: "token",
+    adminRequired: false,
+    scope: "global",
+    rateLimit: true,
+    csrf: false,
+    requestSchema: "{ token: string }",
+    responseSchema: "{ ok: true } + httpOnly session cookie",
+    sensitiveFields: ["token"],
+    notes:
+      "Exchanges a pre-generated API token for an admin session. CSRF-exempt because the token is the auth factor.",
   },
 
   // --- Community routes -----------------------------------------------------
@@ -740,6 +853,13 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "{ status: string; checks: HealthCheck[] }",
     sensitiveFields: [],
+    contract: {
+      responses: {
+        "200": { description: "Healthy service", schema: "HealthResponse" },
+        "429": { description: "Rate limited", schema: "ApiError" },
+        "503": { description: "Degraded service", schema: "HealthResponse" },
+      },
+    },
     notes: "Intentionally public so external uptime monitors can poll it.",
   },
 
@@ -785,6 +905,22 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     notes: "Signature-verified; no cookie auth / no CSRF.",
   },
 
+  // --- Contact --------------------------------------------------------------
+  {
+    path: "/api/contact",
+    methods: ["POST"],
+    auth: "public",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: true,
+    csrf: true,
+    requestSchema: "{ name?: string; email: string; subject?: string; message: string }",
+    responseSchema: "Ok",
+    sensitiveFields: ["email"],
+    notes:
+      "Public contact form for a site. Validates email, subject and message length; writes to contact_submissions.",
+  },
+
   // --- Newsletter -----------------------------------------------------------
   {
     path: "/api/newsletter",
@@ -797,6 +933,17 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: "{ email: string; turnstileToken: string }",
     responseSchema: "Ok",
     sensitiveFields: ["email"],
+    contract: {
+      requestSchema: "NewsletterSignupRequest",
+      responses: {
+        "200": { description: "Signup accepted", schema: "NewsletterSignupResponse" },
+        "400": { description: "Invalid signup request", schema: "ApiError" },
+        "403": { description: "Captcha verification failed", schema: "ApiError" },
+        "429": { description: "Rate limited", schema: "ApiError" },
+        "500": { description: "Signup failed", schema: "ApiError" },
+        "503": { description: "Email service unavailable", schema: "ApiError" },
+      },
+    },
   },
   {
     path: "/api/newsletter/confirm",
@@ -966,6 +1113,130 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     responseSchema: "DataExportPayload",
     sensitiveFields: ["email"],
     notes: "S3-004: GDPR Art. 20 self-service data portability.",
+  },
+
+  // --- Automation control plane (machine-to-machine) -----------------------
+  {
+    path: "/api/automation/v1/health",
+    methods: ["GET"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Authenticated liveness probe; returns the token's bound site.",
+  },
+  {
+    path: "/api/automation/v1/context",
+    methods: ["GET"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Requires scope site:read. Site identity, scopes, limits, counts, policies.",
+  },
+  {
+    path: "/api/automation/v1/analytics/summary",
+    methods: ["GET"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Requires scope analytics:read. Deterministic click/content/product summary.",
+  },
+  {
+    path: "/api/automation/v1/content",
+    methods: ["GET"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes:
+      "Requires scope content:read. Site-scoped content list with keyset pagination. `status=pending` returns AI drafts from ai_drafts instead of the published content table.",
+  },
+  {
+    path: "/api/automation/v1/content/generate",
+    methods: ["POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: "AutomationGenerateInput",
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization", "idempotency-key"],
+    notes:
+      "Requires scope content:draft and an Idempotency-Key. Generates AI content from topic/keywords, creates a pending AI draft, and returns draft_id. Publishing requires a separate call to /content/drafts/:id/publish.",
+  },
+  {
+    path: "/api/automation/v1/content/drafts",
+    methods: ["GET", "POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: "AutomationDraftInput",
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization", "idempotency-key"],
+    notes:
+      "GET requires content:read and lists AI drafts for the site. POST requires scope content:draft and is idempotent (Idempotency-Key). Creates a pending AI draft; publishing stays approval-gated.",
+  },
+  {
+    path: "/api/automation/v1/content/drafts/[id]",
+    methods: ["GET", "PATCH", "DELETE"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: "AutomationDraftUpdateInput",
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization", "idempotency-key"],
+    notes:
+      "GET requires content:read; PATCH/DELETE require content:draft. Tenant-isolated read/update/delete for a single AI draft.",
+  },
+  {
+    path: "/api/automation/v1/content/drafts/[id]/publish",
+    methods: ["POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes:
+      "Requires scope content:publish. Promotes an AI draft to live content (creates or updates the content row by slug).",
+  },
+  {
+    path: "/api/automation/v1/runs",
+    methods: ["POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: "AutomationRunInput",
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes: "Requires scope site:read. Opens a durable run grouping subsequent actions.",
   },
 ];
 

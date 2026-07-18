@@ -103,6 +103,9 @@ echo "Checking required Worker secrets..."
 
 # Canonical list of production secrets. Keep in sync with
 # .github/workflows/deploy.yml (REQUIRED_SECRETS array, ~line 999).
+# NOTE: APP_URL is intentionally excluded — it is a plaintext `var` in
+# wrangler.jsonc (see __tests__/wrangler-binding-drift.test.ts), not a Worker
+# secret, so it never appears in `wrangler secret list`.
 REQUIRED_SECRETS=(
     "SUPABASE_SERVICE_ROLE_KEY"
     "SUPABASE_JWT_SECRET"
@@ -111,7 +114,6 @@ REQUIRED_SECRETS=(
     "JWT_SECRET"
     "CRON_SECRET"
     "INTERNAL_API_TOKEN"
-    "APP_URL"
     "STRIPE_SECRET_KEY"
     "STRIPE_WEBHOOK_SECRET"
     "SENTRY_DSN"

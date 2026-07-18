@@ -6,8 +6,8 @@ export default function NewCustomPageAdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Create Page</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create Page</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Create a static page for this niche site. You can also start this flow from the Pages
           list.
         </p>

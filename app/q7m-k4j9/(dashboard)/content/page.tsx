@@ -2,6 +2,7 @@ import { requireAdminSessionWithSite } from "../components/admin-guard";
 import { AdminDataError, safeAdminData } from "../components/admin-page-state";
 import { listContent, countContent, type ContentSortColumn } from "@/lib/dal/content";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -87,6 +88,7 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
     );
   }
   const dbSiteId = siteIdResult.data;
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const types = parseCsvEnum(sp["f.type"], TYPE_VALUES);
@@ -110,27 +112,34 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
     "content page data",
     () =>
       Promise.all([
-        listContent({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          types: types.length > 0 ? types : undefined,
-          q,
-          sortBy,
-          sortDirection,
-          limit: pageSize,
-          offset: (pageNum - 1) * pageSize,
-        }),
-        countContent({
-          siteId: dbSiteId,
-          statuses: statuses.length > 0 ? statuses : undefined,
-          types: types.length > 0 ? types : undefined,
-          q,
-        }),
-        countContent({ siteId: dbSiteId, status: "scheduled" }),
+        listContent(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            types: types.length > 0 ? types : undefined,
+            q,
+            sortBy,
+            sortDirection,
+            limit: pageSize,
+            offset: (pageNum - 1) * pageSize,
+          },
+          getClient,
+        ),
+        countContent(
+          {
+            siteId: dbSiteId,
+            statuses: statuses.length > 0 ? statuses : undefined,
+            types: types.length > 0 ? types : undefined,
+            q,
+          },
+          getClient,
+        ),
+        countContent({ siteId: dbSiteId, status: "scheduled" }, getClient),
+        countContent({ siteId: dbSiteId, status: "review" }, getClient),
       ]),
-    [[], 0, 0] as [ContentRow[], number, number],
+    [[], 0, 0, 0] as [ContentRow[], number, number, number],
   );
-  const [contentItems, totalContent, scheduledCount] = contentResult.data;
+  const [contentItems, totalContent, scheduledCount, reviewCount] = contentResult.data;
 
   const rows: ContentTableRow[] = contentItems.map((item) => ({
     id: item.id,
@@ -154,10 +163,10 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
         </div>
       ) : null}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Content</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Content</h1>
         <Link
           href="/q7m-k4j9/content/new"
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800"
         >
           Add Content
         </Link>
@@ -180,6 +189,7 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
           data={rows}
           totalCount={totalContent}
           scheduledCount={scheduledCount}
+          reviewCount={reviewCount}
           pageSize={pageSize}
         />
       )}

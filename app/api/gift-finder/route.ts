@@ -5,6 +5,8 @@ import type { ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { getContentLinkedToProducts } from "@/lib/dal/content-products";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 /** 30 gift-finder requests per minute per IP
  * P0-5: failPolicy: "closed" — database-driven recommendation endpoint.
@@ -16,6 +18,15 @@ const GIFT_FINDER_RATE_LIMIT = {
   windowMs: 60 * 1000,
   failPolicy: "closed" as const,
 };
+
+/** Parse a numeric amount out of a display price label like "$295" or "1,299 USD". */
+function parsePriceLabel(label: string | null): number | null {
+  if (!label) return null;
+  const match = label.replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
+  if (!match?.[1]) return null;
+  const parsed = parseFloat(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 /**
  * GET /api/gift-finder?budget=500&occasion=birthday&recipient=husband&style=classic
@@ -84,19 +95,23 @@ export async function GET(request: NextRequest) {
   const dbSiteId = site.id; // site.id is already the resolved DB UUID
   const sb = await getTenantClient();
 
-  // Fetch active products within budget
+  // Fetch active products within budget. Score may be null; it is defaulted
+  // during ranking so products without an explicit score are not silently
+  // excluded from the gift finder.
   let query = sb
     // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
     .from("products")
     .select(
-      "id, name, slug, price_label, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id",
+      "id, name, slug, price_label, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id, category_ids",
     )
     .eq("site_id", dbSiteId)
-    .eq("status", "active")
-    .not("score", "is", null);
+    .eq("status", "active");
 
   if (budget < 9999) {
-    query = query.lte("price_amount", budget);
+    // Products without a numeric price_amount still carry a display price in
+    // price_label; keep them here and enforce the budget on the parsed label
+    // below, so label-only products are not silently excluded.
+    query = query.or(`price_amount.lte.${budget},price_amount.is.null`);
   }
 
   const { data: products, error } = await query
@@ -112,13 +127,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  // Fetch taxonomy categories for scoring (occasion, recipient, style matching)
+  // Enforce the budget for label-only products (price_amount is null). A
+  // product with an unparseable label is kept rather than silently dropped.
+  const withinBudget =
+    budget < 9999
+      ? products.filter((p: { price_amount: number | null; price_label: string | null }) => {
+          if (p.price_amount !== null) return true;
+          const parsed = parsePriceLabel(p.price_label);
+          return parsed === null || parsed <= budget;
+        })
+      : products;
+
+  // Fetch taxonomy categories for scoring across every gift-finder dimension.
   const { data: categories } = await sb
     // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
     .from("categories")
     .select("id, slug, taxonomy_type")
     .eq("site_id", dbSiteId)
-    .in("taxonomy_type", ["occasion", "recipient", "general"]);
+    .neq("taxonomy_type", "budget");
 
   // Build lookup: category_id -> { slug, taxonomy_type }
   const categoryMap = new Map<string, { slug: string; taxonomy_type: string }>(
@@ -143,17 +169,29 @@ export async function GET(request: NextRequest) {
     merchant: string | null;
     deal_text: string | null;
     category_id: string | null;
+    category_ids: string[] | null;
   }
   type ScoredProduct = ProductResult & { relevance: number };
-  const scored: ScoredProduct[] = (products as ProductResult[]).map((p) => {
+  const scored: ScoredProduct[] = (withinBudget as ProductResult[]).map((p) => {
     let relevance = (p.score ?? 5) * 10;
 
-    // Category match scoring
-    const cat = p.category_id ? categoryMap.get(p.category_id) : undefined;
-    if (cat) {
+    // A product can now be tagged against multiple categories (occasion,
+    // recipient, style, etc.). Score each matching dimension independently.
+    const productCategoryIds = p.category_ids?.length
+      ? p.category_ids
+      : p.category_id
+        ? [p.category_id]
+        : [];
+    for (const categoryId of productCategoryIds) {
+      const cat = categoryMap.get(categoryId);
+      if (!cat) continue;
+
       if (cat.taxonomy_type === "occasion" && cat.slug === occasion) relevance += 15;
       if (cat.taxonomy_type === "recipient" && cat.slug === recipient) relevance += 20;
-      if (cat.slug === style) relevance += 15;
+      if (cat.taxonomy_type === "style" && cat.slug === style) relevance += 15;
+      // General/brand slugs that happen to match a dimension still count, but
+      // with a smaller weight to avoid distorting the taxonomy-first signal.
+      if (cat.slug === occasion || cat.slug === recipient || cat.slug === style) relevance += 5;
     }
 
     // Text-based style matching from name/description
@@ -169,11 +207,35 @@ export async function GET(request: NextRequest) {
 
   scored.sort((a, b) => b.relevance - a.relevance);
 
+  const top = scored
+    .filter((p) => p.slug && !isPlaceholderAffiliateUrl(p.affiliate_url))
+    .slice(0, 3);
+
+  // Resolve the published review (if any) for each recommended product so the
+  // "Read Full Review" button links to the real review page instead of a
+  // top-level slug that 404s. Products without a review omit the link.
+  const reviewUrlByProduct = new Map<string, string>();
+  try {
+    const linked = await getContentLinkedToProducts(
+      dbSiteId,
+      top.map((p) => p.id),
+      { types: ["review"] },
+    );
+    for (const { productId, content } of linked) {
+      if (!reviewUrlByProduct.has(productId) && content.slug) {
+        reviewUrlByProduct.set(productId, `/${content.type}/${content.slug}`);
+      }
+    }
+  } catch (reviewErr) {
+    // Non-fatal: recommendations are still useful without the review link.
+    captureException(reviewErr, { context: "[api/gift-finder] review link lookup failed" });
+  }
+
   // Issue 8: suppress raw affiliate_url and replace with a /r/ redirect URL.
   // Exposing affiliate_url publicly lets competitors identify networks and strip
   // tracking parameters. Route traffic through the internal /r/[slug] redirect
   // instead so the affiliate URL is never sent to the browser.
-  const results = scored.slice(0, 3).map((p) => ({
+  const results = top.map((p) => ({
     name: p.name,
     slug: p.slug,
     price_label: p.price_label,
@@ -186,6 +248,8 @@ export async function GET(request: NextRequest) {
     deal_text: p.deal_text,
     // Include redirect_url only when the product has a non-empty slug.
     ...(p.slug ? { redirect_url: `/r/${p.slug}` } : {}),
+    // Only present when a published review exists for this product.
+    ...(reviewUrlByProduct.has(p.id) ? { review_url: reviewUrlByProduct.get(p.id) } : {}),
   }));
 
   return NextResponse.json({ results });

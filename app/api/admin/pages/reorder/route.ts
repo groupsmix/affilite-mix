@@ -5,6 +5,7 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 /**
  * PUT /api/admin/pages/reorder
@@ -26,7 +27,10 @@ export const PUT = withAuthz(
         return NextResponse.json({ error: "pages array is required" }, { status: 400 });
       }
 
-      await reorderPages(siteId, body.pages);
+      // Bind to the withAuthz-validated siteId so the minted JWT carries
+      // app_metadata.site_id and the reorder_pages SECURITY DEFINER RPC
+      // executes with the correct tenant context.
+      await reorderPages(siteId, body.pages, () => getTenantClientForSite(siteId, session.userId));
 
       void recordAuditEvent({
         site_id: siteId,

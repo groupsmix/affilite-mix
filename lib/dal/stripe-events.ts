@@ -1,4 +1,4 @@
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 /**
@@ -69,6 +69,14 @@ export interface StripeEventApplyResult {
    * `types/supabase.ts` deliberately left untouched.
    */
   missed_update?: boolean;
+  /**
+   * Issue 3 / P1: when a create_membership INSERT hits the unique partial
+   * index on (email, site_id) WHERE status = 'active', the RPC catches the
+   * unique_violation, commits the event row (so Stripe does not retry), and
+   * returns the orphaned Stripe subscription id here. The application layer
+   * must cancel this subscription via the Stripe API to stop double-billing.
+   */
+  orphan_subscription_id?: string | null;
 }
 
 /**

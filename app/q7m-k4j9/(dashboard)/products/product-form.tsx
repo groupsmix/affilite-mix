@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation";
 import type { ProductRow, CategoryRow } from "@/types/database";
 
 import { ImageUploader } from "../components/image-uploader";
+import { CategoryTree } from "./components/category-tree";
 
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 import { autoSlug } from "@/lib/auto-slug";
+import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 import { toast } from "sonner";
 
@@ -80,7 +82,13 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
   const [status, setStatus] = useState(product?.status ?? "active");
 
-  const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
+  const [categoryIds, setCategoryIds] = useState<string[]>(
+    product?.category_ids?.length
+      ? product.category_ids
+      : product?.category_id
+        ? [product.category_id]
+        : [],
+  );
 
   const [ctaText, setCtaText] = useState(product?.cta_text ?? "");
 
@@ -104,8 +112,10 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     // F-011: an active product with no affiliate URL earns nothing. Block
     // submission and surface a clear inline error rather than letting a blank
     // URL silently reach the DB.
-    if (status === "active" && !affiliateUrl.trim()) {
-      setError("An affiliate URL is required before setting a product to Active.");
+    if (status === "active" && (!affiliateUrl.trim() || isPlaceholderAffiliateUrl(affiliateUrl))) {
+      setError(
+        "A real, non-placeholder affiliate URL is required before setting a product to Active.",
+      );
       return;
     }
 
@@ -140,7 +150,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
       status,
 
-      category_id: categoryId || null,
+      category_id: categoryIds[0] ?? null,
+      category_ids: categoryIds,
 
       cta_text: ctaText,
 
@@ -278,7 +289,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 <Label htmlFor="prod-affiliate-url">
                   Affiliate URL{" "}
                   <span className="font-normal text-muted-foreground text-xs">
-                    (required for active products)
+                    (required for active products; no placeholders)
                   </span>
                 </Label>
 
@@ -374,26 +385,17 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="prod-category">Category</Label>
+              <Label>Category</Label>
 
-              <select
-                id="prod-category"
-                value={categoryId}
-                onChange={(e) => {
-                  setCategoryId(e.target.value);
+              <CategoryTree
+                categories={categories}
+                value={categoryIds}
+                onChange={(value) => {
+                  setCategoryIds(value);
 
                   markDirty();
                 }}
-                className={SELECT_CLASSES}
-              >
-                <option value="">No category</option>
-
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
@@ -523,7 +525,17 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <ImageUploader value={imageUrl} onChange={setImageUrl} label="Product Image" />
+              <ImageUploader
+                value={imageUrl}
+                onChange={setImageUrl}
+                onMediaSelect={(url, alt) => {
+                  setImageUrl(url);
+                  if (!imageAlt.trim() && alt.trim()) {
+                    setImageAlt(alt);
+                  }
+                }}
+                label="Product Image"
+              />
 
               <div className="space-y-1.5">
                 <Label htmlFor="prod-image-alt">Image Alt Text</Label>
@@ -603,7 +615,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
           >
             {saving ? "Saving..." : isEdit ? "Update" : "Create"}
           </button>
@@ -611,7 +623,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <button
             type="button"
             onClick={() => router.push("/q7m-k4j9/products")}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-md border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
           >
             Cancel
           </button>

@@ -15,7 +15,11 @@ async function doRefresh() {
     // treated as transient and silently ignored so the next scheduled
     // interval can retry.
     if (res.status === 401 || res.status === 403) {
-      window.location.href = "/q7m-k4j9/login";
+      // A2: the most common cause of a mid-session refresh 401 is the UA/IP
+      // binding check failing after a network change (mobile/CGNAT handoff),
+      // not a real logout. Pass a reason so the login page can explain it
+      // instead of showing a bare login form.
+      window.location.href = "/q7m-k4j9/login?reason=network_change";
     }
     // 2xx: success — cookie silently renewed, nothing to do.
     // Other non-2xx (5xx, 429, etc.): transient — fall through silently.

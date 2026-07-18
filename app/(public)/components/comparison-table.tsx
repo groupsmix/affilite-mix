@@ -4,6 +4,7 @@ import type { ProductRow } from "@/types/database";
 import { useCookieConsent } from "./cookie-consent";
 import { getTrackingUrl } from "@/lib/tracking-url";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 
 interface ComparisonTableProps {
   products: ProductRow[];
@@ -48,7 +49,7 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
                 </div>
               )}
             </dl>
-            {p.affiliate_url && (
+            {hasUsableAffiliateUrl(p.affiliate_url) && (
               <a
                 href={getTrackingUrl(p.slug, "comparison", p.affiliate_url, hasConsent)}
                 target="_blank"
@@ -68,12 +69,16 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
         <table className="w-full border-collapse rounded-lg border border-gray-200 text-sm">
           <thead>
             <tr className="bg-gray-50">
-              <th className="border-b border-gray-200 px-4 py-3 text-start font-medium text-gray-500">
+              <th
+                scope="col"
+                className="border-b border-gray-200 px-4 py-3 text-start font-medium text-gray-500"
+              >
                 Feature
               </th>
               {products.map((p) => (
                 <th
                   key={p.id}
+                  scope="col"
                   className="border-b border-gray-200 px-4 py-3 text-center font-semibold text-gray-900"
                 >
                   {p.name}
@@ -83,9 +88,12 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
           </thead>
           <tbody>
             <tr>
-              <td className="border-b border-gray-100 px-4 py-3 font-medium text-gray-600">
+              <th
+                scope="row"
+                className="border-b border-gray-100 px-4 py-3 text-start font-medium text-gray-600"
+              >
                 Price
-              </td>
+              </th>
               {products.map((p) => (
                 <td
                   key={p.id}
@@ -97,9 +105,12 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
               ))}
             </tr>
             <tr>
-              <td className="border-b border-gray-100 px-4 py-3 font-medium text-gray-600">
+              <th
+                scope="row"
+                className="border-b border-gray-100 px-4 py-3 text-start font-medium text-gray-600"
+              >
                 Score
-              </td>
+              </th>
               {products.map((p) => (
                 <td key={p.id} className="border-b border-gray-100 px-4 py-3 text-center">
                   {p.score !== null ? (
@@ -113,9 +124,12 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
               ))}
             </tr>
             <tr>
-              <td className="border-b border-gray-100 px-4 py-3 font-medium text-gray-600">
+              <th
+                scope="row"
+                className="border-b border-gray-100 px-4 py-3 text-start font-medium text-gray-600"
+              >
                 Merchant
-              </td>
+              </th>
               {products.map((p) => (
                 <td
                   key={p.id}
@@ -126,7 +140,9 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
               ))}
             </tr>
             <tr>
-              <td className="px-4 py-3 font-medium text-gray-600">Description</td>
+              <th scope="row" className="px-4 py-3 text-start font-medium text-gray-600">
+                Description
+              </th>
               {products.map((p) => (
                 <td key={p.id} className="px-4 py-3 text-center text-gray-600">
                   {p.description || "—"}
@@ -137,7 +153,7 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
               <td className="border-t border-gray-200 px-4 py-3 font-medium text-gray-600" />
               {products.map((p) => (
                 <td key={p.id} className="border-t border-gray-200 px-4 py-3 text-center">
-                  {p.affiliate_url && (
+                  {hasUsableAffiliateUrl(p.affiliate_url) && (
                     <a
                       href={getTrackingUrl(p.slug, "comparison", p.affiliate_url, hasConsent)}
                       target="_blank"

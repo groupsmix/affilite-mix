@@ -54,11 +54,15 @@ function registryFallbackModules(): ModuleInfo[] {
   }));
 }
 
-export function ModulesManager() {
+interface ModulesManagerProps {
+  siteId?: string;
+}
+
+export function ModulesManager({ siteId }: ModulesManagerProps) {
   const [sites, setSites] = useState<SiteOption[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("");
+  const [selectedSiteId, setSelectedSiteId] = useState<string>(siteId ?? "");
   const [modules, setModules] = useState<ModuleInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!siteId);
   const [modulesLoading, setModulesLoading] = useState(false);
   const [modulesError, setModulesError] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
@@ -82,7 +86,7 @@ export function ModulesManager() {
 
   // M4: tracks the in-flight target site so a response that arrives after the
   // user switched sites is discarded instead of rendering under the wrong site.
-  const activeSiteIdRef = useRef<string>("");
+  const activeSiteIdRef = useRef<string>(siteId ?? "");
 
   const loadModules = useCallback(async () => {
     if (!selectedSiteId) return;
@@ -116,15 +120,21 @@ export function ModulesManager() {
   }, [selectedSiteId]);
 
   useEffect(() => {
+    if (siteId) return;
     void loadSites();
-  }, [loadSites]);
+  }, [loadSites, siteId]);
 
   useEffect(() => {
+    if (siteId && siteId !== selectedSiteId) {
+      setSelectedSiteId(siteId);
+      activeSiteIdRef.current = siteId;
+      return;
+    }
     activeSiteIdRef.current = selectedSiteId;
     if (selectedSiteId) {
       void loadModules();
     }
-  }, [selectedSiteId, loadModules]);
+  }, [selectedSiteId, loadModules, siteId]);
 
   async function toggleModule(moduleKey: string, enabled: boolean) {
     setSaving(moduleKey);
@@ -149,18 +159,20 @@ export function ModulesManager() {
     setSaving(null);
   }
 
-  if (loading) {
+  if (!siteId && loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-gray-500">Loading...</div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
 
-  if (sites.length === 0) {
+  if (!siteId && sites.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-        <p className="text-gray-500">No database-managed sites found. Create a site first.</p>
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center">
+        <p className="text-gray-500 dark:text-gray-400">
+          No database-managed sites found. Create a site first.
+        </p>
       </div>
     );
   }
@@ -174,27 +186,34 @@ export function ModulesManager() {
 
   return (
     <div>
-      {/* Site selector */}
-      <div className="mb-6">
-        <label className="mb-1 block text-sm font-medium text-gray-700">Select Site</label>
-        <select
-          value={selectedSiteId}
-          onChange={(e) => setSelectedSiteId(e.target.value)}
-          className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          {sites.map((site) => (
-            <option key={site.db_id ?? site.id} value={site.db_id ?? site.id}>
-              {site.name} ({site.slug ?? site.id})
-            </option>
-          ))}
-        </select>
-      </div>
+      {!siteId && (
+        <div className="mb-6">
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Select Site
+          </label>
+          <select
+            value={selectedSiteId}
+            onChange={(e) => setSelectedSiteId(e.target.value)}
+            className="w-full max-w-xs rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {sites.map((site) => (
+              <option key={site.db_id ?? site.id} value={site.db_id ?? site.id}>
+                {site.name} ({site.slug ?? site.id})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
-      {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+      {error && (
+        <div className="mb-4 rounded bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* F-018: explicit error state — the static catalog still renders below. */}
       {modulesError && (
-        <div className="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+        <div className="mb-4 rounded border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-700 dark:text-amber-300">
           {modulesError}
         </div>
       )}
@@ -202,19 +221,22 @@ export function ModulesManager() {
       {/* Post-selector region: loading → empty → module groups. */}
       {modulesLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-sm text-gray-500">Loading modules...</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Loading modules...</div>
         </div>
       ) : modules.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-          <p className="text-gray-500">No modules available for this site.</p>
+        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-400">No modules available for this site.</p>
         </div>
       ) : (
         /* Module groups */
         <div className="space-y-6">
           {Object.entries(grouped).map(([category, mods]) => (
-            <div key={category} className="rounded-lg border border-gray-200 bg-white">
+            <div
+              key={category}
+              className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+            >
               <div className="border-b border-gray-100 px-5 py-3">
-                <h2 className="text-sm font-semibold text-gray-900">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {categoryLabels[category] ?? category}
                 </h2>
               </div>
@@ -223,14 +245,18 @@ export function ModulesManager() {
                   <div key={mod.key} className="flex items-center justify-between px-5 py-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-900">{mod.name}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {mod.name}
+                        </p>
                         {mod.defaultEnabled && (
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:text-blue-300">
                             default
                           </span>
                         )}
                       </div>
-                      <p className="mt-0.5 text-xs text-gray-500">{mod.description}</p>
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {mod.description}
+                      </p>
                       {mod.dependencies.length > 0 && (
                         <p className="mt-1 text-xs text-amber-600">
                           Depends on: {mod.dependencies.join(", ")}
@@ -251,7 +277,7 @@ export function ModulesManager() {
                       aria-label={`Toggle ${mod.name}`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-gray-900 shadow ring-0 transition duration-200 ease-in-out ${
                           mod.is_enabled ? "translate-x-5" : "translate-x-0"
                         }`}
                       />

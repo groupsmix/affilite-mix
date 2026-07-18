@@ -12,7 +12,7 @@ import {
 // 00040; only an authenticated INSERT policy exists). The default tenant client
 // (authenticated role) reads zero rows, so the grid always rendered empty. This
 // page is a super_admin-only Server Component; read via the privileged gateway.
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { redirect } from "next/navigation";
 
 import { AuditLogTable, type AuditLogTableRow } from "./audit-log-table";
@@ -191,10 +191,10 @@ export default async function AuditLogPage({
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-1 flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Audit Log</h1>
         <span className="text-xs text-muted-foreground">{windowHint}</span>
       </div>
-      <p className="mb-4 text-sm text-gray-500">
+      <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
         Activity history for{" "}
         <span className="font-medium">{session.activeSiteName ?? session.activeSiteSlug}</span>
       </p>

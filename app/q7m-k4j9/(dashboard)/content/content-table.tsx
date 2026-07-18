@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontalIcon, CalendarClockIcon } from "lucide-react";
+import { MoreHorizontalIcon, CalendarClockIcon, ClipboardCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -24,7 +24,8 @@ import { Button } from "@/components/ui/button";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 import { ContentBulkActions } from "./bulk-actions";
-import { ContentDeleteButton } from "./content-delete-button";
+import { ContentDeleteDialog } from "./content-delete-button";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 export interface ContentTableRow {
   id: string;
@@ -52,11 +53,11 @@ const TYPE_OPTIONS = [
 ];
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
-  published: "bg-green-100 text-green-700 hover:bg-green-100",
+  published: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
   draft: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-  review: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  review: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
   scheduled: "bg-indigo-100 text-indigo-700 hover:bg-indigo-100",
-  archived: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+  archived: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100",
 };
 
 const STATUS_FALLBACK_CLASS = "";
@@ -75,6 +76,8 @@ function formatPublishAt(value: string | null): string {
 function RowActions({ row }: { row: ContentTableRow }) {
   const router = useRouter();
   const [cloning, setCloning] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<null | "published" | "draft">(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   async function handleClone() {
     setCloning(true);
@@ -99,33 +102,81 @@ function RowActions({ row }: { row: ContentTableRow }) {
     }
   }
 
+  async function handleReview(status: "published" | "draft") {
+    if (updatingStatus) return;
+    setUpdatingStatus(status);
+    try {
+      const res = await fetchWithCsrf("/api/admin/content", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: row.id, status }),
+      });
+      if (res.ok) {
+        toast.success(status === "published" ? "Content approved" : "Content rejected");
+        router.refresh();
+      } else {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(data.error ?? "Failed to update status");
+      }
+    } catch {
+      toast.error("Failed to update status");
+    } finally {
+      setUpdatingStatus(null);
+    }
+  }
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/q7m-k4j9/content/${row.id}`}>Edit</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            if (!cloning) void handleClone();
-          }}
-          disabled={cloning}
-        >
-          {cloning ? "Duplicating…" : "Duplicate"}
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild variant="destructive">
-          <div className="flex w-full" onClick={(event) => event.stopPropagation()}>
-            <ContentDeleteButton id={row.id} title={row.title} />
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/q7m-k4j9/content/${row.id}`}>Edit</Link>
+          </DropdownMenuItem>
+          {row.status === "review" && (
+            <>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  if (!updatingStatus) void handleReview("published");
+                }}
+                disabled={updatingStatus !== null}
+              >
+                {updatingStatus === "published" ? "Approving…" : "Approve"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  if (!updatingStatus) void handleReview("draft");
+                }}
+                disabled={updatingStatus !== null}
+              >
+                {updatingStatus === "draft" ? "Rejecting…" : "Reject"}
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              if (!cloning) void handleClone();
+            }}
+            disabled={cloning || updatingStatus !== null}
+          >
+            {cloning ? "Duplicating…" : "Duplicate"}
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setShowConfirm(true)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {showConfirm && (
+        <ContentDeleteDialog id={row.id} title={row.title} onOpenChange={setShowConfirm} />
+      )}
+    </AlertDialog>
   );
 }
 
@@ -234,10 +285,17 @@ interface ContentTableProps {
   data: ContentTableRow[];
   totalCount: number;
   scheduledCount: number;
+  reviewCount: number;
   pageSize: number;
 }
 
-export function ContentTable({ data, totalCount, scheduledCount, pageSize }: ContentTableProps) {
+export function ContentTable({
+  data,
+  totalCount,
+  scheduledCount,
+  reviewCount,
+  pageSize,
+}: ContentTableProps) {
   return (
     <DataTable
       columns={columns}
@@ -272,6 +330,18 @@ export function ContentTable({ data, totalCount, scheduledCount, pageSize }: Con
               >
                 <CalendarClockIcon className="size-3.5" />
                 Scheduled ({scheduledCount})
+              </Badge>
+            )}
+            {reviewCount > 0 && (
+              <Badge
+                asChild
+                variant="secondary"
+                className="bg-blue-100 text-blue-700 hover:bg-blue-100"
+              >
+                <Link href="/q7m-k4j9/content?f.status=review">
+                  <ClipboardCheckIcon className="size-3.5" />
+                  Review ({reviewCount})
+                </Link>
               </Badge>
             )}
             {selectedIds.length > 0 && (

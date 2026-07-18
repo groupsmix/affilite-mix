@@ -56,15 +56,19 @@ export const GET = withAuthz(
     }
 
     try {
-      const content = await listContent({
-        siteId,
-        contentType: contentType ?? undefined,
-        status:
-          (status as "draft" | "review" | "published" | "scheduled" | "archived") ?? undefined,
-        categoryId: categoryId ?? undefined,
-        limit: pagination.limit,
-        offset: pagination.offset,
-      });
+      const getClient = () => getTenantClientForSite(siteId, session.userId);
+      const content = await listContent(
+        {
+          siteId,
+          contentType: contentType ?? undefined,
+          status:
+            (status as "draft" | "review" | "published" | "scheduled" | "archived") ?? undefined,
+          categoryId: categoryId ?? undefined,
+          limit: pagination.limit,
+          offset: pagination.offset,
+        },
+        getClient,
+      );
 
       return NextResponse.json(content);
     } catch (err) {

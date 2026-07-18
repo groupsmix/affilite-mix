@@ -101,7 +101,7 @@ export function CategoryDeleteCard({ id, name }: CategoryDeleteCardProps) {
           <div className="space-y-2 text-sm">
             {loading && <p className="text-muted-foreground">Checking for associated records…</p>}
             {!loading && totalAffected > 0 && usage && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+              <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 text-amber-900 dark:text-amber-200 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
                 <p className="font-medium">This category has associated records:</p>
                 <ul className="mt-1 list-inside list-disc text-xs">
                   {usage.contentCount > 0 && (

@@ -329,8 +329,10 @@ export function CsvTools() {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-gray-700">Bulk Import / Export</h3>
+    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+        Bulk Import / Export
+      </h3>
 
       <div className="flex flex-wrap items-center gap-3">
         <button
@@ -338,7 +340,7 @@ export function CsvTools() {
           onClick={() => {
             void handleExport();
           }}
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
@@ -351,7 +353,7 @@ export function CsvTools() {
           Export CSV
         </button>
 
-        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"
@@ -380,7 +382,7 @@ export function CsvTools() {
 
       {importing && progress && (
         <div className="mt-3">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
               <div
                 className="h-full animate-pulse rounded-full bg-blue-500"
@@ -397,7 +399,7 @@ export function CsvTools() {
 
       {preview && !importing && (
         <div className="mt-3 space-y-3">
-          <div className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          <div className="rounded border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm text-blue-800">
             Preview: {preview.rows.length} row(s) found with {preview.headers.length} columns
           </div>
 
@@ -418,7 +420,7 @@ export function CsvTools() {
           {/* Validation warnings */}
 
           {preview.warnings.length > 0 && (
-            <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <div className="rounded border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-800 dark:text-red-300">
               <p className="font-medium">
                 {preview.warnings.length} row(s) have validation issues:
               </p>
@@ -435,20 +437,25 @@ export function CsvTools() {
 
           {/* Preview table */}
 
-          <div className="max-h-48 overflow-auto rounded border border-gray-200">
+          <div className="max-h-48 overflow-auto rounded border border-gray-200 dark:border-gray-800">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-gray-50">
+              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800/50">
                 <tr>
-                  <th className="px-2 py-1 text-left font-medium text-gray-500">#</th>
+                  <th className="px-2 py-1 text-left font-medium text-gray-500 dark:text-gray-400">
+                    #
+                  </th>
 
                   {preview.headers.slice(0, 6).map((h) => (
-                    <th key={h} className="px-2 py-1 text-left font-medium text-gray-500">
+                    <th
+                      key={h}
+                      className="px-2 py-1 text-left font-medium text-gray-500 dark:text-gray-400"
+                    >
                       {h}
                     </th>
                   ))}
 
                   {preview.headers.length > 6 && (
-                    <th className="px-2 py-1 text-left font-medium text-gray-500">
+                    <th className="px-2 py-1 text-left font-medium text-gray-500 dark:text-gray-400">
                       +{preview.headers.length - 6} more
                     </th>
                   )}
@@ -458,10 +465,13 @@ export function CsvTools() {
               <tbody>
                 {preview.rows.slice(0, 5).map((row, i) => (
                   <tr key={i} className="border-t border-gray-100">
-                    <td className="px-2 py-1 text-gray-500">{i + 2}</td>
+                    <td className="px-2 py-1 text-gray-500 dark:text-gray-400">{i + 2}</td>
 
                     {preview.headers.slice(0, 6).map((h) => (
-                      <td key={h} className="max-w-[120px] truncate px-2 py-1 text-gray-700">
+                      <td
+                        key={h}
+                        className="max-w-[120px] truncate px-2 py-1 text-gray-700 dark:text-gray-300"
+                      >
                         {row[h] || "—"}
                       </td>
                     ))}
@@ -472,7 +482,7 @@ export function CsvTools() {
                   <tr className="border-t border-gray-100">
                     <td
                       colSpan={Math.min(preview.headers.length, 6) + 1}
-                      className="px-2 py-1 text-center text-gray-500"
+                      className="px-2 py-1 text-center text-gray-500 dark:text-gray-400"
                     >
                       ...and {preview.rows.length - 5} more rows
                     </td>
@@ -488,7 +498,7 @@ export function CsvTools() {
               onClick={() => {
                 void confirmImport();
               }}
-              className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+              className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white dark:text-gray-900 hover:bg-green-700"
             >
               Confirm Import
             </button>
@@ -496,7 +506,7 @@ export function CsvTools() {
             <button
               type="button"
               onClick={cancelPreview}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
             >
               Cancel
             </button>
@@ -507,7 +517,7 @@ export function CsvTools() {
       {result && (
         <div className="mt-3">
           <div
-            className={`rounded p-3 text-sm ${result.errors > 0 ? "bg-yellow-50 text-yellow-800" : "bg-green-50 text-green-800"}`}
+            className={`rounded p-3 text-sm ${result.errors > 0 ? "bg-yellow-50 text-yellow-800" : "bg-green-50 dark:bg-green-900/20 text-green-800"}`}
           >
             Imported {result.created} of {result.total} products.
             {result.errors > 0 && ` ${result.errors} error(s).`}
@@ -515,11 +525,11 @@ export function CsvTools() {
 
           {result.results.filter((r) => r.status === "error").length > 0 && (
             <details className="mt-2" open>
-              <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700">
+              <summary className="cursor-pointer text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700">
                 Show errors ({result.results.filter((r) => r.status === "error").length})
               </summary>
 
-              <ul className="mt-1 space-y-1 text-xs text-red-600">
+              <ul className="mt-1 space-y-1 text-xs text-red-600 dark:text-red-400">
                 {result.results
 
                   .filter((r) => r.status === "error")

@@ -2,8 +2,8 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getCategoryBySlug } from "@/lib/dal/categories";
 import { listContent, countContent } from "@/lib/dal/content";
 import { listProducts } from "@/lib/dal/products";
-import { getAnonClient } from "@/lib/supabase-server";
-import { ContentCard } from "./content-card";
+import { getTenantClient } from "@/lib/supabase-server";
+import { ContentCardGrid } from "./content-card-grid";
 import { ProductCard } from "./product-card";
 import { Pagination, PaginationHead } from "./pagination";
 import { Breadcrumbs } from "./breadcrumbs";
@@ -110,7 +110,7 @@ export async function TaxonomyPage({
         limit: PAGE_SIZE,
         offset: (currentPage - 1) * PAGE_SIZE,
       },
-      getAnonClient,
+      getTenantClient,
     ),
     countContent(
       {
@@ -118,7 +118,7 @@ export async function TaxonomyPage({
         categoryId: category.id,
         status: "published",
       },
-      getAnonClient,
+      getTenantClient,
     ),
     listProducts(
       {
@@ -129,7 +129,7 @@ export async function TaxonomyPage({
         sortDirection: "desc",
         limit: 24,
       },
-      getAnonClient,
+      getTenantClient,
     ),
   ]);
 
@@ -143,7 +143,7 @@ export async function TaxonomyPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <JsonLd data={breadcrumbs} />
 
       <Breadcrumbs
@@ -154,16 +154,24 @@ export async function TaxonomyPage({
         ]}
       />
 
-      <header className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
-        {category.description && <p className="text-gray-600">{category.description}</p>}
+      <header className="mb-10">
+        <h1 className="max-w-3xl text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+          {category.name}
+        </h1>
+        {category.description && (
+          <p className="mt-3 max-w-3xl text-lg leading-relaxed text-gray-600">
+            {category.description}
+          </p>
+        )}
       </header>
 
       {/* Products */}
       {products.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-4 text-xl font-bold">{site.productLabelPlural}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-5 text-xl font-extrabold tracking-tight text-gray-900">
+            {site.productLabelPlural}
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => (
               <ProductCard
                 key={product.id}
@@ -178,13 +186,14 @@ export async function TaxonomyPage({
 
       {/* Content */}
       {content.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {content.map((item) => (
-            <ContentCard key={item.id} content={item} locale={locale} />
-          ))}
-        </div>
+        <section>
+          <h2 className="mb-5 text-xl font-extrabold tracking-tight text-gray-900">
+            {site.language === "ar" ? "قراءات ذات صلة" : "Related reading"}
+          </h2>
+          <ContentCardGrid items={content} locale={locale} />
+        </section>
       ) : products.length === 0 ? (
-        <div className="py-16 text-center text-gray-500">
+        <div className="rounded-2xl border border-gray-100 bg-gray-50 py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? "لا يوجد محتوى في هذا التصنيف بعد"
@@ -207,9 +216,11 @@ export async function TaxonomyPage({
       />
 
       {/* Newsletter */}
-      <section className="mt-12">
-        <NewsletterSignup siteLanguage={site.language} />
-      </section>
-    </div>
+      {site.features.newsletter && (
+        <section className="mt-12">
+          <NewsletterSignup siteLanguage={site.language} />
+        </section>
+      )}
+    </main>
   );
 }

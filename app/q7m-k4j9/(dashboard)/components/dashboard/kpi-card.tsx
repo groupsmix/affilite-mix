@@ -99,7 +99,9 @@ export function KpiCard({
               href={subLink.href}
               className={cn(
                 "mt-1 inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline",
-                subLink.tone === "warning" ? "text-amber-700 dark:text-amber-400" : "text-primary",
+                subLink.tone === "warning"
+                  ? "text-amber-700 dark:text-amber-300 dark:text-amber-400"
+                  : "text-primary",
               )}
             >
               {subLink.label}

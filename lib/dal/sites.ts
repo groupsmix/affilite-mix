@@ -1,6 +1,13 @@
 // DESIGN: No site_id filtering — this module manages the `sites` table itself (global scope).
 import { unstable_cache } from "next/cache";
 import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
+// listAdminSites reads the global `sites` registry for cross-site admin cards
+// (Niche Health, Estimated Revenue). The `authenticated` role has no SELECT
+// policy on `sites` (only `anon` and `service_role`), so tenant-scoped calls
+// return zero rows. The privileged client is used with the existing .eq('site_id')
+// or opt-out guards in listSites.
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { shouldSkipDbCall } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
 import type { Database, Json } from "@/types/supabase";
@@ -15,7 +22,7 @@ type SiteUpdate = Database["public"]["Tables"]["sites"]["Update"];
 const TABLE = "sites";
 // Columns needed for list views (excludes heavy JSON blobs like ad_config, custom_css)
 const LIST_COLUMNS =
-  "id, slug, name, domain, language, direction, is_active, monetization_type, logo_url, favicon_url, meta_title, meta_description, og_image_url, homepage_template, product_card_style, created_at, updated_at" as const;
+  "id, slug, name, domain, language, direction, is_active, monetization_type, est_revenue_per_click, logo_url, favicon_url, meta_title, meta_description, og_image_url, homepage_template, product_card_style, created_at, updated_at" as const;
 // A23-01: Explicit full-row column list — prevents future sensitive columns from
 // leaking automatically when callers receive a complete SiteRow.
 const ALL_COLUMNS =
@@ -56,6 +63,24 @@ export const listSites = unstable_cache(
   // namespaces so a zero-row tenant-client result can never poison the
   // privileged admin result.
   ["all-sites-privileged"],
+  { revalidate: 10, tags: ["sites"] },
+);
+
+/**
+ * List all sites using the privileged (service-role) client.
+ *
+ * Used by super-admin dashboard cards that need the full site registry (Niche
+ * Health, Estimated Revenue). The default tenant-scoped client cannot read
+ * `sites` because `sites` has no authenticated SELECT policy, so this helper
+ * routes through the privileged client. The result is cached separately from
+ * `listSites()` to avoid cache-poisoning by a tenant-scoped call.
+ */
+export const listAdminSites = unstable_cache(
+  async (): Promise<SiteRow[]> => {
+    if (shouldSkipDbCall()) return [];
+    return listSites(() => getPrivilegedSupabaseClient("list-admin-sites"));
+  },
+  ["admin-sites"],
   { revalidate: 10, tags: ["sites"] },
 );
 
@@ -219,7 +244,15 @@ export async function createSite(
     meta_description?: string | null;
     og_image_url?: string | null;
     social_links?: Record<string, string>;
-    homepage_template?: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+    homepage_template?:
+      | "standard"
+      | "cinematic"
+      | "minimal"
+      | "editorial"
+      | "top10"
+      | "compare"
+      | "showcase"
+      | "taxfinder";
     product_card_style?: "standard" | "compact" | "detailed";
   },
   getClient: DalClientGetter = defaultDalClientGetter,

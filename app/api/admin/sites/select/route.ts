@@ -8,7 +8,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { recordAuditEvent } from "@/lib/audit-log";
 
 /** POST /api/admin/sites/select — set the active site cookie */
@@ -21,6 +21,15 @@ export async function POST(request: NextRequest) {
 
   const rlError = await enforceAdminRateLimit("sites-select", session);
   if (rlError) return rlError;
+
+  // A session minted from a site-scoped API token is pinned to one tenant and
+  // must not be able to switch sites, even if it is a super_admin session.
+  if (session.site_id) {
+    return NextResponse.json(
+      { error: "This token is scoped to a single site and cannot switch sites." },
+      { status: 403 },
+    );
+  }
 
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;

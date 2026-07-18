@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { contentTag } from "@/lib/cache-tags";
 import { setLinkedProducts } from "@/lib/dal/content-products";
 import { validateSetLinkedProducts } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -7,6 +8,7 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 export const PUT = withAuthz(
   "content",
@@ -26,8 +28,17 @@ export const PUT = withAuthz(
     }
 
     try {
-      await setLinkedProducts(parsed.data.content_id, siteId, parsed.data.links);
-      void revalidateTag(`content:${siteId}`);
+      // Bind to the withAuthz-validated siteId (same pattern as the content
+      // route) so the minted JWT carries app_metadata.site_id and the
+      // set_linked_products SECURITY DEFINER RPC executes with the correct
+      // tenant context. The default DAL getter (getTenantClient) can resolve
+      // to an empty site_id when the active-site cookie is not carried on the
+      // write request, which makes the RPC's internal site-ownership check
+      // fail.
+      await setLinkedProducts(parsed.data.content_id, siteId, parsed.data.links, () =>
+        getTenantClientForSite(siteId, session.userId),
+      );
+      void revalidateTag(contentTag(siteId));
       void recordAuditEvent({
         site_id: siteId,
         actor: session.email ?? session.userId ?? "admin",

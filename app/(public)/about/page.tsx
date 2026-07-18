@@ -1,6 +1,7 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
+import { isCryptoTaxAu, CryptoTaxAUAbout } from "../components/site-static-content";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -19,6 +20,68 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AboutPage() {
   const site = await getCurrentSite();
   const isArabic = site.language === "ar";
+  const isCrypto = isCryptoTaxAu(site);
+
+  if (isCrypto) {
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-12">
+        <h1 className="mb-8 text-3xl font-bold" style={{ color: "var(--ink)" }}>
+          {site.pages.about.title}
+        </h1>
+        <div
+          className={`prose prose-lg max-w-none ${isArabic ? "rtl" : ""}`}
+          style={{ color: "var(--ink-70)" }}
+        >
+          <CryptoTaxAUAbout site={site} />
+        </div>
+      </div>
+    );
+  }
+
+  // Derive "What We Offer" from the site's real feature set so the page
+  // never claims capabilities the site doesn't have. The previous
+  // hardcoded list advertised "finance and loan calculators", a "daily
+  // deals platform", and "localized content" on every tenant regardless
+  // of whether those features existed (e.g. WristNerd, a watch review
+  // site, offered none of them).
+  const plural = site.productLabelPlural.toLowerCase();
+  const f = site.features;
+  const offerings: string[] = [
+    isArabic ? `مراجعات ${plural} شاملة ونزيهة` : `Comprehensive, unbiased ${plural} reviews`,
+  ];
+  if (f.comparisons) {
+    offerings.push(
+      isArabic
+        ? "مقارنات جانبية لتسهيل عملية اتخاذ القرار"
+        : "Side-by-side comparisons to simplify decision-making",
+    );
+  }
+  if (f.giftFinder) {
+    offerings.push(
+      isArabic
+        ? "أداة تساعدك على اختيار الهدية المناسبة للمناسبة والشخص"
+        : `A gift finder that matches ${plural} to the recipient and occasion`,
+    );
+  }
+  if (f.blog) {
+    offerings.push(
+      isArabic
+        ? "أدلة شراء ومحتوى تحريري من الخبراء"
+        : "Expert buying guides and editorial content",
+    );
+  }
+  if (f.deals) {
+    offerings.push(
+      isArabic ? "عروض وأسعار مختارة بعناية" : "Hand-picked deals and current top picks",
+    );
+  }
+  if (f.newsletter) {
+    offerings.push(
+      isArabic
+        ? "نشرة إخبارية بأحدث المراجعات والعروض إلى بريدك"
+        : "A newsletter with new reviews and deals delivered to your inbox",
+    );
+  }
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12">
@@ -49,23 +112,9 @@ export default async function AboutPage() {
           {isArabic ? "ما نقدمه" : "What We Offer"}
         </h2>
         <ul className="mb-6 list-disc space-y-2 pl-6">
-          {isArabic ? (
-            <>
-              <li>مراجعات شاملة ونزيهة للمنتجات</li>
-              <li>مقارنات جانبية لتسهيل عملية اتخاذ القرار</li>
-              <li>آلة حاسبة للقروض والتمويل</li>
-              <li>منصة عروض يومية مختارة بعناية</li>
-              <li>محتوى مخصص بلغتك المفضلة</li>
-            </>
-          ) : (
-            <>
-              <li>Comprehensive and unbiased product reviews</li>
-              <li>Side-by-side comparisons to simplify decision-making</li>
-              <li>Finance and loan calculators</li>
-              <li>Curated daily deals platform</li>
-              <li>Localized content in your preferred language</li>
-            </>
-          )}
+          {offerings.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
         </ul>
 
         <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>

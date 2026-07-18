@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateContent } from "@/lib/ai/content-generator";
 import { createAIDraft } from "@/lib/dal/ai-drafts";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { allSites } from "@/config/sites";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";

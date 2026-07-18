@@ -72,10 +72,11 @@ const STATUS_FILTER_OPTIONS: { label: string; value: "active" | "inactive" }[] =
  * Task 13a brief).
  */
 const ROLE_BADGE_CLASSES: Record<string, string> = {
-  super_admin: "bg-amber-100 text-amber-800 hover:bg-amber-100",
-  admin: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-  editor: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-  viewer: "bg-gray-100 text-gray-700 hover:bg-gray-100",
+  super_admin:
+    "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100",
+  admin: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
+  editor: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
+  viewer: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100",
 };
 
 function initialsFor(nameOrEmail: string): string {
@@ -166,7 +167,9 @@ function SitesAccessCell({ row }: { row: UsersTableRow }) {
 
 function StatusBadgeCell({ isActive }: { isActive: boolean }) {
   return isActive ? (
-    <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Active</Badge>
+    <Badge className="bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100">
+      Active
+    </Badge>
   ) : (
     <Badge variant="outline" className="text-muted-foreground">
       Inactive

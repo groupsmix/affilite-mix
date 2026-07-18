@@ -1,6 +1,7 @@
 // Card composition patterns adapted from https://github.com/Qualiora/shadboard (MIT).
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getRevenuePerSite } from "@/lib/dal/revenue-per-site";
+import { getRevenuePerSite, type SiteRevenueRow } from "@/lib/dal/revenue-per-site";
+import { logger } from "@/lib/logger";
 
 interface RevenuePerSiteCardProps {
   sevenDaysAgo: string;
@@ -29,7 +30,16 @@ function formatUSD(value: number): string {
  * `dashboard:revenue-7d` tag (see `lib/dal/revenue-per-site.ts`).
  */
 export async function RevenuePerSiteCard({ sevenDaysAgo }: RevenuePerSiteCardProps) {
-  const rows = await getRevenuePerSite(sevenDaysAgo);
+  // getRevenuePerSite calls listSites() + getClickCount() — either can throw
+  // when the DB is unavailable. Catch here so the error degrades to an empty
+  // card instead of crashing past CardErrorBoundary (which does not catch
+  // Server Component errors during initial SSR).
+  const rows = await getRevenuePerSite(sevenDaysAgo).catch((error: unknown) => {
+    logger.warn("[dashboard] revenue-per-site unavailable", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [] as SiteRevenueRow[];
+  });
   const totalRevenue = rows.reduce((sum, r) => sum + r.revenue, 0);
   const maxRevenue = rows.reduce((max, r) => Math.max(max, r.revenue), 0);
 
@@ -49,7 +59,7 @@ export async function RevenuePerSiteCard({ sevenDaysAgo }: RevenuePerSiteCardPro
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No sites configured yet.</p>
+          <p className="text-sm text-muted-foreground">No revenue data in the last 7 days.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {rows.map((r) => {

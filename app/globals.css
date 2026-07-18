@@ -34,7 +34,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --ring: var(--primary);
 
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -235,9 +235,18 @@
   --shadow-sticky: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-body);
-  color: var(--color-primary);
+  /* Use the shadcn foreground token, NOT --color-primary. The site theme
+     system reuses --color-primary as the brand/heading color (dark navy on
+     AI Compared), so body text inheriting it becomes invisible on dark
+     hero sections. --color-foreground is the proper readable text color
+     (near-black in light mode, near-white in dark mode). */
+  color: var(--color-foreground);
 }
 
 h1,
@@ -351,4 +360,49 @@ h6 {
 /* Remove default focus ring (replaced by focus-visible above). */
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ─── Showcase homepage template (homepage_template = 'showcase') ──── *
+ * Scoped animations and serif utility for the immersive storefront
+ * homepage ported from the WristNerd design. All class names are
+ * prefixed `showcase-` so they cannot collide with existing utilities. */
+.showcase-serif {
+  font-family: var(--font-serif-landing, Georgia, "Times New Roman", serif);
+}
+
+.showcase-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.showcase-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes showcase-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.showcase-animate-marquee {
+  animation: showcase-marquee 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .showcase-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .showcase-animate-marquee {
+    animation: none;
+  }
 }

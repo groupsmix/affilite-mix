@@ -1,8 +1,10 @@
 import { requireAdminSessionWithSite } from "../components/admin-guard";
 import { listCategories, getCategoryUsageCountsBatch } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import Link from "next/link";
 
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   CATEGORIES_TABLE_PAGE_SIZE,
@@ -40,7 +42,11 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
   const sp = await searchParams;
 
   const session = await requireAdminSessionWithSite();
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  // resolveDbSiteId throws when the slug has no matching DB row or the DB is
+  // unreachable. Redirect to the site picker instead of crashing the whole
+  // page — matches the products/new guard.
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug).catch(() => null);
+  if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
 
   const q = (sp.q ?? "").trim();
   const taxonomyFilter = parseCsv(sp["f.taxonomy_type"]).filter((v): v is TaxonomyValue =>
@@ -64,7 +70,9 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
   // Categories are typically <100 per site; fetch the q-filtered list in one
   // shot and do taxonomy filtering / sorting / paging in-memory. This avoids
   // adding new DAL surface area for something so small (per Task 12 scope).
-  const all = await listCategories(dbSiteId, q ? { q } : undefined);
+  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
+
+  const all = await listCategories(dbSiteId, q ? { q } : undefined, getClient);
 
   const filteredByTaxonomy =
     taxonomyFilter.length > 0
@@ -77,6 +85,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
   const { contentCounts } = await getCategoryUsageCountsBatch(
     dbSiteId,
     filteredByTaxonomy.map((c) => c.id),
+    getClient,
   );
 
   const enriched: CategoriesTableRow[] = filteredByTaxonomy.map((c) => ({

@@ -9,7 +9,10 @@ import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
 import { RelatedLinks } from "../../components/related-links";
+import { AdSlot, adLabel, resolveSlotImageAd } from "../../components/ads/ad-slot";
+import { AdImage } from "../../components/ads/ad-image";
 import { Breadcrumbs } from "../../components/breadcrumbs";
+import { cn } from "@/lib/utils";
 import { ReportContentLink } from "../../components/report-content-link";
 import dynamic from "next/dynamic";
 
@@ -32,7 +35,8 @@ import {
   productJsonLd,
   faqJsonLd,
 } from "../../components/json-ld";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { unstable_noStore } from "next/cache";
 import type { Metadata } from "next";
 
 /** Revalidate content detail pages every 60 seconds (ISR) */
@@ -56,7 +60,7 @@ export async function generateMetadata({
   if (preview === "true") {
     if (token) {
       const tokenPayload = await validatePreviewToken(token);
-      isPreview = !!(tokenPayload && tokenPayload.slug === slug);
+      isPreview = !!(tokenPayload && tokenPayload.slug === slug && tokenPayload.siteId === site.id);
     } else {
       const session = await getAdminSession();
       isPreview = !!session;
@@ -67,6 +71,11 @@ export async function generateMetadata({
 
   if (!content) {
     return { title: site.language === "ar" ? "غير موجود" : "Not Found" };
+  }
+
+  // Preview of already-published content should redirect to the canonical URL.
+  if (isPreview && content.status === "published") {
+    redirect(`/${content.type}/${content.slug}`);
   }
 
   const url = `https://${site.domain}/${content.type}/${content.slug}`;
@@ -111,6 +120,12 @@ export async function generateMetadata({
 export default async function ContentPage({ params, searchParams }: ContentPageProps) {
   const { contentType, slug } = await params;
   const { preview, token } = await searchParams;
+
+  // Never serve a cached 404 for preview requests.
+  if (preview === "true") {
+    unstable_noStore();
+  }
+
   const site = await getCurrentSite();
   let isPreview = false;
 
@@ -119,7 +134,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
     if (token) {
       // Token-based preview (shareable with non-admin reviewers)
       const tokenPayload = await validatePreviewToken(token);
-      if (!tokenPayload || tokenPayload.slug !== slug) {
+      if (!tokenPayload || tokenPayload.slug !== slug || tokenPayload.siteId !== site.id) {
         notFound();
       }
       isPreview = true;
@@ -150,6 +165,12 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
     notFound();
   }
 
+  // Preview of already-published content should send the user to the canonical
+  // public URL instead of keeping them on a tokenised preview link.
+  if (isPreview && content.status === "published") {
+    redirect(`/${content.type}/${content.slug}`);
+  }
+
   // Load linked products, related content, and the category hub.
   const [linkedProducts, relatedContent, hubCategory] = await Promise.all([
     getLinkedProducts(site.id, content.id),
@@ -177,6 +198,15 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
       type: c.type,
     })),
   });
+
+  // Map each linked product to its review page for internal-linking from the
+  // related-products cards.
+  const reviewByProductId = new Map<string, { type: string; slug: string }>();
+  for (const c of crossLinked) {
+    if (c.content.type === "review" && !reviewByProductId.has(c.productId)) {
+      reviewByProductId.set(c.productId, c.content);
+    }
+  }
 
   // Build JSON-LD based on content type
   const contentTypeLabel =
@@ -224,187 +254,238 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
       })
     : null;
 
+  // Resolve the sidebar ad up-front so we only reserve a sidebar column when a
+  // renderable placement actually exists; pages without one keep the original
+  // centred single-column reading width.
+  const sidebarAd = await resolveSlotImageAd(site.id, "sidebar");
+
   return (
-    <article className="mx-auto max-w-4xl px-4 py-8">
-      <JsonLd data={breadcrumbs} />
-      <JsonLd data={contentSchema} />
-      {faqSchema && <JsonLd data={faqSchema} />}
-      {linkedProducts.map((lp) => (
-        <JsonLd key={lp.product_id} data={productJsonLd(site, lp.product)} />
-      ))}
+    <div
+      className={cn("mx-auto px-4 py-8", sidebarAd ? "max-w-6xl lg:flex lg:gap-8" : "max-w-4xl")}
+    >
+      <article className={sidebarAd ? "min-w-0 flex-1" : undefined}>
+        <JsonLd data={breadcrumbs} />
+        <JsonLd data={contentSchema} />
+        {faqSchema && <JsonLd data={faqSchema} />}
+        {linkedProducts.map((lp) => (
+          <JsonLd key={lp.product_id} data={productJsonLd(site, lp.product)} />
+        ))}
 
-      <ReadingProgress />
+        <ReadingProgress />
 
-      {/* Preview banner */}
-      {isPreview && (
-        <div className="mb-4 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-2 text-sm font-medium text-yellow-800">
-          Preview Mode — This content is not yet published.
-        </div>
-      )}
-
-      {/* Breadcrumbs UI */}
-      <Breadcrumbs
-        items={[
-          { label: site.name, href: "/" },
-          { label: contentTypeLabel, href: `/${content.type}` },
-          { label: content.title },
-        ]}
-      />
-
-      {/* Header */}
-      <header className="mb-8">
-        <div className="mb-2 text-sm text-gray-500">{contentTypeLabel}</div>
-        <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">{content.title}</h1>
-        {content.excerpt && <p className="text-lg text-gray-600">{content.excerpt}</p>}
-        {content.updated_at && (
-          <time dateTime={content.updated_at} className="mt-2 block text-sm text-gray-500">
-            {new Date(content.updated_at).toLocaleDateString(locale, {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </time>
+        {/* Preview banner */}
+        {isPreview && (
+          <div className="mb-4 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-2 text-sm font-medium text-yellow-800">
+            Preview Mode — This content is not yet published.
+          </div>
         )}
-      </header>
 
-      {/* Affiliate disclosure — only for sites that use affiliate monetization */}
-      {linkedProducts.length > 0 && site.monetizationType !== "ads" && (
-        <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          {site.contentDisclosure}
+        {/* Breadcrumbs UI */}
+        <Breadcrumbs
+          items={[
+            { label: site.name, href: "/" },
+            { label: contentTypeLabel, href: `/${content.type}` },
+            { label: content.title },
+          ]}
+        />
+
+        {/* Header */}
+        <header className="mb-8">
+          <div className="mb-2 text-sm text-gray-500">{contentTypeLabel}</div>
+          <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">{content.title}</h1>
+          {content.excerpt && <p className="text-lg text-gray-600">{content.excerpt}</p>}
+          {(content.publish_at ?? content.created_at) && (
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+              <span>
+                Published:{" "}
+                <time dateTime={content.publish_at ?? content.created_at}>
+                  {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale, {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </time>
+              </span>
+              {content.updated_at &&
+                content.updated_at !== (content.publish_at ?? content.created_at) && (
+                  <span>
+                    Last updated:{" "}
+                    <time dateTime={content.updated_at}>
+                      {new Date(content.updated_at).toLocaleDateString(locale, {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </time>
+                  </span>
+                )}
+            </div>
+          )}
+        </header>
+
+        {/* Affiliate disclosure — only for sites that use affiliate monetization */}
+        {linkedProducts.length > 0 && site.monetizationType !== "ads" && (
+          <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            {site.contentDisclosure}
+          </div>
+        )}
+
+        {/* AI disclosure — EU AI Act Art. 50 compliance */}
+        {content.ai_generated && (
+          <aside
+            role="note"
+            aria-label="AI disclosure"
+            className="mb-6 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800"
+          >
+            This content was generated with AI assistance and reviewed by a human editor.
+          </aside>
+        )}
+
+        {/* Verdict (reviews) — bottom-line-up-front: score, price, CTA.
+          Supersedes the former HeroProductCta with an explicit verdict line. */}
+        {isReview && heroProduct && (
+          <VerdictBox
+            product={heroProduct}
+            language={site.language}
+            variant="review"
+            verdict={content.excerpt || heroProduct.description}
+            lastVerified={lastVerifiedLabel}
+            priority
+          />
+        )}
+
+        {/* Verdict (comparisons) — declare the winner above the spec table so the
+          page answers "who wins" before any scrolling. */}
+        {isComparison && comparisonWinner && (
+          <VerdictBox
+            product={comparisonWinner}
+            language={site.language}
+            variant="comparison"
+            verdict={comparisonWinner.description}
+            runnerUp={
+              comparisonRunnerUp
+                ? { name: comparisonRunnerUp.name, score: comparisonRunnerUp.score }
+                : null
+            }
+            runnerUpProduct={comparisonRunnerUp ?? null}
+            totalCompared={comparisonProducts.length}
+            productLabelPlural={site.productLabelPlural}
+            lastVerified={lastVerifiedLabel}
+          />
+        )}
+
+        {/* Comparison table — full side-by-side detail */}
+        {isComparison && comparisonProducts.length >= 2 && (
+          <ComparisonTable products={comparisonProducts} />
+        )}
+
+        {/* Pros/Cons for review pages — uses structured data from product fields */}
+        {isReview &&
+          heroProduct &&
+          (heroProduct.pros || heroProduct.cons) &&
+          (() => {
+            const pros = heroProduct.pros
+              ? heroProduct.pros
+                  .split("\n")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [];
+            const cons = heroProduct.cons
+              ? heroProduct.cons
+                  .split("\n")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [];
+            return <ProsCons pros={pros} cons={cons} language={site.language} />;
+          })()}
+
+        {/* Content body with auto-linked product mentions */}
+        <div className="mb-10">
+          <HtmlRenderer
+            html={injectProductLinks(
+              content.body,
+              linkedProducts.map((lp) => lp.product),
+            )}
+            direction={site.direction}
+          />
         </div>
-      )}
 
-      {/* AI disclosure — EU AI Act Art. 50 compliance */}
-      {content.ai_generated && (
-        <aside
-          role="note"
-          aria-label="AI disclosure"
-          className="mb-6 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800"
-        >
-          This content was generated with AI assistance and reviewed by a human editor.
+        {/* In-article ad slot (renders only when an active image placement exists) */}
+        <AdSlot placementType="in_content" className="mb-10 px-0" />
+
+        {/* Linked products */}
+        {linkedProducts.length > 0 && (
+          <section className="mt-10 border-t border-gray-200 pt-8">
+            <h2 className="mb-6 text-2xl font-bold">
+              {site.language === "ar"
+                ? `${site.productLabelPlural} المرتبطة`
+                : `Related ${site.productLabelPlural}`}
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {linkedProducts.map((link) => {
+                const review = reviewByProductId.get(link.product_id);
+                return (
+                  <ProductCard
+                    key={link.product_id}
+                    product={link.product}
+                    sourceType="content"
+                    ctaLabel={site.language === "ar" ? "احصل على العرض" : "View Deal"}
+                    relatedContentHref={review ? `/${review.type}/${review.slug}` : undefined}
+                    relatedContentLabel={
+                      site.language === "ar" ? "اقرأ المراجعة الكاملة →" : "Read our review →"
+                    }
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* CA-306: automated contextual internal links (reviews ⇄ comparisons,
+          category hub, same-category siblings) — derived from content_products. */}
+        <RelatedLinks groups={relatedLinkGroups} language={site.language} />
+
+        {/* Related content */}
+        {relatedContent.length > 0 && (
+          <section className="mt-10 border-t border-gray-200 pt-8">
+            <h2 className="mb-6 text-2xl font-bold">
+              {site.language === "ar" ? "محتوى ذو صلة" : "You Might Also Like"}
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {relatedContent.map((item) => (
+                <ContentCard key={item.id} content={item} locale={locale} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* A159-01: Public content reporting link */}
+        <div className="mt-10 border-t border-gray-200 pt-6 text-right">
+          <ReportContentLink
+            contentUrl={`https://${site.domain}/${content.type}/${content.slug}`}
+            contentTitle={content.title}
+            abuseEmail={site.brand.contactEmail}
+          />
+        </div>
+
+        {/* Sticky CTA bar — only for affiliate/both sites */}
+        {heroProduct && heroProduct.affiliate_url && site.monetizationType !== "ads" && (
+          <StickyCtaBar product={heroProduct} />
+        )}
+      </article>
+      {sidebarAd && (
+        <aside className="mt-8 lg:mt-0 lg:w-72 lg:flex-shrink-0" aria-label="Advertisement">
+          <div className="lg:sticky lg:top-24">
+            <AdImage
+              placementId={sidebarAd.placementId}
+              imageUrl={sidebarAd.config.image_url}
+              clickUrl={sidebarAd.config.click_url}
+              alt={sidebarAd.config.alt}
+              label={adLabel(site.language)}
+            />
+          </div>
         </aside>
       )}
-
-      {/* Verdict (reviews) — bottom-line-up-front: score, price, CTA.
-          Supersedes the former HeroProductCta with an explicit verdict line. */}
-      {isReview && heroProduct && (
-        <VerdictBox
-          product={heroProduct}
-          language={site.language}
-          variant="review"
-          verdict={content.excerpt || heroProduct.description}
-          lastVerified={lastVerifiedLabel}
-          priority
-        />
-      )}
-
-      {/* Verdict (comparisons) — declare the winner above the spec table so the
-          page answers "who wins" before any scrolling. */}
-      {isComparison && comparisonWinner && (
-        <VerdictBox
-          product={comparisonWinner}
-          language={site.language}
-          variant="comparison"
-          verdict={comparisonWinner.description}
-          runnerUp={
-            comparisonRunnerUp
-              ? { name: comparisonRunnerUp.name, score: comparisonRunnerUp.score }
-              : null
-          }
-          runnerUpProduct={comparisonRunnerUp ?? null}
-          totalCompared={comparisonProducts.length}
-          lastVerified={lastVerifiedLabel}
-        />
-      )}
-
-      {/* Comparison table — full side-by-side detail */}
-      {isComparison && comparisonProducts.length >= 2 && (
-        <ComparisonTable products={comparisonProducts} />
-      )}
-
-      {/* Pros/Cons for review pages — uses structured data from product fields */}
-      {isReview &&
-        heroProduct &&
-        (heroProduct.pros || heroProduct.cons) &&
-        (() => {
-          const pros = heroProduct.pros
-            ? heroProduct.pros
-                .split("\n")
-                .map((s) => s.trim())
-                .filter(Boolean)
-            : [];
-          const cons = heroProduct.cons
-            ? heroProduct.cons
-                .split("\n")
-                .map((s) => s.trim())
-                .filter(Boolean)
-            : [];
-          return <ProsCons pros={pros} cons={cons} language={site.language} />;
-        })()}
-
-      {/* Content body with auto-linked product mentions */}
-      <div className="mb-10">
-        <HtmlRenderer
-          html={injectProductLinks(
-            content.body,
-            linkedProducts.map((lp) => lp.product),
-          )}
-          direction={site.direction}
-        />
-      </div>
-
-      {/* Linked products */}
-      {linkedProducts.length > 0 && (
-        <section className="mt-10 border-t border-gray-200 pt-8">
-          <h2 className="mb-6 text-2xl font-bold">
-            {site.language === "ar"
-              ? `${site.productLabelPlural} المرتبطة`
-              : `Related ${site.productLabelPlural}`}
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {linkedProducts.map((link) => (
-              <ProductCard
-                key={link.product_id}
-                product={link.product}
-                sourceType="content"
-                ctaLabel={site.language === "ar" ? "احصل على العرض" : "View Deal"}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* CA-306: automated contextual internal links (reviews ⇄ comparisons,
-          category hub, same-category siblings) — derived from content_products. */}
-      <RelatedLinks groups={relatedLinkGroups} language={site.language} />
-
-      {/* Related content */}
-      {relatedContent.length > 0 && (
-        <section className="mt-10 border-t border-gray-200 pt-8">
-          <h2 className="mb-6 text-2xl font-bold">
-            {site.language === "ar" ? "محتوى ذو صلة" : "You Might Also Like"}
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {relatedContent.map((item) => (
-              <ContentCard key={item.id} content={item} locale={locale} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* A159-01: Public content reporting link */}
-      <div className="mt-10 border-t border-gray-200 pt-6 text-right">
-        <ReportContentLink
-          contentUrl={`https://${site.domain}/${content.type}/${content.slug}`}
-          contentTitle={content.title}
-          abuseEmail={site.brand.contactEmail}
-        />
-      </div>
-
-      {/* Sticky CTA bar — only for affiliate/both sites */}
-      {heroProduct && heroProduct.affiliate_url && site.monetizationType !== "ads" && (
-        <StickyCtaBar product={heroProduct} />
-      )}
-    </article>
+    </div>
   );
 }

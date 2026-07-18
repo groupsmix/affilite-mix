@@ -6,7 +6,7 @@ import { getSiteRowBySlug, getSiteRowBySlugWithClient, upsertConfigSite } from "
 // reads `sites` with the privileged client. site-resolver.ts is therefore on
 // the SERVICE_ROLE_IMPORT_ALLOWLIST. It is only reached from authenticated
 // admin Server Components that have already passed getAdminSession().
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { getSiteById, toSiteRow } from "@/config/sites";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { logger } from "@/lib/logger";

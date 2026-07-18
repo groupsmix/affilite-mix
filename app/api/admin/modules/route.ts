@@ -5,7 +5,7 @@ import { listSiteModules, upsertSiteModule, bulkUpsertSiteModules } from "@/lib/
 // 00040). The default tenant client (authenticated role) is denied, so these
 // admin reads/writes must use the privileged gateway. The route is gated by
 // withAuthz(super_admin) and every DAL call is site-scoped (.eq site_id).
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";

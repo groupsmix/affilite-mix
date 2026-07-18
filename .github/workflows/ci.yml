@@ -597,7 +597,45 @@ jobs:
           #   membership id — a cancelled sub in any site is an entitlement
           #   leak, so it must consider every tenant. +2 calls.
           #   (4) +1 = the audited doc-reference comment in the same file.
-          BASELINE=93
+          # then 93 -> 95 (PR #979 / authz 503 fix): +2 audited opt-outs,
+          # both gated by requireAdmin() / requireAdminSession() and annotated
+          # with a `// SAFE:` comment at the call site:
+          #   (1) lib/authz.ts authorizeResource() — resolves a resource's real
+          #   site_id before enforcing the expected-site check; the privileged-client
+          #   query has no site_id to scope by until after the lookup.
+          #   (2) lib/dal/permissions.ts getRolePermissionCheck() — joins the
+          #   global `permissions` and `role_permissions` RBAC tables (no site_id
+          #   column) to decide feature-level access. The DAL already uses the
+          #   privileged client for these service_role-only tables.
+          # then 95 -> 96 (PR #979 / dashboard cross-site cards): +1 audited opt-out
+          # in lib/dal/niche-health.ts getNicheHealthStats(). The RPC aggregates
+          # products, content, clicks and newsletter subscribers across every active
+          # site; it has no p_site_id parameter and is reached only from the
+          # super_admin-gated Niche Health card. Annotated with a `// SAFE:` comment.
+          # then 96 -> 101 (PR #988 / admin API token fix): +5 audited opt-outs in
+          # lib/dal/admin-api-tokens.ts. The `admin_api_tokens` table is global and
+          # cross-tenant; all create/list/get/delete/touch queries need the privileged
+          # client without a site_id filter. Each call is annotated with a `// SAFE:`
+          # comment and the module is on the SERVICE_ROLE_IMPORT_ALLOWLIST.
+          # then 101 -> 107 (automation control plane, PR #1045): +6 audited opt-outs
+          # in the machine-to-machine automation DALs. These tables are reached only
+          # after Bearer auth resolves a site-bound service account; the queries key on
+          # a globally-unique/primary-key column rather than site_id:
+          #   (1) lib/dal/automation-tokens.ts createAutomationToken() — INSERT returns
+          #       the row; automation_tokens has no site_id (binding is on the account).
+          #   (2) lib/dal/automation-tokens.ts getAutomationTokenByHash() — auth lookup
+          #       by globally-unique token_hash (site is derived from the account).
+          #   (3) lib/dal/automation-tokens.ts touchAutomationToken() — last_used_at
+          #       bump by primary key; no site_id column exists.
+          #   (4) lib/dal/automation-actions.ts getActionByIdempotencyKey() — unique
+          #       (service_account_id, idempotency_key); the account is site-bound.
+          #   (5) lib/dal/automation-runs.ts countActionsSince() — quota aggregate
+          #       scoped by service_account_id, which is itself site-bound.
+          #   (6) lib/dal/automation-service-accounts.ts get/set by id — PK lookups from
+          #       the auth resolver and the super_admin kill switch (cross-site by role).
+          # Each call is annotated with a `// SAFE:` comment; lib/automation/db.ts is the
+          # single sanctioned importer on the SERVICE_ROLE_IMPORT_ALLOWLIST.
+          BASELINE=107
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
@@ -632,7 +670,7 @@ jobs:
 
       - name: Generate SLSA provenance attestation (A34)
         id: provenance
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: |
             sbom.json
@@ -1077,11 +1115,24 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Run integration tests
-        run: npm run test:integration
+      - name: Run integration tests (fail-closed execution gate)
+        # scripts/ci/integration-gate.sh runs the real Supabase integration/RLS
+        # suite when staging secrets are present and enforces an executed-count
+        # floor + mandatory RLS execution. When secrets are absent it fails
+        # closed in trusted contexts (push / same-repo PR) and skips green on
+        # fork PRs where secrets are unavailable. See docs/test-gate-integrity.md.
+        run: bash scripts/ci/integration-gate.sh
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          # Isolated staging Supabase project — never production. Configure
+          # these as repo secrets to make the gate execute real DB/RLS tests.
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          # Trusted context (push / same-repo non-dependabot PR) => missing
+          # secrets fail loudly. Fork PRs cannot read secrets, so they skip
+          # green. Mirrors the db-audit / db-types gating policy (N-005).
+          REQUIRE_STAGING_SUPABASE: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
+          INTEGRATION_MIN_EXECUTED: "40"
           JWT_SECRET: ci-test-secret
           INTERNAL_API_TOKEN: ci-test-internal-token
           CRON_SECRET: ci-test-cron-secret
@@ -1162,7 +1213,7 @@ jobs:
         # initialize and cause a brief non-2xx before settling.
         run: npx wait-on tcp:localhost:3000 --timeout 60000
       - name: Cache Playwright browsers
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -1180,6 +1231,14 @@ jobs:
           E2E_BASE_URL: http://localhost:3000
           # A87: Zero retries in CI — flake must be fixed, not retried
           PLAYWRIGHT_RETRIES: "0"
+      - name: Enforce E2E execution & skip honesty
+        # Fail if too few E2E tests executed (hollow green) or if any test
+        # skipped for a reason not on the reviewed allow-list. Authenticated
+        # admin journeys are allowed to skip only while E2E_ADMIN_AUTH_PROVISIONED
+        # is unset; provision a staging admin storage state to make them
+        # non-skippable (see docs/test-gate-integrity.md).
+        if: always()
+        run: bash scripts/ci/e2e-gate.sh
 
   # ── Load test gate (A86) ───────────────────────────────────────────
   # k6 load tests to validate critical paths under 100x traffic.
@@ -1282,7 +1341,8 @@ jobs:
   # Removed from PR CI to cut ~30 min of wall time per push.
 
   # ── Cross-workflow required gates ──────────────────────────────────
-  # Branch protection should require ALL of the following check names:
+  # Branch protection should require ALL of the following check names
+  # (context name = job display name; keep in sync with CONTRIBUTING.md):
   #
   #   1. "Required checks"    (this workflow — lint/test/typecheck/build)
   #   2. "Integration tests"  (integration job above)
@@ -1290,14 +1350,21 @@ jobs:
   #   4. "Load tests"         (load job above)
   #   5. "Chaos tests"        (chaos job above)
   #   6. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
-  #   7. "npm audit (high / critical)"  (security.yml)
-  #   8. "License compliance"           (security.yml)
-  #   9. "Dependency review"            (security.yml, PRs only)
+  #   7. "npm audit (moderate+)"  (security.yml)
+  #   8. "License compliance"     (security.yml)
+  #   9. "Dependency review"      (security.yml, PRs only)
   #
   # GitHub Actions `needs` cannot cross workflow boundaries, so each
   # workflow exposes its own gate job with a stable name.  Configure
   # all nine names as required status checks in repo Settings →
   # Branches → Branch protection rules → Require status checks.
+  #
+  # NOTE ON EXECUTION QUALITY (audit P1-2): a "success" job result is not, by
+  # itself, proof that meaningful tests ran. Execution quality is enforced
+  # INSIDE each tier — the integration job (scripts/ci/integration-gate.sh) and
+  # the e2e job (scripts/ci/e2e-gate.sh) both fail on a hollow/all-skipped run.
+  # This aggregation therefore only needs to confirm every required job
+  # actually reached "success" (a "skipped" or "failure" result fails here).
 
   required-checks:
     name: Required checks

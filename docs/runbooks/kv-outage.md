@@ -36,12 +36,13 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" \
 
 ## Impact Assessment
 
-| Component           | Impact         | Degradation Mode                  |
-| ------------------- | -------------- | --------------------------------- |
-| Rate limiting       | Degraded       | Per-isolate in-memory (60s grace) |
-| Admin guard cache   | Degraded       | Falls back to DB lookup           |
-| Site resolver cache | Degraded       | Falls back to DB lookup           |
-| Maintenance mode    | Non-functional | Cannot set/read maintenance flag  |
+| Component            | Impact          | Degradation Mode                                                  |
+| -------------------- | --------------- | ----------------------------------------------------------------- |
+| Rate limiting        | Degraded        | Per-isolate in-memory (60s grace)                                 |
+| Admin guard cache    | Degraded        | Falls back to DB lookup                                           |
+| Site resolver cache  | Degraded        | Falls back to DB lookup                                           |
+| Maintenance mode     | Non-functional  | Cannot set/read maintenance flag                                  |
+| Admin JWT revocation | **Fail-closed** | Admin sessions REJECTED while KV is down (strict mode, see below) |
 
 ## Mitigation
 
@@ -70,6 +71,57 @@ for brief KV latency spikes.
    ```bash
    wrangler kv:key put --namespace-id=<ID> "maintenance_mode" "1"
    ```
+
+### Admin lockout during outage (strict revocation)
+
+Production runs with `ADMIN_SESSION_TOKEN_REVOCATION_STRICT=true` (deep-audit
+B3): admin JWT revocation checks fail **closed** on KV outage, so all admin
+sessions are rejected while KV is down. This is intentional — it prevents a
+leaked/stolen admin token from being replayed during the outage window.
+
+**Default action: accept the lockout.** Admin access is restored automatically
+the moment KV recovers; no state is lost.
+
+#### Break-glass: `ADMIN_SESSION_TOKEN_REVOCATION_STRICT=false`
+
+⚠️ **This is a break-glass control.** Setting the flag to `false` disables
+revocation checking **entirely** — logout, password reset, and forced session
+invalidation stop working for already-issued admin tokens (not just during the
+outage). Startup emits a `logger.error` (→ Sentry) whenever this value is live
+in production, so an alert firing on this message outside a declared incident
+means an operator (or an attacker with env access) flipped it.
+
+Use it only if ALL of the following hold:
+
+1. A P1/P2 incident is declared in `#incidents` and admin access is required
+   to mitigate it (e.g. enabling maintenance mode, blocking abuse).
+2. The KV outage is confirmed upstream (Cloudflare status) with no ETA.
+3. No admin-credential compromise is suspected.
+
+Procedure:
+
+```bash
+# 1. Announce in #incidents with incident ID before flipping anything.
+# 2. Prefer the intermediate step first: UNSET the flag (fail-open) rather
+#    than setting it to "false" (revocation off). Unset keeps revocation
+#    checks working whenever KV responds.
+# 3. Only if KV errors (not just unavailability) still block admin auth:
+wrangler secret put ADMIN_SESSION_TOKEN_REVOCATION_STRICT   # value: false
+# 4. Confirm the Sentry break-glass alert fired (expected — ack it against
+#    the incident ID). If it did NOT fire, treat alerting as broken.
+```
+
+Rollback (mandatory, immediately on KV recovery):
+
+```bash
+wrangler secret put ADMIN_SESSION_TOKEN_REVOCATION_STRICT   # value: true
+# Then force-invalidate all admin sessions issued during the window
+# (password reset or the admin session-invalidation endpoint), since
+# revocation had no effect on tokens issued while the flag was false.
+```
+
+Every use must be recorded in the post-incident report, including the
+timestamps the flag was flipped and restored.
 
 ### KV is recovering
 

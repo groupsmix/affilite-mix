@@ -1,10 +1,12 @@
 import { assertRows, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
-// M2: the "all memberships" read below spans every tenant, so it needs the
-// service-role client (the per-tenant client is emptied/blocked by RLS on this
-// service-role-only table) — exactly like lib/dal/admin-users.
+import type { AdminSiteMembershipRow } from "@/types/database";
+// M2: admin_site_memberships is global authz metadata; RLS grants access only
+// to service_role. The per-tenant client returns zero rows and would cause
+// requireAdmin() to reject non-super admins. Use the privileged client for
+// membership checks, with the site_id filter applied in code below.
 // nosemgrep: service-role-import
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 interface CrossTenantBuilder {
   unsafeNoSiteFilter(): CrossTenantBuilder;
@@ -14,15 +16,15 @@ interface CrossTenantBuilder {
   then: Promise<{ data: unknown; error: { code: string; message: string } | null }>["then"];
 }
 
-export interface AdminSiteMembershipRow {
-  id: string;
-  admin_user_id: string;
-  site_id: string;
-  created_at: string;
-}
-
 const TABLE = "admin_site_memberships";
 const LIST_COLUMNS = "id, admin_user_id, site_id, created_at" as const;
+
+/**
+ * Default client for membership lookups. The tenant client cannot read this
+ * table, so all membership checks default to the privileged client.
+ */
+const defaultMembershipClientGetter: DalClientGetter = () =>
+  getPrivilegedSupabaseClient("admin-site-memberships:authz");
 
 /**
  * Check whether an admin user has membership for the given site (by DB UUID).
@@ -31,7 +33,7 @@ const LIST_COLUMNS = "id, admin_user_id, site_id, created_at" as const;
 export async function getAdminSiteMembership(
   adminUserId: string,
   siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultMembershipClientGetter,
 ): Promise<AdminSiteMembershipRow | null> {
   const sb = await getClient();
   const { data, error } = await (
@@ -52,7 +54,7 @@ export async function getAdminSiteMembership(
  */
 export async function listAdminSiteMemberships(
   adminUserId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultMembershipClientGetter,
 ): Promise<AdminSiteMembershipRow[]> {
   const sb = await getClient();
   const { data, error } = await (

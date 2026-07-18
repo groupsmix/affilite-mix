@@ -25,7 +25,7 @@ function formatDate(dateStr: string) {
 
 export function ClickChart({ data }: ClickChartProps) {
   if (data.length === 0) {
-    return <p className="text-sm text-gray-500">No data available</p>;
+    return <p className="text-sm text-gray-500 dark:text-gray-400">No data available</p>;
   }
 
   const chartData = data.map((d) => ({
