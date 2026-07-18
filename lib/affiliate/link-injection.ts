@@ -14,7 +14,6 @@ import { pickBestAffiliateLink } from "@/lib/dal/product-affiliate-links";
 import { getTrackingKeyForSite } from "@/lib/dal/affiliate-tracking-keys";
 import { hasUsableAffiliateUrl, isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 import {
-  NETWORK_CONFIGS,
   getNetworkFromUrl,
   getTrackingParamForNetwork,
   toAffiliateNetwork,
