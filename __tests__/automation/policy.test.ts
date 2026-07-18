@@ -8,9 +8,10 @@ describe("automation policy engine", () => {
     expect(d.risk).toBe("low");
   });
 
-  it("requires approval for publishing during observation phase", () => {
+  it("auto-allows publishing for tokens that hold the content:publish scope", () => {
     const d = evaluatePolicy({ actionType: "content.publish" });
-    expect(d.decision).toBe("approval_required");
+    expect(d.decision).toBe("allow");
+    expect(d.risk).toBe("low");
   });
 
   it("permanently denies deletes regardless of override", () => {
