@@ -34,6 +34,7 @@ const MAX = {
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DRAFT_STATUSES = ["pending", "approved", "rejected", "published"] as const;
+const AI_CONTENT_TYPES = ["article", "review", "comparison", "guide"] as const;
 
 function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
@@ -102,6 +103,16 @@ export function parseDraftInput(body: Record<string, unknown>): ValidationResult
       run_id: runId,
     },
   };
+}
+
+export interface PublishDraftInput {
+  title?: string;
+  slug?: string;
+  excerpt?: string;
+  body?: string;
+  content_type?: string;
+  meta_title?: string | null;
+  meta_description?: string | null;
 }
 
 export interface DraftUpdateInput {
@@ -213,6 +224,115 @@ export function parseDraftUpdateInput(
       if (!UUID_RE.test(candidate)) errors.push("run_id must be a uuid");
       else out.run_id = candidate;
     }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, value: out };
+}
+
+export interface GenerateContentInput {
+  topic: string;
+  content_type: (typeof AI_CONTENT_TYPES)[number];
+  keywords: string[];
+}
+
+/** Validate a request to generate AI content from a topic. */
+export function parseGenerateContentInput(
+  body: Record<string, unknown>,
+): ValidationResult<GenerateContentInput> {
+  const errors: string[] = [];
+
+  const topic = str(body.topic);
+  if (!topic) errors.push("topic is required");
+  else if (topic.length > 300) errors.push("topic exceeds 300 chars");
+
+  const contentType = str(body.content_type) || "article";
+  if (!AI_CONTENT_TYPES.includes(contentType as (typeof AI_CONTENT_TYPES)[number])) {
+    errors.push(`content_type must be one of: ${AI_CONTENT_TYPES.join(", ")}`);
+  }
+
+  const keywords: string[] = [];
+  if (body.keywords !== undefined) {
+    if (!Array.isArray(body.keywords)) {
+      errors.push("keywords must be an array");
+    } else {
+      keywords.push(
+        ...body.keywords
+          .filter((k): k is string => typeof k === "string")
+          .map((k) => k.trim())
+          .filter((k) => k.length > 0)
+          .slice(0, MAX.keywords),
+      );
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return {
+    ok: true,
+    value: { topic, content_type: contentType as (typeof AI_CONTENT_TYPES)[number], keywords },
+  };
+}
+
+/** Validate optional overrides when publishing an AI draft. */
+export function parsePublishDraftInput(
+  body: Record<string, unknown>,
+): ValidationResult<PublishDraftInput> {
+  const errors: string[] = [];
+  const out: PublishDraftInput = {};
+
+  if (body.title !== undefined) {
+    const title = str(body.title);
+    if (title.length > MAX.title) errors.push(`title must be at most ${MAX.title} characters`);
+    else if (title) out.title = title;
+  }
+
+  if (body.slug !== undefined) {
+    const slug = str(body.slug);
+    if (!slug) {
+      out.slug = undefined;
+    } else if (!SLUG_RE.test(slug)) {
+      errors.push("slug must be lowercase letters/numbers separated by hyphens");
+    } else if (slug.length > MAX.slug) {
+      errors.push(`slug must be at most ${MAX.slug} characters`);
+    } else {
+      out.slug = slug;
+    }
+  }
+
+  if (body.excerpt !== undefined) {
+    const excerpt = str(body.excerpt);
+    if (excerpt.length > MAX.excerpt)
+      errors.push(`excerpt must be at most ${MAX.excerpt} characters`);
+    else if (excerpt) out.excerpt = excerpt;
+  }
+
+  if (body.body !== undefined) {
+    if (typeof body.body !== "string") {
+      errors.push("body must be a string");
+    } else if (body.body.length > MAX.body) {
+      errors.push(`body must be at most ${MAX.body} characters`);
+    } else {
+      out.body = body.body;
+    }
+  }
+
+  if (body.content_type !== undefined) {
+    const ct = str(body.content_type);
+    if (!ct) {
+      out.content_type = undefined;
+    } else if (!AI_CONTENT_TYPES.includes(ct as (typeof AI_CONTENT_TYPES)[number])) {
+      errors.push(`content_type must be one of: ${AI_CONTENT_TYPES.join(", ")}`);
+    } else {
+      out.content_type = ct;
+    }
+  }
+
+  if (body.meta_title !== undefined) {
+    out.meta_title = body.meta_title === null ? null : str(body.meta_title);
+  }
+
+  if (body.meta_description !== undefined) {
+    out.meta_description = body.meta_description === null ? null : str(body.meta_description);
   }
 
   if (errors.length > 0) return { ok: false, errors };

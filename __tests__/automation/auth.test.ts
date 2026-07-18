@@ -52,6 +52,11 @@ function req(headers: Record<string, string> = {}): NextRequest {
   return new NextRequest("https://x.dev/api/automation/v1/health", { headers });
 }
 
+const defaultDeps = {
+  getAdminApiTokenByHash: async () => null,
+  touchAdminApiToken: async () => undefined,
+};
+
 describe("extractBearerToken", () => {
   it("parses a well-formed header and rejects others", () => {
     expect(extractBearerToken(req({ authorization: `Bearer ${RAW}` }))).toBe(RAW);
@@ -71,6 +76,7 @@ describe("authenticateAutomationRequest", () => {
         getTokenByHash: async () => token,
         getAccountById: async () => baseAccount(),
         touch,
+        ...defaultDeps,
       },
     );
     expect(result.ok).toBe(true);
@@ -86,6 +92,7 @@ describe("authenticateAutomationRequest", () => {
     const result = await authenticateAutomationRequest(req(), {
       getTokenByHash: async () => null,
       getAccountById: async () => baseAccount(),
+      ...defaultDeps,
     });
     expect(result).toMatchObject({ ok: false, code: "AUTOMATION_UNAUTHENTICATED" });
   });
@@ -94,6 +101,7 @@ describe("authenticateAutomationRequest", () => {
     const result = await authenticateAutomationRequest(req({ authorization: `Bearer ${RAW}` }), {
       getTokenByHash: async () => null,
       getAccountById: async () => baseAccount(),
+      ...defaultDeps,
     });
     expect(result).toMatchObject({ ok: false, code: "AUTOMATION_TOKEN_INVALID" });
   });
@@ -103,6 +111,7 @@ describe("authenticateAutomationRequest", () => {
     const result = await authenticateAutomationRequest(req({ authorization: `Bearer ${RAW}` }), {
       getTokenByHash: async () => token,
       getAccountById: async () => baseAccount(),
+      ...defaultDeps,
     });
     expect(result).toMatchObject({ ok: false, code: "AUTOMATION_TOKEN_REVOKED" });
   });
@@ -112,6 +121,7 @@ describe("authenticateAutomationRequest", () => {
     const result = await authenticateAutomationRequest(req({ authorization: `Bearer ${RAW}` }), {
       getTokenByHash: async () => token,
       getAccountById: async () => baseAccount(),
+      ...defaultDeps,
     });
     expect(result).toMatchObject({ ok: false, code: "AUTOMATION_TOKEN_EXPIRED" });
   });
@@ -121,6 +131,7 @@ describe("authenticateAutomationRequest", () => {
     const result = await authenticateAutomationRequest(req({ authorization: `Bearer ${RAW}` }), {
       getTokenByHash: async () => token,
       getAccountById: async () => baseAccount({ status: "suspended" }),
+      ...defaultDeps,
     });
     expect(result).toMatchObject({ ok: false, code: "AUTOMATION_TOKEN_INVALID" });
   });
@@ -133,7 +144,36 @@ describe("authenticateAutomationRequest", () => {
       touch: async () => {
         throw new Error("db down");
       },
+      ...defaultDeps,
     });
     expect(result.ok).toBe(true);
+  });
+
+  it("accepts a site-bound admin API token as an automation fallback", async () => {
+    const adminToken = {
+      id: "adm-tok-1",
+      token_hash: await hashSecretToken(RAW),
+      site_id: "site-abc",
+      name: "admin token",
+      expires_at: future(),
+      is_active: true,
+      last_used_at: null,
+      created_by: "admin-1",
+      created_at: past(),
+      updated_at: past(),
+    };
+    const touchAdmin = vi.fn().mockResolvedValue(undefined);
+    const result = await authenticateAutomationRequest(req({ authorization: `Bearer ${RAW}` }), {
+      getTokenByHash: async () => null,
+      getAccountById: async () => baseAccount(),
+      getAdminApiTokenByHash: async () => adminToken,
+      touchAdminApiToken: touchAdmin,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.context.siteId).toBe("site-abc");
+      expect(result.context.scopes).toEqual([]);
+    }
+    expect(touchAdmin).toHaveBeenCalledWith("adm-tok-1");
   });
 });

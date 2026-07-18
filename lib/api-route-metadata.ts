@@ -1170,6 +1170,20 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
       "Requires scope content:read. Site-scoped content list with keyset pagination. `status=pending` returns AI drafts from ai_drafts instead of the published content table.",
   },
   {
+    path: "/api/automation/v1/content/generate",
+    methods: ["POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: "AutomationGenerateInput",
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization", "idempotency-key"],
+    notes:
+      "Requires scope content:draft and an Idempotency-Key. Generates AI content from topic/keywords, creates a pending AI draft, and returns draft_id. Publishing requires a separate call to /content/drafts/:id/publish.",
+  },
+  {
     path: "/api/automation/v1/content/drafts",
     methods: ["GET", "POST"],
     auth: "automation",
@@ -1196,6 +1210,20 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     sensitiveFields: ["authorization", "idempotency-key"],
     notes:
       "GET requires content:read; PATCH/DELETE require content:draft. Tenant-isolated read/update/delete for a single AI draft.",
+  },
+  {
+    path: "/api/automation/v1/content/drafts/[id]/publish",
+    methods: ["POST"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: null,
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization"],
+    notes:
+      "Requires scope content:publish. Promotes an AI draft to live content (creates or updates the content row by slug).",
   },
   {
     path: "/api/automation/v1/runs",
