@@ -10,19 +10,22 @@ import { getAIDraft, updateAIDraft, deleteAIDraft } from "@/lib/dal/ai-drafts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function draftIdFromPath(request: NextRequest): string | null {
-  const parts = request.nextUrl.pathname.split("/").filter(Boolean);
-  const last = parts[parts.length - 1];
-  return last && UUID_RE.test(last) ? last : null;
+async function draftIdFromParams(
+  params?: Promise<Record<string, string | string[] | undefined>>,
+): Promise<string | null> {
+  const resolved = await params;
+  const raw = resolved?.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  return id && UUID_RE.test(id) ? id : null;
 }
 
 // GET /api/automation/v1/content/drafts/:id
 // Fetch a single AI draft (tenant-isolated).
 export const GET = withAutomation(
   ["content:read"],
-  async (request: NextRequest, { auth, requestId }) => {
+  async (request: NextRequest, { auth, requestId, params }) => {
     const { siteId } = auth;
-    const id = draftIdFromPath(request);
+    const id = await draftIdFromParams(params);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }
@@ -42,9 +45,9 @@ export const GET = withAutomation(
 // content:draft) using the same logic as the dedicated publish endpoint.
 export const PATCH = withAutomation(
   ["content:draft"],
-  async (request: NextRequest, { auth, requestId }) => {
+  async (request: NextRequest, { auth, requestId, params }) => {
     const { siteId, account, scopes } = auth;
-    const id = draftIdFromPath(request);
+    const id = await draftIdFromParams(params);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }
@@ -130,9 +133,9 @@ export const PATCH = withAutomation(
 // Remove an AI draft (tenant-isolated).
 export const DELETE = withAutomation(
   ["content:draft"],
-  async (request: NextRequest, { auth, requestId }) => {
+  async (request: NextRequest, { auth, requestId, params }) => {
     const { siteId } = auth;
-    const id = draftIdFromPath(request);
+    const id = await draftIdFromParams(params);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }

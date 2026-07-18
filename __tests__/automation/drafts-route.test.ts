@@ -44,6 +44,8 @@ const getPolicy = getPolicyForAction as unknown as ReturnType<typeof vi.fn>;
 const countActions = countActionsSince as unknown as ReturnType<typeof vi.fn>;
 const createDraft = createAIDraft as unknown as ReturnType<typeof vi.fn>;
 
+const routeContext = { params: Promise.resolve({}) };
+
 const VALID_BODY = {
   title: "Best Widgets 2026",
   slug: "best-widgets-2026",
@@ -106,12 +108,13 @@ describe("POST /api/automation/v1/content/drafts", () => {
     });
     const res = await POST(
       draftRequest({ authorization: "Bearer x", "idempotency-key": IDEM }, VALID_BODY),
+      routeContext,
     );
     expect(res.status).toBe(403);
   });
 
   it("requires an Idempotency-Key header", async () => {
-    const res = await POST(draftRequest({ authorization: "Bearer x" }, VALID_BODY));
+    const res = await POST(draftRequest({ authorization: "Bearer x" }, VALID_BODY), routeContext);
     expect(res.status).toBe(400);
     expect(createAction).not.toHaveBeenCalled();
   });
@@ -119,6 +122,7 @@ describe("POST /api/automation/v1/content/drafts", () => {
   it("creates a pending draft on the happy path (201)", async () => {
     const res = await POST(
       draftRequest({ authorization: "Bearer x", "idempotency-key": IDEM }, VALID_BODY),
+      routeContext,
     );
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -153,6 +157,7 @@ describe("POST /api/automation/v1/content/drafts", () => {
     });
     const res = await POST(
       draftRequest({ authorization: "Bearer x", "idempotency-key": IDEM }, VALID_BODY),
+      routeContext,
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -171,6 +176,7 @@ describe("POST /api/automation/v1/content/drafts", () => {
     });
     const res = await POST(
       draftRequest({ authorization: "Bearer x", "idempotency-key": IDEM }, VALID_BODY),
+      routeContext,
     );
     expect(res.status).toBe(409);
     expect(createDraft).not.toHaveBeenCalled();
@@ -179,6 +185,7 @@ describe("POST /api/automation/v1/content/drafts", () => {
   it("rejects invalid input with 422 before touching any DAL", async () => {
     const res = await POST(
       draftRequest({ authorization: "Bearer x", "idempotency-key": IDEM }, { title: "" }),
+      routeContext,
     );
     expect(res.status).toBe(422);
     expect(createAction).not.toHaveBeenCalled();
@@ -189,6 +196,7 @@ describe("POST /api/automation/v1/content/drafts", () => {
     countActions.mockResolvedValueOnce(200);
     const res = await POST(
       draftRequest({ authorization: "Bearer x", "idempotency-key": IDEM }, VALID_BODY),
+      routeContext,
     );
     expect(res.status).toBe(403);
     const body = await res.json();
@@ -204,6 +212,7 @@ describe("POST /api/automation/v1/content/drafts", () => {
     });
     const res = await POST(
       draftRequest({ authorization: "Bearer x", "idempotency-key": IDEM }, VALID_BODY),
+      routeContext,
     );
     expect(res.status).toBe(202);
     const body = await res.json();

@@ -21,10 +21,12 @@ import { countActionsSince } from "@/lib/dal/automation-runs";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACTION_TYPE: ActionType = "content.publish";
 
-function draftIdFromPath(request: NextRequest): string | null {
-  // Path is /api/automation/v1/content/drafts/[id]/publish
-  const parts = request.nextUrl.pathname.split("/").filter(Boolean);
-  const id = parts[parts.length - 2];
+async function draftIdFromParams(
+  params?: Promise<Record<string, string | string[] | undefined>>,
+): Promise<string | null> {
+  const resolved = await params;
+  const raw = resolved?.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
   return id && UUID_RE.test(id) ? id : null;
 }
 
@@ -34,10 +36,10 @@ function draftIdFromPath(request: NextRequest): string | null {
 // collisions by appending a numeric suffix. Requires content:publish.
 export const POST = withAutomation(
   ["content:publish"],
-  async (request: NextRequest, { auth, requestId }) => {
+  async (request: NextRequest, { auth, requestId, params }) => {
     const { siteId, account } = auth;
 
-    const id = draftIdFromPath(request);
+    const id = await draftIdFromParams(params);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }

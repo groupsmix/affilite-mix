@@ -7,8 +7,8 @@
  *   - stable request id / envelope
  *   - uniform 500 handling
  *
- * A handler receives the resolved `AutomationAuthContext` and a `requestId`
- * and returns a `NextResponse` (built with the envelope helpers).
+ * A handler receives the resolved `AutomationAuthContext`, a `requestId`, and
+ * any dynamic route `params` and returns a `NextResponse`.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { authenticateAutomationRequest, type AutomationAuthContext } from "./auth";
@@ -16,10 +16,20 @@ import { hasScope, type AutomationScope } from "./scopes";
 import { automationError, requestIdFrom } from "./envelope";
 import { captureException } from "@/lib/sentry";
 
+export interface AutomationHandlerContext {
+  auth: AutomationAuthContext;
+  requestId: string;
+  params?: Promise<Record<string, string | string[] | undefined>>;
+}
+
 export type AutomationHandler = (
   request: NextRequest,
-  ctx: { auth: AutomationAuthContext; requestId: string },
+  ctx: AutomationHandlerContext,
 ) => Promise<NextResponse> | NextResponse;
+
+type AutomationRouteContext = {
+  params: Promise<Record<string, string | string[] | undefined>>;
+};
 
 /**
  * Wrap an automation route handler. `requiredScopes` are ALL required (the
@@ -29,7 +39,7 @@ export function withAutomation(
   requiredScopes: readonly AutomationScope[],
   handler: AutomationHandler,
 ) {
-  return async (request: NextRequest): Promise<NextResponse> => {
+  return async (request: NextRequest, context: AutomationRouteContext): Promise<NextResponse> => {
     const requestId = requestIdFrom(request);
 
     const auth = await authenticateAutomationRequest(request);
@@ -49,7 +59,7 @@ export function withAutomation(
     }
 
     try {
-      return await handler(request, { auth: auth.context, requestId });
+      return await handler(request, { auth: auth.context, requestId, params: context.params });
     } catch (err) {
       captureException(err, { context: "automation.gateway" });
       return automationError(
