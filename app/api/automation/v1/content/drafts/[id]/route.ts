@@ -10,13 +10,23 @@ import { getAIDraft, updateAIDraft, deleteAIDraft } from "@/lib/dal/ai-drafts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function draftIdFromParams(
+async function draftIdFromRequest(
+  request: NextRequest,
   params?: Promise<Record<string, string | string[] | undefined>>,
 ): Promise<string | null> {
   const resolved = await params;
   const raw = resolved?.id;
-  const id = Array.isArray(raw) ? raw[0] : raw;
-  return id && UUID_RE.test(id) ? id : null;
+  const idFromParams = Array.isArray(raw) ? raw[0] : raw;
+  if (idFromParams && UUID_RE.test(idFromParams)) {
+    return idFromParams;
+  }
+
+  // Fallback: parse the raw URL path in case context.params is missing.
+  const url = new URL(request.url);
+  const match = url.pathname.match(
+    /\/drafts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/i,
+  );
+  return match?.[1] ?? null;
 }
 
 // GET /api/automation/v1/content/drafts/:id
@@ -25,7 +35,7 @@ export const GET = withAutomation(
   ["content:read"],
   async (request: NextRequest, { auth, requestId, params }) => {
     const { siteId } = auth;
-    const id = await draftIdFromParams(params);
+    const id = await draftIdFromRequest(request, params);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }
@@ -47,7 +57,7 @@ export const PATCH = withAutomation(
   ["content:draft"],
   async (request: NextRequest, { auth, requestId, params }) => {
     const { siteId, account, scopes } = auth;
-    const id = await draftIdFromParams(params);
+    const id = await draftIdFromRequest(request, params);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }
@@ -135,7 +145,7 @@ export const DELETE = withAutomation(
   ["content:draft"],
   async (request: NextRequest, { auth, requestId, params }) => {
     const { siteId } = auth;
-    const id = await draftIdFromParams(params);
+    const id = await draftIdFromRequest(request, params);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }
