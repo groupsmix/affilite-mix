@@ -11,7 +11,10 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock("@sentry/cloudflare", () => ({ captureException: vi.fn() }));
+vi.mock("@sentry/cloudflare", () => ({
+  captureException: vi.fn(),
+  withSentry: vi.fn((_options, worker) => worker),
+}));
 vi.mock("../lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
