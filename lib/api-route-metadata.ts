@@ -1166,11 +1166,12 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "AutomationEnvelope",
     sensitiveFields: ["authorization"],
-    notes: "Requires scope content:read. Site-scoped content list with keyset pagination.",
+    notes:
+      "Requires scope content:read. Site-scoped content list with keyset pagination. `status=pending` returns AI drafts from ai_drafts instead of the published content table.",
   },
   {
     path: "/api/automation/v1/content/drafts",
-    methods: ["POST"],
+    methods: ["GET", "POST"],
     auth: "automation",
     adminRequired: false,
     scope: "site",
@@ -1180,7 +1181,21 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     responseSchema: "AutomationEnvelope",
     sensitiveFields: ["authorization", "idempotency-key"],
     notes:
-      "Requires scope content:draft. Idempotent (Idempotency-Key). Creates a pending AI draft via the durable action model; publishing stays approval-gated.",
+      "GET requires content:read and lists AI drafts for the site. POST requires scope content:draft and is idempotent (Idempotency-Key). Creates a pending AI draft; publishing stays approval-gated.",
+  },
+  {
+    path: "/api/automation/v1/content/drafts/[id]",
+    methods: ["GET", "PATCH", "DELETE"],
+    auth: "automation",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: false,
+    csrf: false,
+    requestSchema: "AutomationDraftUpdateInput",
+    responseSchema: "AutomationEnvelope",
+    sensitiveFields: ["authorization", "idempotency-key"],
+    notes:
+      "GET requires content:read; PATCH/DELETE require content:draft. Tenant-isolated read/update/delete for a single AI draft.",
   },
   {
     path: "/api/automation/v1/runs",

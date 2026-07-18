@@ -17,10 +17,66 @@ import {
   updateAutomationAction,
 } from "@/lib/dal/automation-actions";
 import { getAutomationRunById, countActionsSince } from "@/lib/dal/automation-runs";
-import { createAIDraft } from "@/lib/dal/ai-drafts";
+import { createAIDraft, listAIDrafts } from "@/lib/dal/ai-drafts";
 import { recordAuditEvent } from "@/lib/audit-log";
 
+function clampLimit(raw: string | null): number {
+  const n = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(n) || n <= 0) return 25;
+  return Math.min(n, 100);
+}
+
 const ACTION_TYPE = "content.draft.create";
+
+// GET /api/automation/v1/content/drafts
+// List AI drafts for the bound site. Supports status/type filters and
+// keyset pagination via ?cursor. Returns summary fields only; use the
+// individual /content/drafts/:id endpoint for the full body.
+export const GET = withAutomation(
+  ["content:read"],
+  async (request: NextRequest, { auth, requestId }) => {
+    const { siteId } = auth;
+    const params = request.nextUrl.searchParams;
+
+    const statusParam = params.get("status");
+    const status =
+      statusParam && ["pending", "approved", "rejected", "published"].includes(statusParam)
+        ? (statusParam as "pending" | "approved" | "rejected" | "published")
+        : undefined;
+
+    const rows = await listAIDrafts(
+      {
+        siteId,
+        status,
+        contentType: params.get("type") ?? undefined,
+        q: params.get("q") ?? undefined,
+        limit: clampLimit(params.get("limit")),
+        cursor: params.get("cursor") ?? undefined,
+      },
+      getAutomationDbClient,
+    );
+
+    const items = rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      slug: r.slug,
+      excerpt: r.excerpt,
+      content_type: r.content_type,
+      topic: r.topic,
+      keywords: r.keywords,
+      status: r.status,
+      ai_provider: r.ai_provider,
+      ai_model: r.ai_model,
+      generated_at: r.generated_at,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    }));
+
+    const nextCursor = rows.length > 0 ? rows[rows.length - 1]!.created_at : null;
+
+    return automationSuccess({ items, next_cursor: nextCursor }, requestId);
+  },
+);
 
 // POST /api/automation/v1/content/drafts
 // Idempotent creation of an AI draft. The draft enters the SAME pending
