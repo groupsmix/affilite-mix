@@ -34,6 +34,7 @@ const MAX = {
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DRAFT_STATUSES = ["pending", "approved", "rejected", "published"] as const;
+const AI_CONTENT_TYPES = ["article", "review", "comparison", "guide"] as const;
 
 function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
@@ -217,4 +218,47 @@ export function parseDraftUpdateInput(
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, value: out };
+}
+
+export interface GenerateContentInput {
+  topic: string;
+  content_type: (typeof AI_CONTENT_TYPES)[number];
+  keywords: string[];
+}
+
+/** Validate a request to generate AI content from a topic. */
+export function parseGenerateContentInput(
+  body: Record<string, unknown>,
+): ValidationResult<GenerateContentInput> {
+  const errors: string[] = [];
+
+  const topic = str(body.topic);
+  if (!topic) errors.push("topic is required");
+  else if (topic.length > 300) errors.push("topic exceeds 300 chars");
+
+  const contentType = str(body.content_type) || "article";
+  if (!AI_CONTENT_TYPES.includes(contentType as (typeof AI_CONTENT_TYPES)[number])) {
+    errors.push(`content_type must be one of: ${AI_CONTENT_TYPES.join(", ")}`);
+  }
+
+  const keywords: string[] = [];
+  if (body.keywords !== undefined) {
+    if (!Array.isArray(body.keywords)) {
+      errors.push("keywords must be an array");
+    } else {
+      keywords.push(
+        ...body.keywords
+          .filter((k): k is string => typeof k === "string")
+          .map((k) => k.trim())
+          .filter((k) => k.length > 0)
+          .slice(0, MAX.keywords),
+      );
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return {
+    ok: true,
+    value: { topic, content_type: contentType as (typeof AI_CONTENT_TYPES)[number], keywords },
+  };
 }
