@@ -35,7 +35,7 @@ import {
   productJsonLd,
   faqJsonLd,
 } from "../../components/json-ld";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { unstable_noStore } from "next/cache";
 import type { Metadata } from "next";
 
@@ -71,6 +71,11 @@ export async function generateMetadata({
 
   if (!content) {
     return { title: site.language === "ar" ? "غير موجود" : "Not Found" };
+  }
+
+  // Preview of already-published content should redirect to the canonical URL.
+  if (isPreview && content.status === "published") {
+    redirect(`/${content.type}/${content.slug}`);
   }
 
   const url = `https://${site.domain}/${content.type}/${content.slug}`;
@@ -158,6 +163,12 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
 
   if (!content || content.type !== contentType) {
     notFound();
+  }
+
+  // Preview of already-published content should send the user to the canonical
+  // public URL instead of keeping them on a tokenised preview link.
+  if (isPreview && content.status === "published") {
+    redirect(`/${content.type}/${content.slug}`);
   }
 
   // Load linked products, related content, and the category hub.
