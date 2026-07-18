@@ -188,6 +188,15 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
     })),
   });
 
+  // Map each linked product to its review page for internal-linking from the
+  // related-products cards.
+  const reviewByProductId = new Map<string, { type: string; slug: string }>();
+  for (const c of crossLinked) {
+    if (c.content.type === "review" && !reviewByProductId.has(c.productId)) {
+      reviewByProductId.set(c.productId, c.content);
+    }
+  }
+
   // Build JSON-LD based on content type
   const contentTypeLabel =
     site.contentTypes.find((ct) => ct.value === content.type)?.label ?? content.type;
@@ -275,16 +284,31 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">{content.title}</h1>
           {content.excerpt && <p className="text-lg text-gray-600">{content.excerpt}</p>}
           {(content.publish_at ?? content.created_at) && (
-            <time
-              dateTime={content.publish_at ?? content.created_at}
-              className="mt-2 block text-sm text-gray-500"
-            >
-              {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale, {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </time>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+              <span>
+                Published:{" "}
+                <time dateTime={content.publish_at ?? content.created_at}>
+                  {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale, {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </time>
+              </span>
+              {content.updated_at &&
+                content.updated_at !== (content.publish_at ?? content.created_at) && (
+                  <span>
+                    Last updated:{" "}
+                    <time dateTime={content.updated_at}>
+                      {new Date(content.updated_at).toLocaleDateString(locale, {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </time>
+                  </span>
+                )}
+            </div>
           )}
         </header>
 
@@ -387,14 +411,21 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
                 : `Related ${site.productLabelPlural}`}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {linkedProducts.map((link) => (
-                <ProductCard
-                  key={link.product_id}
-                  product={link.product}
-                  sourceType="content"
-                  ctaLabel={site.language === "ar" ? "احصل على العرض" : "View Deal"}
-                />
-              ))}
+              {linkedProducts.map((link) => {
+                const review = reviewByProductId.get(link.product_id);
+                return (
+                  <ProductCard
+                    key={link.product_id}
+                    product={link.product}
+                    sourceType="content"
+                    ctaLabel={site.language === "ar" ? "احصل على العرض" : "View Deal"}
+                    relatedContentHref={review ? `/${review.type}/${review.slug}` : undefined}
+                    relatedContentLabel={
+                      site.language === "ar" ? "اقرأ المراجعة الكاملة →" : "Read our review →"
+                    }
+                  />
+                );
+              })}
             </div>
           </section>
         )}

@@ -135,11 +135,16 @@ export function buildCspHeader(nonce: string): string {
   // existing product image_url rows and will migrate to R2 ingest
   // per G-48 follow-up.
   imgSources.push("https://m.media-amazon.com", "https://images-na.ssl-images-amazon.com");
+  // G-GA4: Google Analytics 4 measurement endpoints (tracking pixels,
+  // collect requests) and GTM image beacons.
+  imgSources.push("https://www.google-analytics.com", "https://www.googletagmanager.com");
 
   const connectSources = ["'self'"];
   if (supabase) connectSources.push(supabase);
   if (r2Upload) connectSources.push(r2Upload);
   connectSources.push("https://challenges.cloudflare.com");
+  // G-GA4: allow GA4/gtag network beacons and GTM collect endpoints.
+  connectSources.push("https://www.google-analytics.com", "https://www.googletagmanager.com");
   const sentryHost = getSentryConnectHost();
   if (sentryHost) connectSources.push(sentryHost);
 
@@ -149,7 +154,9 @@ export function buildCspHeader(nonce: string): string {
     // per-request nonce generated in middleware.ts.  `'strict-dynamic'` lets
     // the nonced entry-point script load additional scripts (required for
     // Next.js runtime chunks).  No Level-2 fallback remains.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com`,
+    // G-GA4: the gtag loader script has a nonce, so `strict-dynamic` covers
+    // child scripts; the explicit hosts are a fallback for older CSP2 UAs.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com`,
     // ACCEPTED-RISK (A68/A106/SEC-07 style-src unsafe-inline):
     // CSP nonces only protect <style> elements, not style *attributes*
     // (ThemeProvider CSS-var injection, component inline backgrounds).

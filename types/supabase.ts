@@ -569,6 +569,36 @@ export type Database = {
           },
         ];
       };
+      automation_actions: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_policies: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_runs: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_service_accounts: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
+      automation_tokens: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+        Relationships: [];
+      };
       authors: {
         Row: {
           bio: string;
@@ -993,6 +1023,44 @@ export type Database = {
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      contact_submissions: {
+        Row: {
+          created_at: string;
+          email: string;
+          id: string;
+          message: string;
+          name: string | null;
+          site_id: string;
+          subject: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          email: string;
+          id?: string;
+          message: string;
+          name?: string | null;
+          site_id: string;
+          subject?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          email?: string;
+          id?: string;
+          message?: string;
+          name?: string | null;
+          site_id?: string;
+          subject?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_submissions_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
             referencedColumns: ["id"];
           },
         ];
@@ -1635,6 +1703,7 @@ export type Database = {
           product_id: string;
           scraped_at: string;
           site_id: string;
+          snapshot_date: string;
           source: string;
         };
         Insert: {
@@ -1645,6 +1714,7 @@ export type Database = {
           product_id: string;
           scraped_at?: string;
           site_id: string;
+          snapshot_date?: string;
           source?: string;
         };
         Update: {
@@ -1655,6 +1725,7 @@ export type Database = {
           product_id?: string;
           scraped_at?: string;
           site_id?: string;
+          snapshot_date?: string;
           source?: string;
         };
         Relationships: [
@@ -2033,6 +2104,12 @@ export type Database = {
           label?: string;
           name?: string;
         };
+        Relationships: [];
+      };
+      site_presentations: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
         Relationships: [];
       };
       scheduled_jobs: {

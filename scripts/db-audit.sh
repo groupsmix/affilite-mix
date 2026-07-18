@@ -11,7 +11,7 @@
 #
 #   A. The `anon` role must hold NO table privileges on ANY public-schema table
 #      EXCEPT for SELECT on explicitly allowed public-facing tables (sites, categories,
-#      products, content, pages, content_products, ad_placements).
+#      products, content, pages, content_products, ad_placements, site_presentations).
 #
 #   B. RLS policies granting access to the `anon` role are strictly limited to the
 #      allowed SELECT policies on the public-facing tables.
@@ -114,7 +114,7 @@ WHERE grantee = 'anon'
   AND table_schema = 'public'
   AND NOT (
     privilege_type = 'SELECT' AND 
-    table_name IN ('sites', 'categories', 'products', 'content', 'pages', 'content_products', 'ad_placements')
+    table_name IN ('sites', 'categories', 'products', 'content', 'pages', 'content_products', 'ad_placements', 'site_presentations')
   )
 ORDER BY table_name, privilege_type;
 SQL
@@ -140,7 +140,7 @@ WHERE schemaname = 'public'
   AND 'anon' = ANY(roles)
   AND NOT (
     cmd = 'SELECT' AND 
-    tablename IN ('sites', 'categories', 'products', 'content', 'pages', 'content_products', 'ad_placements')
+    tablename IN ('sites', 'categories', 'products', 'content', 'pages', 'content_products', 'ad_placements', 'site_presentations')
   )
   -- Allowlist: web_vitals anon INSERT is dropped by migrations 00038,
   -- 00078, 00079 but staging has not applied them yet. Remove this

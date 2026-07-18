@@ -7,6 +7,8 @@
     "tests/load/load-test.js",
     "open-next.config.ts",
     "scripts/check-db-types.mjs",
+    "scripts/seed-crypto-tax-au-content-v2.ts",
+    "scripts/seed-crypto-tax-au-extras.ts",
     "scripts/squash-migrations.mjs",
     "scripts/validate-alert-mechanisms.mjs",
     "scripts/validate-externally-managed-domains.mjs",
@@ -14,7 +16,6 @@
     "types/supabase.ts",
     "components/data-table/skeleton.tsx",
     "workers/custom-worker.ts",
-    "workers/heavy-crons.ts",
     "workers/log-shipper/index.ts"
   ],
   "ignoreBinaries": [
