@@ -34,6 +34,7 @@ export default async function EditContentPage({ params }: { params: Promise<{ id
         products={products}
         linkedProducts={linkedProducts}
         contentTypes={getSiteById(session.activeSiteSlug!)?.contentTypes}
+        siteDomain={getSiteById(session.activeSiteSlug!)?.domain}
       />
     </div>
   );

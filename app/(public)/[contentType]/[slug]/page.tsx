@@ -60,7 +60,7 @@ export async function generateMetadata({
   if (preview === "true") {
     if (token) {
       const tokenPayload = await validatePreviewToken(token);
-      isPreview = !!(tokenPayload && tokenPayload.slug === slug);
+      isPreview = !!(tokenPayload && tokenPayload.slug === slug && tokenPayload.siteId === site.id);
     } else {
       const session = await getAdminSession();
       isPreview = !!session;
@@ -129,7 +129,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
     if (token) {
       // Token-based preview (shareable with non-admin reviewers)
       const tokenPayload = await validatePreviewToken(token);
-      if (!tokenPayload || tokenPayload.slug !== slug) {
+      if (!tokenPayload || tokenPayload.slug !== slug || tokenPayload.siteId !== site.id) {
         notFound();
       }
       isPreview = true;

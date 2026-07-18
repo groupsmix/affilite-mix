@@ -42,6 +42,9 @@ interface ContentFormProps {
   linkedProducts?: (ContentProductRow & { product: ProductRow })[];
 
   contentTypes?: ContentTypeConfig[];
+
+  /** Public domain for the site being edited, so previews open on the correct tenant. */
+  siteDomain?: string;
 }
 
 const DEFAULT_CONTENT_TYPES: ContentTypeConfig[] = [
@@ -66,6 +69,8 @@ export function ContentForm({
   linkedProducts,
 
   contentTypes,
+
+  siteDomain,
 }: ContentFormProps) {
   const siteContentTypes = contentTypes ?? DEFAULT_CONTENT_TYPES;
 
@@ -157,14 +162,18 @@ export function ContentForm({
         return;
       }
 
-      window.open(`/${contentType}/${slug}?preview=true&token=${data.token}`, "_blank");
+      const previewHost = siteDomain ? `https://${siteDomain.replace(/^https?:\/\//, "")}` : "";
+      window.open(
+        `${previewHost}/${contentType}/${slug}?preview=true&token=${data.token}`,
+        "_blank",
+      );
     } catch {
       // fail-open: best-effort
       toast.error("Failed to generate preview link");
     } finally {
       setGeneratingPreview(false);
     }
-  }, [slug, contentType]);
+  }, [slug, contentType, siteDomain]);
 
   // Product linker state
 
