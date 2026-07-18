@@ -3,6 +3,30 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 const TABLE = "affiliate_tracking_keys";
 const LOOKUP_BATCH_SIZE = 500;
 
+/**
+ * Return the first tracking key registered for a site + network.
+ *
+ * The table is keyed by (network, tracking_key) so a site may have multiple
+ * keys per network; for outbound link attribution we use the first registered.
+ */
+export async function getTrackingKeyForSite(
+  siteId: string,
+  network: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<string | null> {
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("tracking_key")
+    .eq("site_id", siteId)
+    .eq("network", network)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as { tracking_key?: string } | null)?.tracking_key ?? null;
+}
+
 /** Resolve multiple network tracking keys without issuing one query per report. */
 export async function resolveSitesByTrackingKeys(
   network: string,

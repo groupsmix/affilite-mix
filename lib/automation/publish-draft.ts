@@ -6,8 +6,12 @@ import { getAutomationDbClient } from "./db";
 import type { DalClientGetter } from "@/lib/dal/dal-client";
 import { getAIDraft, updateAIDraft } from "@/lib/dal/ai-drafts";
 import { getContentBySlug, createContent, updateContent } from "@/lib/dal/content";
+import { listProducts } from "@/lib/dal/products";
+import { setLinkedProducts } from "@/lib/dal/content-products";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { injectAffiliateShortcodeLinks } from "@/lib/affiliate/link-injection";
+import { deriveMetaDescription, deriveMetaTitle } from "@/lib/seo/auto-meta";
 import type { AIDraftRow } from "@/lib/dal/ai-drafts";
 import type { ContentRow } from "@/types/database";
 
@@ -85,10 +89,30 @@ export async function publishDraft(
 
   const title = overrides.title ?? draft.title;
   const excerpt = overrides.excerpt ?? draft.excerpt;
-  const body = overrides.body ? sanitizeHtml(overrides.body) : sanitizeHtml(draft.body);
-  const metaTitle = overrides.meta_title ?? draft.meta_title;
-  const metaDescription = overrides.meta_description ?? draft.meta_description;
+  let body = overrides.body ? sanitizeHtml(overrides.body) : sanitizeHtml(draft.body);
+  const metaTitle = deriveMetaTitle({
+    title,
+    metaTitle: overrides.meta_title ?? draft.meta_title,
+  });
+  const metaDescription = deriveMetaDescription({
+    metaDescription: overrides.meta_description ?? draft.meta_description,
+    excerpt,
+    body,
+  });
   const slug = await resolveUniqueSlug(siteId, overrides.slug ?? draft.slug, getAutomationDbClient);
+
+  // Auto-wire affiliate shortcode links: match product names in the body and
+  // insert `/r/<slug>?ref=<contentSlug>` links with the site's network tracking
+  // key (e.g. CJ `sid`) when one is configured.
+  const activeProducts = await listProducts({ siteId, status: "active" }, getAutomationDbClient);
+  const { html: linkedBody, linkedProducts } = await injectAffiliateShortcodeLinks({
+    siteId,
+    contentSlug: slug,
+    html: body,
+    products: activeProducts,
+    getClient: getAutomationDbClient,
+  });
+  body = linkedBody;
 
   const now = new Date().toISOString();
 
@@ -169,6 +193,20 @@ export async function publishDraft(
     const err = new Error("Draft not found after publish");
     (err as Error & { status?: number }).status = 404;
     throw err;
+  }
+
+  // Persist product-content relationships so the public page can render related
+  // product cards and the automated contextual internal-link block.
+  if (linkedProducts.length > 0) {
+    await setLinkedProducts(
+      content.id,
+      siteId,
+      linkedProducts.map((p, idx) => ({
+        product_id: p.id,
+        role: idx === 0 ? ("hero" as const) : ("featured" as const),
+      })),
+      getAutomationDbClient,
+    );
   }
 
   await recordAuditEvent({

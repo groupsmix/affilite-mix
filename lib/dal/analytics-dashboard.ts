@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 import { countProducts } from "./products";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { listAdminSites, listSites } from "./sites";
+import { resolveEstimatedRevenuePerClick } from "@/lib/analytics/epc";
 import type { SiteRow } from "@/types/database";
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -67,6 +68,8 @@ export interface NicheStats {
   slug: string;
   clicks7d: number;
   clicksToday: number;
+  revenue7d: number;
+  revenueToday: number;
   totalProducts: number;
   totalContent: number;
   isActive: boolean;
@@ -281,12 +284,18 @@ export async function getMultiNicheOverview(): Promise<NicheStats[]> {
         countContent({ siteId: site.id }, getClient).catch(() => 0),
       ]);
 
+      const epc = resolveEstimatedRevenuePerClick({ dbSite: site });
+      const revenue7d = parseFloat((clicks7d * epc).toFixed(2));
+      const revenueToday = parseFloat((clicksToday * epc).toFixed(2));
+
       return {
         siteId: site.id,
         name: site.name,
         slug: site.slug,
         clicks7d,
         clicksToday,
+        revenue7d,
+        revenueToday,
         totalProducts,
         totalContent,
         isActive: site.is_active,
@@ -294,5 +303,7 @@ export async function getMultiNicheOverview(): Promise<NicheStats[]> {
     }),
   );
 
-  return stats.sort((a, b) => b.clicks7d - a.clicks7d);
+  // Sort by revenue first, then clicks, so the dashboard surfaces the niches
+  // that are actually earning.
+  return stats.sort((a, b) => b.revenue7d - a.revenue7d || b.clicks7d - a.clicks7d);
 }

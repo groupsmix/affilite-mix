@@ -13,6 +13,14 @@ import {
 import { cn } from "@/lib/utils";
 import { getMultiNicheOverview, type NicheStats } from "@/lib/dal/analytics-dashboard";
 
+function formatUSD(value: number): string {
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+}
+
 function StatusBadge({ isActive }: { isActive: boolean }) {
   return (
     <Badge
@@ -52,10 +60,12 @@ export async function MultiNicheOverview() {
 
   const totalClicksToday = nicheStats.reduce((sum, s) => sum + s.clicksToday, 0);
   const totalClicks7d = nicheStats.reduce((sum, s) => sum + s.clicks7d, 0);
+  const totalRevenue7d = nicheStats.reduce((sum, s) => sum + s.revenue7d, 0);
+  const totalRevenueToday = nicheStats.reduce((sum, s) => sum + s.revenueToday, 0);
   const totalProducts = nicheStats.reduce((sum, s) => sum + s.totalProducts, 0);
   const totalContent = nicheStats.reduce((sum, s) => sum + s.totalContent, 0);
 
-  // Already sorted by 7d clicks descending from the DAL
+  // Already sorted by revenue then clicks from the DAL
   const sorted = nicheStats;
 
   return (
@@ -63,7 +73,7 @@ export async function MultiNicheOverview() {
       <h2 className="mb-4 text-lg font-semibold text-foreground">All Niches Overview</h2>
 
       {/* Aggregate stats */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="gap-1 py-5">
           <CardHeader className="px-5 [&>div]:!gap-0">
             <CardDescription>Total Sites</CardDescription>
@@ -84,6 +94,17 @@ export async function MultiNicheOverview() {
           </CardHeader>
           <CardContent className="px-5 text-xs text-muted-foreground">
             {totalClicksToday.toLocaleString()} today
+          </CardContent>
+        </Card>
+        <Card className="gap-1 py-5">
+          <CardHeader className="px-5 [&>div]:!gap-0">
+            <CardDescription>Revenue (7d)</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight tabular-nums">
+              {formatUSD(totalRevenue7d)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 text-xs text-muted-foreground">
+            {formatUSD(totalRevenueToday)} today
           </CardContent>
         </Card>
         <Card className="gap-1 py-5">
@@ -136,6 +157,18 @@ export async function MultiNicheOverview() {
                 </span>
               </div>
               <div>
+                <span className="text-muted-foreground">Revenue (7d): </span>
+                <span className="font-medium text-foreground tabular-nums">
+                  {formatUSD(niche.revenue7d)}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Revenue Today: </span>
+                <span className="font-medium text-foreground tabular-nums">
+                  {formatUSD(niche.revenueToday)}
+                </span>
+              </div>
+              <div>
                 <span className="text-muted-foreground">Products: </span>
                 <span className="text-foreground tabular-nums">{niche.totalProducts}</span>
               </div>
@@ -156,6 +189,8 @@ export async function MultiNicheOverview() {
               <TableHead className="px-4">Niche</TableHead>
               <TableHead className="px-4 text-end">Clicks (7d)</TableHead>
               <TableHead className="px-4 text-end">Today</TableHead>
+              <TableHead className="px-4 text-end">Revenue (7d)</TableHead>
+              <TableHead className="px-4 text-end">Revenue Today</TableHead>
               <TableHead className="px-4 text-end">Products</TableHead>
               <TableHead className="px-4 text-end">Content</TableHead>
               <TableHead className="px-4">Status</TableHead>
@@ -178,6 +213,12 @@ export async function MultiNicheOverview() {
                 </TableCell>
                 <TableCell className="px-4 py-3 text-end text-muted-foreground tabular-nums">
                   {niche.clicksToday.toLocaleString()}
+                </TableCell>
+                <TableCell className="px-4 py-3 text-end font-medium tabular-nums">
+                  {formatUSD(niche.revenue7d)}
+                </TableCell>
+                <TableCell className="px-4 py-3 text-end text-muted-foreground tabular-nums">
+                  {formatUSD(niche.revenueToday)}
                 </TableCell>
                 <TableCell className="px-4 py-3 text-end text-muted-foreground tabular-nums">
                   {niche.totalProducts}

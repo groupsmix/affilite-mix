@@ -22,7 +22,7 @@ type SiteUpdate = Database["public"]["Tables"]["sites"]["Update"];
 const TABLE = "sites";
 // Columns needed for list views (excludes heavy JSON blobs like ad_config, custom_css)
 const LIST_COLUMNS =
-  "id, slug, name, domain, language, direction, is_active, monetization_type, logo_url, favicon_url, meta_title, meta_description, og_image_url, homepage_template, product_card_style, created_at, updated_at" as const;
+  "id, slug, name, domain, language, direction, is_active, monetization_type, est_revenue_per_click, logo_url, favicon_url, meta_title, meta_description, og_image_url, homepage_template, product_card_style, created_at, updated_at" as const;
 // A23-01: Explicit full-row column list — prevents future sensitive columns from
 // leaking automatically when callers receive a complete SiteRow.
 const ALL_COLUMNS =
