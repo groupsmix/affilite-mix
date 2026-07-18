@@ -19,6 +19,7 @@ import {
 import { countActionsSince } from "@/lib/dal/automation-runs";
 import { createAIDraft } from "@/lib/dal/ai-drafts";
 import { generateContent } from "@/lib/ai/content-generator";
+import { getAvailableProviders } from "@/lib/ai/providers";
 import { getSiteById } from "@/config/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 
@@ -161,6 +162,21 @@ export const POST = withAutomation(
 
     try {
       const site = getSiteById(siteId);
+
+      const availableProviders = getAvailableProviders();
+      if (availableProviders.length === 0) {
+        await updateAutomationAction(siteId, action.id, {
+          status: "failed",
+          error_code: "AUTOMATION_AI_NOT_CONFIGURED",
+          error_message: "No AI provider keys configured for this site",
+        });
+        return automationError(
+          "AUTOMATION_AI_NOT_CONFIGURED",
+          "No AI provider keys configured for this site",
+          requestId,
+          { meta: { action_id: action.id } },
+        );
+      }
 
       const result = await generateContent({
         siteId,

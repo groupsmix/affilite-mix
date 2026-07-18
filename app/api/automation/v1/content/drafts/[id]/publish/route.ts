@@ -1,21 +1,25 @@
 import type { NextRequest } from "next/server";
 import { withAutomation } from "@/lib/automation/gateway";
 import { automationSuccess, automationError } from "@/lib/automation/envelope";
-import { getAutomationDbClient } from "@/lib/automation/db";
-import { getAIDraft, updateAIDraft } from "@/lib/dal/ai-drafts";
-import { getContentBySlug, createContent, updateContent } from "@/lib/dal/content";
-import { sanitizeHtml } from "@/lib/sanitize-html";
-import { recordAuditEvent } from "@/lib/audit-log";
-import type { ContentRow } from "@/types/database";
+import { parseJsonBody } from "@/lib/api-error";
+import { publishDraft } from "@/lib/automation/publish-draft";
+import { parsePublishDraftInput } from "@/lib/automation/schemas";
+import {
+  payloadHash,
+  classifyIdempotency,
+  isValidIdempotencyKey,
+} from "@/lib/automation/idempotency";
+import { evaluatePolicy, type ActionType } from "@/lib/automation/policy";
+import { getPolicyForAction } from "@/lib/dal/automation-policies";
+import {
+  getActionByIdempotencyKey,
+  createAutomationAction,
+  updateAutomationAction,
+} from "@/lib/dal/automation-actions";
+import { countActionsSince } from "@/lib/dal/automation-runs";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const VALID_CONTENT_TYPES: ContentRow["type"][] = [
-  "article",
-  "review",
-  "comparison",
-  "guide",
-  "blog",
-];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ACTION_TYPE: ActionType = "content.publish";
 
 function draftIdFromPath(request: NextRequest): string | null {
   // Path is /api/automation/v1/content/drafts/[id]/publish
@@ -25,112 +29,187 @@ function draftIdFromPath(request: NextRequest): string | null {
 }
 
 // POST /api/automation/v1/content/drafts/:id/publish
-// Promote an AI draft to live content. If a published/scheduled content item
-// with the same slug already exists, it is overwritten with the draft body
-// (idempotent republication). Requires scope content:publish.
+// Promote an AI draft to live content. Supports optional overrides for
+// title/slug/excerpt/body/content_type/meta before publishing. Resolves slug
+// collisions by appending a numeric suffix. Requires content:publish.
 export const POST = withAutomation(
   ["content:publish"],
   async (request: NextRequest, { auth, requestId }) => {
     const { siteId, account } = auth;
+
     const id = draftIdFromPath(request);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }
 
-    const draft = await getAIDraft(siteId, id, getAutomationDbClient);
-    if (!draft) {
-      return automationError("AUTOMATION_NOT_FOUND", "Draft not found", requestId);
-    }
-
-    const contentType = draft.content_type as ContentRow["type"];
-    if (!VALID_CONTENT_TYPES.includes(contentType)) {
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim() ?? "";
+    if (!idempotencyKey) {
       return automationError(
-        "AUTOMATION_VALIDATION_ERROR",
-        `Unsupported content_type: ${draft.content_type}`,
+        "AUTOMATION_BAD_REQUEST",
+        "Idempotency-Key header is required for mutations",
         requestId,
       );
     }
+    if (!isValidIdempotencyKey(idempotencyKey)) {
+      return automationError("AUTOMATION_BAD_REQUEST", "Malformed Idempotency-Key", requestId);
+    }
 
-    const now = new Date().toISOString();
-    const bodyHtml = sanitizeHtml(draft.body);
+    const parsedBody = await parseJsonBody(request);
+    if (parsedBody instanceof Response) {
+      return automationError("AUTOMATION_BAD_REQUEST", "Invalid JSON body", requestId);
+    }
 
-    const existing = await getContentBySlug(siteId, draft.slug, true, getAutomationDbClient);
-
-    let content: ContentRow;
-    if (existing) {
-      content = await updateContent(
-        siteId,
-        existing.id,
-        {
-          title: draft.title,
-          slug: draft.slug,
-          body: bodyHtml,
-          excerpt: draft.excerpt,
-          type: contentType,
-          status: "published",
-          tags: draft.keywords,
-          author: "AI",
-          publish_at: now,
-          meta_title: draft.meta_title,
-          meta_description: draft.meta_description,
-          review_state: "published",
-          ai_generated: true,
-          human_reviewed_at: now,
-        },
-        getAutomationDbClient,
+    const validated = parsePublishDraftInput(parsedBody as Record<string, unknown>);
+    if (!validated.ok) {
+      return automationError(
+        "AUTOMATION_VALIDATION_ERROR",
+        "Publish request failed validation",
+        requestId,
+        { details: { errors: validated.errors.join("; ") } },
       );
-    } else {
-      content = await createContent(
+    }
+    const input = validated.value;
+
+    const hash = await payloadHash(input);
+
+    // ── Idempotency ──────────────────────────────────────────────
+    const existing = await getActionByIdempotencyKey(account.id, idempotencyKey);
+    const outcome = classifyIdempotency(existing, hash);
+    if (outcome.kind === "conflict") {
+      return automationError(
+        "AUTOMATION_IDEMPOTENCY_CONFLICT",
+        "Idempotency-Key was already used with a different payload",
+        requestId,
+        { meta: { action_id: existing!.id } },
+      );
+    }
+    if (outcome.kind === "replay") {
+      const prior = outcome.existing;
+      return automationSuccess(
         {
-          site_id: siteId,
-          title: draft.title,
-          slug: draft.slug,
-          body: bodyHtml,
-          excerpt: draft.excerpt,
-          featured_image: "",
-          type: contentType,
-          status: "published",
-          category_id: null,
-          tags: draft.keywords,
-          author: "AI",
-          publish_at: now,
-          meta_title: draft.meta_title,
-          meta_description: draft.meta_description,
-          og_image: null,
-          body_previous: null,
-          review_state: "published",
-          ai_generated: true,
-          human_reviewed_at: now,
+          content_id: (prior.result?.content_id as string) ?? null,
+          draft_id: (prior.result?.draft_id as string) ?? null,
         },
-        getAutomationDbClient,
+        requestId,
+        { meta: { action_id: prior.id } },
       );
     }
 
-    const publishedDraft = await updateAIDraft(
-      siteId,
-      id,
-      {
-        status: "published",
-        reviewed_at: now,
-        reviewed_by: `agent:${account.id}`,
-      },
-      getAutomationDbClient,
-    );
+    // ── Policy ─────────────────────────────────────────────────────
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const [override, dayCount] = await Promise.all([
+      getPolicyForAction(siteId, ACTION_TYPE),
+      countActionsSince(account.id, startOfDay.toISOString()),
+    ]);
 
-    await recordAuditEvent({
-      site_id: siteId,
-      actor: `agent:${account.id}`,
-      action: "automation.content.draft.publish",
-      entity_type: "ai_draft",
-      entity_id: id,
-      details: {
-        content_id: content.id,
-        slug: content.slug,
-        title: content.title,
-        republished: Boolean(existing),
-      },
+    const decision = evaluatePolicy({
+      actionType: ACTION_TYPE,
+      override: override
+        ? { mode: override.mode, constraints: override.constraints, is_active: override.is_active }
+        : null,
+      itemCount: 1,
+      dayActionCount: dayCount,
+      maxActionsPerDay: account.max_actions_per_day,
+      maxActionsPerRun: account.max_actions_per_run,
     });
 
-    return automationSuccess({ draft: publishedDraft, content }, requestId);
+    if (decision.decision === "deny") {
+      await createAutomationAction({
+        run_id: null,
+        service_account_id: account.id,
+        site_id: siteId,
+        idempotency_key: idempotencyKey,
+        action_type: ACTION_TYPE,
+        target_type: "ai_draft",
+        target_id: id,
+        risk_level: decision.risk,
+        policy_decision: "deny",
+        status: "failed",
+        payload: { draft_id: id, ...input },
+        payload_hash: hash,
+      });
+      return automationError("AUTOMATION_POLICY_DENIED", decision.reasons.join("; "), requestId);
+    }
+
+    if (decision.decision === "approval_required") {
+      const action = await createAutomationAction({
+        run_id: null,
+        service_account_id: account.id,
+        site_id: siteId,
+        idempotency_key: idempotencyKey,
+        action_type: ACTION_TYPE,
+        target_type: "ai_draft",
+        target_id: id,
+        risk_level: decision.risk,
+        policy_decision: "approval_required",
+        status: "manual_attention",
+        payload: { draft_id: id, ...input },
+        payload_hash: hash,
+      });
+      return automationError(
+        "AUTOMATION_POLICY_APPROVAL_REQUIRED",
+        decision.reasons.join("; "),
+        requestId,
+        { meta: { action_id: action.id }, details: { action_id: action.id } },
+      );
+    }
+
+    // ── Execute (allow) ────────────────────────────────────────────
+    const action = await createAutomationAction({
+      run_id: null,
+      service_account_id: account.id,
+      site_id: siteId,
+      idempotency_key: idempotencyKey,
+      action_type: ACTION_TYPE,
+      target_type: "ai_draft",
+      target_id: id,
+      risk_level: decision.risk,
+      policy_decision: "allow",
+      status: "running",
+      payload: { draft_id: id, ...input },
+      payload_hash: hash,
+    });
+
+    try {
+      const { content, draft } = await publishDraft(siteId, id, account.id, input);
+
+      await updateAutomationAction(siteId, action.id, {
+        status: "succeeded",
+        target_id: draft.id,
+        after_snapshot: { content_id: content.id, draft_id: draft.id, status: draft.status },
+        result: { content_id: content.id, draft_id: draft.id },
+      });
+
+      return automationSuccess({ content_id: content.id, draft_id: draft.id }, requestId, {
+        status: 201,
+        meta: { action_id: action.id },
+      });
+    } catch (err) {
+      const status = (err as Error & { status?: number }).status;
+      let errorCode:
+        | "AUTOMATION_NOT_FOUND"
+        | "AUTOMATION_VALIDATION_ERROR"
+        | "AUTOMATION_SLUG_CONFLICT"
+        | "AUTOMATION_INTERNAL_ERROR" = "AUTOMATION_INTERNAL_ERROR";
+      if (status === 404) errorCode = "AUTOMATION_NOT_FOUND";
+      if (status === 422) errorCode = "AUTOMATION_VALIDATION_ERROR";
+      if (status === 409 || (err instanceof Error && err.message.includes("slug conflict"))) {
+        errorCode = "AUTOMATION_SLUG_CONFLICT";
+      }
+
+      await updateAutomationAction(siteId, action.id, {
+        status: "failed",
+        error_code: errorCode,
+        error_message: err instanceof Error ? err.message.slice(0, 500) : "unknown error",
+      });
+
+      return automationError(
+        errorCode,
+        err instanceof Error ? err.message : "Failed to publish draft",
+        requestId,
+        { meta: { action_id: action.id } },
+      );
+    }
   },
 );

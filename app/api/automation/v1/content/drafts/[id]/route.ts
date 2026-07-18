@@ -1,9 +1,11 @@
 import type { NextRequest } from "next/server";
 import { withAutomation } from "@/lib/automation/gateway";
 import { automationSuccess, automationError } from "@/lib/automation/envelope";
+import { hasScope } from "@/lib/automation/scopes";
 import { parseJsonBody } from "@/lib/api-error";
 import { getAutomationDbClient } from "@/lib/automation/db";
 import { parseDraftUpdateInput } from "@/lib/automation/schemas";
+import { publishDraft } from "@/lib/automation/publish-draft";
 import { getAIDraft, updateAIDraft, deleteAIDraft } from "@/lib/dal/ai-drafts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,11 +37,13 @@ export const GET = withAutomation(
 );
 
 // PATCH /api/automation/v1/content/drafts/:id
-// Update an AI draft. Partial updates are allowed.
+// Update an AI draft. Partial updates are allowed. Setting status to "published"
+// promotes the draft to live content (requires content:publish in addition to
+// content:draft) using the same logic as the dedicated publish endpoint.
 export const PATCH = withAutomation(
   ["content:draft"],
   async (request: NextRequest, { auth, requestId }) => {
-    const { siteId } = auth;
+    const { siteId, account, scopes } = auth;
     const id = draftIdFromPath(request);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
@@ -68,6 +72,49 @@ export const PATCH = withAutomation(
     const existing = await getAIDraft(siteId, id, getAutomationDbClient);
     if (!existing) {
       return automationError("AUTOMATION_NOT_FOUND", "Draft not found", requestId);
+    }
+
+    if (input.status === "published") {
+      if (!hasScope(scopes, "content:publish")) {
+        return automationError(
+          "AUTOMATION_SCOPE_MISSING",
+          "Publishing requires scope content:publish",
+          requestId,
+          { details: { required_scope: "content:publish" } },
+        );
+      }
+
+      // Apply any non-status overrides before promotion so the published content
+      // reflects the final edited title/slug/body/etc.
+      const { status: _status, ...nonStatusUpdates } = input;
+      if (Object.keys(nonStatusUpdates).length > 0) {
+        const updated = await updateAIDraft(siteId, id, nonStatusUpdates, getAutomationDbClient);
+        if (!updated) {
+          return automationError("AUTOMATION_NOT_FOUND", "Draft not found after update", requestId);
+        }
+      }
+
+      try {
+        const { content, draft: publishedDraft } = await publishDraft(siteId, id, account.id);
+        return automationSuccess({ draft: publishedDraft, content }, requestId);
+      } catch (err) {
+        const status = (err as Error & { status?: number }).status;
+        let code:
+          | "AUTOMATION_NOT_FOUND"
+          | "AUTOMATION_VALIDATION_ERROR"
+          | "AUTOMATION_SLUG_CONFLICT"
+          | "AUTOMATION_INTERNAL_ERROR" = "AUTOMATION_INTERNAL_ERROR";
+        if (status === 404) code = "AUTOMATION_NOT_FOUND";
+        if (status === 422) code = "AUTOMATION_VALIDATION_ERROR";
+        if (status === 409 || (err instanceof Error && err.message.includes("slug conflict"))) {
+          code = "AUTOMATION_SLUG_CONFLICT";
+        }
+        return automationError(
+          code,
+          err instanceof Error ? err.message : "Failed to publish draft",
+          requestId,
+        );
+      }
     }
 
     const updated = await updateAIDraft(siteId, id, input, getAutomationDbClient);
