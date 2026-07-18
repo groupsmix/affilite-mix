@@ -60,7 +60,7 @@ const DEFAULT_MATRIX: Record<ActionType, DefaultRule> = {
   "content.update": { mode: "allow", risk: "low", scope: "content:update" },
   "content.add_internal_links": { mode: "allow", risk: "low", scope: "content:update" },
   "content.schedule": { mode: "approval_required", risk: "medium", scope: "content:schedule" },
-  "content.publish": { mode: "approval_required", risk: "medium", scope: "content:publish" },
+  "content.publish": { mode: "allow", risk: "low", scope: "content:publish" },
   "content.archive": { mode: "approval_required", risk: "medium", scope: "content:update" },
   "content.delete": { mode: "deny", risk: "prohibited", scope: null },
   "products.update": { mode: "allow", risk: "low", scope: "products:update" },
