@@ -21,13 +21,24 @@ import { countActionsSince } from "@/lib/dal/automation-runs";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACTION_TYPE: ActionType = "content.publish";
 
-async function draftIdFromParams(
+async function draftIdFromRequest(
+  request: NextRequest,
   params?: Promise<Record<string, string | string[] | undefined>>,
 ): Promise<string | null> {
   const resolved = await params;
   const raw = resolved?.id;
-  const id = Array.isArray(raw) ? raw[0] : raw;
-  return id && UUID_RE.test(id) ? id : null;
+  const idFromParams = Array.isArray(raw) ? raw[0] : raw;
+  if (idFromParams && UUID_RE.test(idFromParams)) {
+    return idFromParams;
+  }
+
+  // Fallback: parse the raw URL path. Some edge runtimes do not reliably
+  // populate context.params for deeply-nested route handlers.
+  const url = new URL(request.url);
+  const match = url.pathname.match(
+    /\/drafts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/publish(?:\/|$)/i,
+  );
+  return match?.[1] ?? null;
 }
 
 // POST /api/automation/v1/content/drafts/:id/publish
@@ -39,7 +50,7 @@ export const POST = withAutomation(
   async (request: NextRequest, { auth, requestId, params }) => {
     const { siteId, account } = auth;
 
-    const id = await draftIdFromParams(params);
+    const id = await draftIdFromRequest(request, params);
     if (!id) {
       return automationError("AUTOMATION_BAD_REQUEST", "Invalid draft id", requestId);
     }
