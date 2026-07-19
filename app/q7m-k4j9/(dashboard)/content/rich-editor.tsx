@@ -10,6 +10,7 @@ import { useEffect, useState, useRef } from "react";
 import { isSafeUrl, sanitizeHtml } from "@/lib/sanitize-html";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { toast } from "sonner";
+import type { ProductRow } from "@/types/database";
 
 /**
  * Only http(s) URLs are permitted inside the editor for images and videos.
@@ -26,6 +27,7 @@ function isHttpUrl(value: string): boolean {
 interface RichEditorProps {
   value: string;
   onChange: (html: string) => void;
+  products?: ProductRow[];
 }
 
 type RewriteAction = "expand" | "rewrite" | "rephrase" | "summarize";
@@ -173,11 +175,100 @@ function AiPopover({
   );
 }
 
-function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+function AffiliatePopover({
+  editor,
+  products,
+  open,
+  onClose,
+}: {
+  editor: Exclude<ReturnType<typeof useEditor>, null>;
+  products: ProductRow[];
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  if (!open) return null;
+
+  const activeProducts = products
+    .filter((p) => p.status !== "archived" && p.affiliate_url)
+    .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 20);
+
+  function insertLink(product: ProductRow) {
+    const { from, to } = editor.state.selection;
+    const hasSelection = from !== to;
+    const chain = editor.chain().focus();
+    if (hasSelection) {
+      chain.setLink({ href: product.affiliate_url }).run();
+    } else {
+      chain
+        .insertContent(
+          `<a href="${product.affiliate_url}" target="_blank" rel="noopener noreferrer nofollow">${product.name}</a>`,
+        )
+        .run();
+    }
+    onClose();
+    setQuery("");
+  }
+
+  return (
+    <div className="absolute left-0 top-full z-50 mt-1 flex w-72 flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 shadow-lg">
+      <input
+        ref={inputRef}
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+        placeholder="Search products…"
+        className="w-full rounded border border-gray-300 dark:border-gray-700 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      />
+      <div className="max-h-48 overflow-y-auto">
+        {activeProducts.length === 0 ? (
+          <p className="px-2 py-1 text-xs text-gray-500">No products found.</p>
+        ) : (
+          activeProducts.map((product) => (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => insertLink(product)}
+              className="w-full rounded px-2 py-1 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              {product.name}
+            </button>
+          ))
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function MenuBar({
+  editor,
+  products,
+}: {
+  editor: ReturnType<typeof useEditor>;
+  products?: ProductRow[];
+}) {
   const [showLinkPopover, setShowLinkPopover] = useState(false);
   const [showImagePopover, setShowImagePopover] = useState(false);
   const [showVideoPopover, setShowVideoPopover] = useState(false);
   const [showAiPopover, setShowAiPopover] = useState(false);
+  const [showAffiliatePopover, setShowAffiliatePopover] = useState(false);
 
   if (!editor) return null;
 
@@ -304,6 +395,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           onClick={() => {
             setShowLinkPopover(!showLinkPopover);
             setShowImagePopover(false);
+            setShowAffiliatePopover(false);
           }}
           className={btnClass(editor.isActive("link"))}
           title="Add Link"
@@ -333,6 +425,31 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           Unlink
         </button>
       )}
+      {products && products.length > 0 && (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setShowAffiliatePopover(!showAffiliatePopover);
+              setShowLinkPopover(false);
+              setShowImagePopover(false);
+              setShowVideoPopover(false);
+            }}
+            className={btnClass(showAffiliatePopover)}
+            title="Insert affiliate product link"
+          >
+            $ Affiliate
+          </button>
+          {showAffiliatePopover && (
+            <AffiliatePopover
+              editor={editor}
+              products={products}
+              open={showAffiliatePopover}
+              onClose={() => setShowAffiliatePopover(false)}
+            />
+          )}
+        </div>
+      )}
       <div className="relative">
         <button
           type="button"
@@ -340,6 +457,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             setShowImagePopover(!showImagePopover);
             setShowLinkPopover(false);
             setShowVideoPopover(false);
+            setShowAffiliatePopover(false);
           }}
           className={btnClass(false)}
           title="Insert Image"
@@ -366,6 +484,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             setShowVideoPopover(!showVideoPopover);
             setShowLinkPopover(false);
             setShowImagePopover(false);
+            setShowAffiliatePopover(false);
           }}
           className={btnClass(editor.isActive("youtube"))}
           title="Embed YouTube/Vimeo Video"
@@ -396,6 +515,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             setShowLinkPopover(false);
             setShowImagePopover(false);
             setShowVideoPopover(false);
+            setShowAffiliatePopover(false);
           }}
           className={btnClass(showAiPopover)}
           title="AI rewrite / expand"
@@ -410,7 +530,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   );
 }
 
-export function RichEditor({ value, onChange }: RichEditorProps) {
+export function RichEditor({ value, onChange, products }: RichEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -473,7 +593,7 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-      <MenuBar editor={editor} />
+      <MenuBar editor={editor} products={products} />
       <EditorContent editor={editor} />
     </div>
   );

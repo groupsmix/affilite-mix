@@ -409,6 +409,7 @@ export function ContentForm({
           >
             <RichEditor
               value={body}
+              products={products}
               onChange={(html) => {
                 setBody(html);
 
