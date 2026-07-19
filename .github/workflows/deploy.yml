@@ -1277,6 +1277,19 @@ jobs:
           echo "$_CRON_HOST"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix > /dev/null 2>&1
           echo "$_INTERNAL_TOKEN"     | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix > /dev/null 2>&1
 
+          # C1 / F-18: production requires the per-purpose internal tokens.
+          # getInternalTokenFor() throws in production when these are unset,
+          # which 500s /api/queue/clicks (breaking click ingestion + the DLQ)
+          # and every getInternalTokenFor("internal") caller. Default each to
+          # the monolithic INTERNAL_API_TOKEN when a dedicated per-purpose
+          # GitHub secret is not configured, so blast-radius reduction is
+          # opt-in (set the dedicated secret to rotate independently) without
+          # breaking existing deployments. The queue worker signs with the
+          # click-queue token via resolveClickQueueToken() in custom-worker.ts.
+          echo "${_INTERNAL_TOKEN_CLICK_QUEUE:-$_INTERNAL_TOKEN}" | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN_CLICK_QUEUE --name affilite-mix > /dev/null 2>&1
+          echo "${_INTERNAL_TOKEN_CRON:-$_INTERNAL_TOKEN}"        | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN_CRON --name affilite-mix > /dev/null 2>&1
+          echo "${_INTERNAL_TOKEN_INTERNAL:-$_INTERNAL_TOKEN}"    | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN_INTERNAL --name affilite-mix > /dev/null 2>&1
+
           # INCIDENT 2026-06-10: AFFILIATE_DOMAIN_ENFORCEMENT is hard-required
           # at startup in production (lib/server-env.ts, R-01) but was only
           # ever set manually on the Worker — it was wiped between deploys and
@@ -1352,6 +1365,11 @@ jobs:
           _RESEND_KEY: ${{ secrets.RESEND_API_KEY }}
           _SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          # C1 / F-18: optional per-purpose internal tokens. When unset the
+          # deploy step defaults them to INTERNAL_API_TOKEN (see the run block).
+          _INTERNAL_TOKEN_CLICK_QUEUE: ${{ secrets.INTERNAL_API_TOKEN_CLICK_QUEUE }}
+          _INTERNAL_TOKEN_CRON: ${{ secrets.INTERNAL_API_TOKEN_CRON }}
+          _INTERNAL_TOKEN_INTERNAL: ${{ secrets.INTERNAL_API_TOKEN_INTERNAL }}
           _CRON_HOST: ${{ vars.CRON_HOST }}
           _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           _TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
@@ -1501,6 +1519,7 @@ jobs:
           _CRON_AI: ${{ secrets.CRON_AI_SECRET }}
           _CRON_COMMISSION: ${{ secrets.CRON_COMMISSION_SECRET }}
           _CRON_PRICE: ${{ secrets.CRON_PRICE_SECRET }}
+          _SENTRY_DSN: ${{ vars.SENTRY_DSN }}
         run: |
           set -euo pipefail
 
@@ -1510,6 +1529,11 @@ jobs:
           echo "$_CRON_AI"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AI_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
           echo "$_CRON_COMMISSION" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_COMMISSION_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
           echo "$_CRON_PRICE"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PRICE_SECRET      --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+
+          # H2: SENTRY_DSN lets the heavy-crons worker's withSentry wrapper emit
+          # captureException events for dispatch/misconfig failures. Optional —
+          # skip cleanly when not configured.
+          [ -n "$_SENTRY_DSN" ] && echo "$_SENTRY_DSN" | npx --yes wrangler@${WRANGLER_VERSION} secret put SENTRY_DSN --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1 || true
 
           echo "heavy-crons worker secrets configured"
 

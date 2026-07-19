@@ -279,9 +279,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "DLQ insert failed" }, { status: 500 });
       }
 
-      // Alert on DLQ rate (triggers Sentry)
-      captureException(new Error(`Processed ${dlqRows.length} dead letter queue messages`), {
+      // M3: DLQ processing succeeded. This is a notable-but-normal event, not
+      // an error — emitting it via captureException polluted Sentry's error
+      // stream on every DLQ batch and caused alert fatigue. Log it as a
+      // structured warning instead; DLQ *depth* is alerted separately
+      // (click_tracking_dlq_depth, terraform/cloudflare/alerts.tf).
+      logger.warn("click_queue_dlq_processed", {
         context: "[api/queue/clicks] DLQ processing",
+        processed: dlqRows.length,
       });
 
       return NextResponse.json({ ok: true, inserted: dlqRows.length });

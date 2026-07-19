@@ -12,11 +12,17 @@
  * is a thin TypeScript file compiled by wrangler. The actual business
  * logic stays in the main app (`app/api/cron/*`) so there is no code
  * duplication.
+ *
+ * H2: the handler is wrapped with @sentry/cloudflare's `withSentry` and
+ * every failure path emits a `captureException` (gated by the registry's
+ * per-job `alertOnFailure` flag for dispatch failures) so misconfiguration
+ * and failed heavy runs are visible in Sentry rather than only in the
+ * ephemeral Cloudflare dashboard. This matches the main worker's posture.
  */
 
+import { withSentry, captureException } from "@sentry/cloudflare";
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
 import { logger } from "../lib/logger";
-import { captureException } from "@sentry/cloudflare";
 
 interface CloudflareScheduledController {
   cron: string;
@@ -47,31 +53,38 @@ const worker = {
       typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
     if (!cronHost) {
-      const err = new Error(
+      const msg =
         "[heavy-crons] CRON_HOST is not configured — skipping dispatch. " +
-          "Set it with: wrangler secret put CRON_HOST",
-      );
-      logger.error(err.message);
-      captureException(err);
-      throw err;
+        "Set it with: wrangler secret put CRON_HOST --name affilite-mix-heavy-crons";
+      logger.error(msg);
+      // H2: throw so Sentry/observability captures the misconfiguration
+      // instead of silently swallowing missed heavy-cron runs (matches the
+      // main worker's CRON_HOST posture).
+      throw new Error(msg);
     }
 
     const job = getCronJobBySchedule(controller.cron);
     if (!job) {
       const err = new Error(
-        `[heavy-crons] Unknown cron schedule "${controller.cron}". ` +
-          "Add it to lib/cron-registry.ts.",
+        `[heavy-crons] Unknown cron schedule "${controller.cron}" — no matching route. ` +
+          "Add it to lib/cron-registry.ts so the registry, wrangler.heavy-crons.jsonc, " +
+          "and the dispatch map all stay in sync.",
       );
       logger.error(err.message);
       captureException(err);
-      throw err;
+      return;
     }
 
     if (!job.heavy) {
-      logger.warn(
+      // Misconfiguration: a light job's schedule was added to this worker's
+      // triggers. It should run on the main worker. Surface it loudly.
+      const err = new Error(
         `[heavy-crons] Schedule "${controller.cron}" (${job.name}) is NOT marked heavy. ` +
-          "It should be dispatched from the main worker instead.",
+          "It must be dispatched from the main worker. Check wrangler.heavy-crons.jsonc " +
+          "triggers.crons against the `heavy` flags in lib/cron-registry.ts.",
       );
+      logger.warn(err.message);
+      captureException(err);
       return;
     }
 
@@ -86,20 +99,20 @@ const worker = {
 
     if (!cronSecret) {
       const err = new Error(
-        `[heavy-crons] No secret configured for "${job.name}" — skipping dispatch. ` +
-          `Set it with: wrangler secret put ${job.secretEnvVar}`,
+        `[heavy-crons] Neither ${job.secretEnvVar} nor ${CRON_FALLBACK_SECRET_ENV} is configured ` +
+          `for "${job.name}" (${job.path}) — skipping dispatch. ` +
+          `Set it with: wrangler secret put ${job.secretEnvVar} --name affilite-mix-heavy-crons`,
       );
       logger.error(err.message);
       captureException(err);
-      throw err;
+      return;
     }
 
     const url = `${cronHost}${job.path}`;
-    // A-018 / P1-5: await the dispatch and throw on terminal failure so the
-    // scheduled invocation is marked failed and surfaced to alerting. Cron
-    // triggers do NOT auto-retry the way Queues do, so transient failures are
-    // retried HERE with bounded exponential backoff before we give up. A
-    // terminal failure both alerts (captureException) and rejects the promise.
+
+    // A-018 / P1-5: retry transient failures with bounded exponential backoff
+    // before giving up. A terminal failure alerts and rejects so the scheduled
+    // invocation is marked failed.
     await dispatchWithRetry(url, cronSecret, job.name);
   },
 };
@@ -183,4 +196,26 @@ async function dispatchWithRetry(url: string, cronSecret: string, jobName: strin
   throw terminal;
 }
 
-export default worker;
+function parseSampleRate(raw: unknown, fallback: number): number {
+  if (typeof raw !== "string" || !raw) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : fallback;
+}
+
+// H2: wrap with @sentry/cloudflare so captureException calls above actually
+// emit events. Mirrors workers/custom-worker.ts — the options callback
+// receives the Cloudflare `env` binding (SENTRY_DSN is plumbed via secrets).
+export default withSentry((env: Record<string, unknown>) => {
+  const dsn = typeof env.SENTRY_DSN === "string" ? env.SENTRY_DSN.trim() : "";
+  const environment =
+    typeof env.NODE_ENV === "string" && env.NODE_ENV ? env.NODE_ENV : "production";
+  const release =
+    typeof env.SENTRY_RELEASE === "string" && env.SENTRY_RELEASE ? env.SENTRY_RELEASE : undefined;
+  return {
+    dsn,
+    environment,
+    release,
+    tracesSampleRate: parseSampleRate(env.SENTRY_TRACES_SAMPLE_RATE, 0.1),
+    sendDefaultPii: false,
+  };
+}, worker);

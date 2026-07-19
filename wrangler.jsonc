@@ -397,16 +397,28 @@
         // Staging-specific routes
         { "pattern": "staging.wristnerd.xyz", "custom_domain": true },
       ],
-      // Staging cron triggers (less frequent than production)
+      // Staging cron triggers.
+      //
+      // H1 FIX: the staging main worker runs the SAME dispatcher as production
+      // (workers/custom-worker.ts -> getCronJobBySchedule), which resolves a
+      // job by an EXACT schedule-string match against lib/cron-registry.ts.
+      // Any staging-only schedule (e.g. "*/30", "0 8 * * *", "0 */2 * * *")
+      // has no registry entry, so it either dispatched the WRONG job or logged
+      // "Unknown cron schedule" and never ran. Staging therefore must use the
+      // exact registry schedules. These mirror the production light-job set
+      // (heavy jobs run on affilite-mix-heavy-crons, which has no staging env).
+      // __tests__/cron-registry.test.ts asserts this stays in sync.
       "triggers": {
         "crons": [
-          "*/30 * * * *", // Publish scheduled content (every 30 min in staging)
-          "0 2 * * *", // Stripe sync (daily 2 AM UTC)
-          "0 4 * * *", // Sitemap refresh (daily 4 AM UTC)
-          "0 6 * * *", // Data retention (daily 6 AM UTC)
-          "0 8 * * *", // EPC recompute (daily 8 AM UTC)
-          "0 */2 * * *", // Expire deals (every 2 hours in staging)
-          "*/30 * * * *", // Click reconcile (every 30 min)
+          "*/5 * * * *", // Publish scheduled content (every 5 min UTC)
+          "0 1 * * *", // Stripe sync (daily 1 AM UTC)
+          "0 3 * * *", // Sitemap refresh (daily 3 AM UTC)
+          "0 4 * * *", // Data retention (daily 4 AM UTC)
+          "0 6 * * *", // EPC recompute (daily 6 AM UTC)
+          "0 * * * *", // Expire deals (hourly)
+          "*/15 * * * *", // Click reconcile (every 15 min)
+          "0 8 * * 1", // Access review (Mon 08:00 UTC, SOC 2 CC6.1)
+          "*/10 * * * *", // Homepage synthetic check (every 10 min)
         ],
       },
     },

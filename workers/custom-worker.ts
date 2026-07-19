@@ -48,8 +48,34 @@ interface CloudflareMessageBatch<T = unknown> {
   retryAll(options?: { delaySeconds?: number }): void;
 }
 
+/**
+ * C1 fix: resolve the internal token used to authenticate to
+ * /api/queue/clicks. The route verifies against
+ * `getInternalTokenFor("click_queue")`, which maps to
+ * INTERNAL_API_TOKEN_CLICK_QUEUE (with a legacy INTERNAL_API_TOKEN fallback
+ * outside production). The worker MUST sign with the same token or every
+ * batch fails the HMAC check (403 in strict mode), retries forever, and the
+ * DLQ branch loses the click/attribution evidence when retention expires.
+ * Prefer the per-purpose token; fall back to the monolithic token so a
+ * transition deploy (where only INTERNAL_API_TOKEN is set) still works.
+ */
+function resolveClickQueueToken(env: Record<string, unknown>): string | null {
+  const purpose =
+    typeof env.INTERNAL_API_TOKEN_CLICK_QUEUE === "string" &&
+    env.INTERNAL_API_TOKEN_CLICK_QUEUE.trim()
+      ? env.INTERNAL_API_TOKEN_CLICK_QUEUE.trim()
+      : null;
+  if (purpose) return purpose;
+  return typeof env.INTERNAL_API_TOKEN === "string" && env.INTERNAL_API_TOKEN.trim()
+    ? env.INTERNAL_API_TOKEN.trim()
+    : null;
+}
+
 const worker = {
-  fetch: handler.fetch,
+  // L1: bind to the generated handler so any internal `this` reference inside
+  // the OpenNext fetch handler resolves correctly (a detached method would
+  // lose its receiver).
+  fetch: handler.fetch.bind(handler),
 
   async scheduled(
     controller: CloudflareScheduledController,
@@ -94,7 +120,22 @@ const worker = {
       return;
     }
 
-    // Prefer the per-trigger secret so operators can rotate or revoke a
+    // M4: the main worker serves user requests. Heavy jobs (ai-generate,
+    // commission-ingest, price-scrape) are deliberately isolated on the
+    // affilite-mix-heavy-crons worker so they cannot exhaust request-path
+    // CPU/memory. If a heavy schedule ever fires here it means wrangler.jsonc
+    // has drifted from lib/cron-registry.ts (e.g. a schedule collision).
+    // Refuse to dispatch and surface the misconfiguration loudly.
+    if (job.heavy) {
+      const err = new Error(
+        `[scheduled] Heavy cron "${controller.cron}" (${job.name}) fired on the main worker. ` +
+          "Heavy jobs must run on affilite-mix-heavy-crons. Check wrangler.jsonc " +
+          "triggers.crons for a schedule collision with lib/cron-registry.ts.",
+      );
+      logger.error(err.message);
+      captureException(err);
+      return;
+    }
     // single trigger without touching the others. Fall back to the shared
     // CRON_SECRET so deployments that haven't rolled out per-trigger
     // secrets yet keep working — matches the route-side acceptance order.
@@ -176,7 +217,7 @@ const worker = {
       // bodies are recoverable from Worker tail logs / Logpush.
       //
       // F-024: Persist DLQ messages durably by sending to internal API with dlq flag
-      const internalToken = env.INTERNAL_API_TOKEN;
+      const internalToken = resolveClickQueueToken(env);
       const cronHost =
         typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
@@ -197,7 +238,6 @@ const worker = {
                 {
                   Authorization: `Bearer ${internalToken}`,
                   "Content-Type": "application/json",
-                  "Accept-Version": "1",
                 },
                 // audit #7: bind the exact operation we are about to POST,
                 // including ?dlq=true, so the signature can't be re-pointed.
@@ -232,9 +272,10 @@ const worker = {
         // Do NOT ack — retry so messages remain in the queue until config is fixed.
         // Log the situation loudly so operators notice the misconfiguration.
         logger.error(
-          "[queue/click-tracking-dlq] INTERNAL_API_TOKEN or CRON_HOST missing — " +
+          "[queue/click-tracking-dlq] click-queue internal token or CRON_HOST missing — " +
             "refusing to ACK DLQ messages without durable persistence. " +
-            "Retrying batch. Fix configuration to prevent data loss.",
+            "Retrying batch. Set INTERNAL_API_TOKEN_CLICK_QUEUE (or INTERNAL_API_TOKEN) " +
+            "and CRON_HOST to prevent data loss.",
         );
         batch.retryAll({ delaySeconds: 300 });
       }
@@ -242,18 +283,24 @@ const worker = {
     }
 
     if (!MAIN_QUEUES.has(batch.queue)) {
-      // Unknown queue — ack so it doesn't loop forever
+      // L4: surface misrouted/misconfigured queues instead of silently
+      // dropping them. We still ack so an unknown queue can't loop forever,
+      // but the error makes the misconfiguration visible in logs/alerting.
+      logger.error("[queue] received batch from unrecognised queue — acking to avoid a loop", {
+        queue: batch.queue,
+        messageCount: batch.messages.length,
+      });
       batch.ackAll();
       return;
     }
 
-    const internalToken = env.INTERNAL_API_TOKEN;
+    const internalToken = resolveClickQueueToken(env);
     const cronHost =
       typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
     if (typeof internalToken !== "string" || !internalToken || !cronHost) {
       logger.error(
-        "[queue/click-tracking] INTERNAL_API_TOKEN or CRON_HOST missing — retrying batch",
+        "[queue/click-tracking] click-queue internal token or CRON_HOST missing — retrying batch",
       );
       batch.retryAll({ delaySeconds: 60 });
       return;
