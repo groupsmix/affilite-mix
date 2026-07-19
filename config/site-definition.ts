@@ -75,6 +75,9 @@ export interface SiteDefinition {
   /** Estimated revenue per affiliate click (USD). Used in admin analytics. */
   estRevenuePerClick?: number;
 
+  /** Optional GA4 Measurement ID. Falls back to the network default if unset. */
+  ga4MeasurementId?: string;
+
   features: FeatureFlags;
 
   pages: {

@@ -192,6 +192,8 @@ export interface SiteInput {
   contactPage?: boolean;
   /** Enable affiliate disclosure page. Defaults to true. */
   affiliateDisclosurePage?: boolean;
+  /** Optional GA4 Measurement ID. Falls back to the network default if unset. */
+  ga4MeasurementId?: string;
   /** Extra sitemap static pages */
   sitemapExtraPages?: { path: string; priority: number; changeFrequency: string }[];
   /** Full override of the pages config */
@@ -326,6 +328,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     monetizationType: input.monetizationType ?? "affiliate",
     affiliateDisclosure,
     contentDisclosure,
+    ga4MeasurementId: input.ga4MeasurementId,
     features,
     pages,
     seo,

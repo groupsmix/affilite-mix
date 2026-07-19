@@ -11,6 +11,7 @@ import { WebVitals } from "./web-vitals";
 import { logger } from "@/lib/logger";
 import CookieConsentCmp from "./(public)/components/cookie-consent-cmp";
 import { GoogleAnalytics } from "./(public)/components/google-analytics";
+import { DEFAULT_GA4_MEASUREMENT_ID, GA4_LINKER_DOMAINS } from "@/lib/analytics";
 import "./globals.css";
 
 /*
@@ -176,8 +177,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <style nonce={nonce}>{themeFontCss}</style>
         <WebVitals />
-        {site.id === "crypto-tools" && !isAdminRoute && (
-          <GoogleAnalytics measurementId="G-Z7Q4C5EDLD" nonce={nonce} />
+        {!isAdminRoute && (
+          <GoogleAnalytics
+            measurementId={site.ga4MeasurementId || DEFAULT_GA4_MEASUREMENT_ID}
+            domains={GA4_LINKER_DOMAINS}
+            nonce={nonce}
+          />
         )}
         {site.features.cookieConsent && !isAdminRoute && (
           <CookieConsentCmp language={site.language} siteId={site.id} />
