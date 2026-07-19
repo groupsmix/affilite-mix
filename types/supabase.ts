@@ -2353,6 +2353,7 @@ export type Database = {
           social_links: Json | null;
           theme: Json | null;
           updated_at: string | null;
+          url_redirects: Json;
         };
         Insert: {
           ad_config?: Json | null;
@@ -2380,6 +2381,7 @@ export type Database = {
           social_links?: Json | null;
           theme?: Json | null;
           updated_at?: string | null;
+          url_redirects?: Json;
         };
         Update: {
           ad_config?: Json | null;
@@ -2407,6 +2409,7 @@ export type Database = {
           social_links?: Json | null;
           theme?: Json | null;
           updated_at?: string | null;
+          url_redirects?: Json;
         };
         Relationships: [];
       };
