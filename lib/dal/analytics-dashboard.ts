@@ -6,6 +6,7 @@ import { countProducts } from "./products";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { listAdminSites, listSites } from "./sites";
 import { resolveEstimatedRevenuePerClick } from "@/lib/analytics/epc";
+import { getDailyCommissionsRevenue } from "./commissions";
 import type { SiteRow } from "@/types/database";
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -83,12 +84,24 @@ export async function getRevenueTrend(
   estRevenuePerClick: number,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<RevenueTrendPoint[]> {
-  const dailyClicks = await getDailyClicks(siteId, days, getClient);
-  return dailyClicks.map((d) => ({
-    date: d.date,
-    clicks: d.count,
-    revenue: parseFloat((d.count * estRevenuePerClick).toFixed(2)),
-  }));
+  const [dailyClicks, commissionRevenue] = await Promise.all([
+    getDailyClicks(siteId, days, getClient),
+    getDailyCommissionsRevenue(siteId, days, getClient),
+  ]);
+
+  // B-F3 / P1: if we have any real commission data in the window, show real
+  // revenue per day. Days without commissions are 0. If no real commissions
+  // exist at all, fall back to the click-based estimate so the chart still
+  // renders for sites that have not yet connected CJ.
+  const hasRealCommissions = commissionRevenue.size > 0;
+
+  return dailyClicks.map((d) => {
+    const realRevenue = commissionRevenue.get(d.date) ?? 0;
+    const revenue = hasRealCommissions
+      ? realRevenue
+      : parseFloat((d.count * estRevenuePerClick).toFixed(2));
+    return { date: d.date, clicks: d.count, revenue };
+  });
 }
 
 // ── Summary KPIs ────────────────────────────────────────────────────────
@@ -110,49 +123,54 @@ export async function getAnalyticsSummary(
     countContent({ siteId, status: "published" }, getClient),
   ]);
 
-  const estimatedRevenue = totalClicks * estRevenuePerClick;
-
-  // B-F3: the previous formula was `estimatedRevenue / totalClicks` which reduces
-  // algebraically to `estRevenuePerClick` for all totalClicks > 0 — a tautology,
-  // not a real average order value. Compute real AOV from actual commission
-  // sale_amount rows for this site and period instead.
+  // B-F3 / P1: the previous formula was `totalClicks * estRevenuePerClick`.
+  // Replace with real commission revenue. We still fall back to the estimate
+  // if the commissions query fails, so the dashboard is never blank.
+  let realRevenueTotal = 0;
   let avgOrderValue = 0;
-  // Set based on outcome: "computed" when in-window orders exist,
-  // "empty-period" when query succeeds but no in-window orders exist,
-  // and "query-failure" when the query throws or returns an error.
   let avgOrderValueStatus: AovIndication;
   try {
     const sb = await Promise.resolve(getClient());
     const { data: commRows, error: commError } = await sb
       .from("commissions")
-      .select("sale_amount")
+      .select("commission_amount, sale_amount")
       .eq("site_id", siteId)
       .gte("event_date", since)
       .in("status", ["approved", "paid"]);
     if (commError) {
-      // a query-level error is a failure, not an empty period
       throw commError;
     }
     const orders = (commRows ?? []).filter(
-      (r: { sale_amount: number | null }) => Number(r.sale_amount) > 0,
+      (r: { commission_amount: number | null; sale_amount: number | null }) =>
+        Number(r.commission_amount) > 0 || Number(r.sale_amount) > 0,
     );
     if (orders.length > 0) {
-      const totalSale = orders.reduce(
-        (s: number, r: { sale_amount: number | null }) => s + Number(r.sale_amount),
+      realRevenueTotal = orders.reduce(
+        (s: number, r: { commission_amount: number | null }) =>
+          s + Number(r.commission_amount ?? 0),
         0,
       );
-      avgOrderValue = parseFloat((totalSale / orders.length).toFixed(2));
+      const totalSale = orders.reduce(
+        (s: number, r: { sale_amount: number | null }) => s + Number(r.sale_amount ?? 0),
+        0,
+      );
+      avgOrderValue = totalSale > 0 ? parseFloat((totalSale / orders.length).toFixed(2)) : 0;
       avgOrderValueStatus = "computed";
     } else {
-      // query succeeded but no orders fell in the window
       avgOrderValueStatus = "empty-period";
     }
   } catch {
-    // commission-query failure — fall back to 0 and flag it as a query failure
-    // (distinct from an empty period), retaining no partial results
+    realRevenueTotal = 0;
     avgOrderValue = 0;
     avgOrderValueStatus = "query-failure";
   }
+
+  // If real commission revenue exists for the period, use it. Otherwise fall back
+  // to the click-based estimate so the KPI card always shows a number.
+  const estimatedRevenue =
+    realRevenueTotal > 0
+      ? parseFloat(realRevenueTotal.toFixed(2))
+      : totalClicks * estRevenuePerClick;
 
   let growthRatePct = 0;
   if (prevClicks > 0) {

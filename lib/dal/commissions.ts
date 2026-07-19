@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { assertRow } from "./type-guards";
+import { assertRow, assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface ProductEpcRow {
@@ -198,4 +198,44 @@ export async function getEpcByProductIds(
     }
   }
   return out;
+}
+
+/**
+ * B-F3 / P1: Real CJ (and any other network) commission revenue per day.
+ * Returns a map of ISO date (`YYYY-MM-DD`) -> summed commission_amount for
+ * approved/paid commissions in the requested window.
+ *
+ * `event_date` is the network-reported transaction date, not the ingestion date,
+ * so the chart aligns with when the sale actually happened.
+ */
+export async function getDailyCommissionsRevenue(
+  siteId: string,
+  days: number,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<Map<string, number>> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceDate = since.toISOString().split("T")[0]!;
+
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from(COMMISSION_TABLE)
+    .select("event_date, commission_amount")
+    .eq("site_id", siteId)
+    .gte("event_date", sinceDate)
+    .in("status", ["approved", "paid"]);
+
+  if (error) throw error;
+
+  const rows = assertRows<{ event_date: string | null; commission_amount: number | null }>(
+    data ?? [],
+  );
+  const byDate = new Map<string, number>();
+  for (const row of rows) {
+    const date = row.event_date;
+    const amount = typeof row.commission_amount === "number" ? row.commission_amount : 0;
+    if (!date || !Number.isFinite(amount) || amount <= 0) continue;
+    byDate.set(date, parseFloat(((byDate.get(date) ?? 0) + amount).toFixed(2)));
+  }
+  return byDate;
 }
