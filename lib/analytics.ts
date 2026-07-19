@@ -8,6 +8,7 @@ export const DEFAULT_GA4_MEASUREMENT_ID = "G-3PQRHQ4MTF";
 
 export const GA4_LINKER_DOMAINS = [
   "wristnerd.xyz",
+  "www.wristnerd.xyz",
   "compareai.site",
   "cryptoranked.xyz",
   "arabictools.wristnerd.xyz",

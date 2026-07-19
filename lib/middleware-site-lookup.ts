@@ -61,7 +61,7 @@ async function _fetchSiteRowByDomain(domain: string): Promise<MiddlewareSiteRow 
       "/rest/v1/sites",
       supabaseUrl.endsWith("/") ? supabaseUrl : `${supabaseUrl}/`,
     );
-    endpoint.searchParams.set("select", "id,slug,is_active");
+    endpoint.searchParams.set("select", "id,slug,is_active,url_redirects");
     endpoint.searchParams.set("domain", `eq.${domain}`);
     endpoint.searchParams.set("limit", "1");
 

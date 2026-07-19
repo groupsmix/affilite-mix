@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { getCurrentSite } from "@/lib/site-context";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { isStaticConfigSite } from "@/lib/site-config-authority";
+import { PATHNAME_HEADER } from "@/lib/request-path";
 import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
 import { AdSlot } from "./components/ads/ad-slot";
@@ -40,6 +42,9 @@ export async function generateMetadata(): Promise<Metadata> {
   // Dynamic favicon: prefer DB favicon_url, then config, then default
   const finalFavicon = dbFaviconUrl || site.brand.faviconUrl || "/favicon.svg";
 
+  const headerList = await headers();
+  const pathname = headerList.get(PATHNAME_HEADER) ?? "/";
+
   return {
     // Use an absolute title so the root layout's `%s | ${site.name}`
     // template does not double the brand into "WristNerd | WristNerd".
@@ -47,6 +52,13 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { absolute: metaTitle || `${site.name} — ${site.brand.niche}` },
     description: metaDescription || `${site.name} — curated content and product recommendations`,
     icons: { icon: finalFavicon },
+    alternates: {
+      canonical: pathname,
+      languages: {
+        [site.language ?? "en"]: pathname,
+        "x-default": pathname,
+      },
+    },
     ...(ogImageUrl && {
       openGraph: { images: [{ url: ogImageUrl, width: 1200, height: 630 }] },
     }),
