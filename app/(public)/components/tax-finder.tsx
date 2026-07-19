@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, BadgeCheck, Calculator } from "lucide-react";
+import { ArrowRight, BadgeCheck, Calculator, Check } from "lucide-react";
 import { ProductCardCta } from "./product-card-client";
 import { ProductLogo } from "./product-logo";
 
@@ -78,7 +78,7 @@ const TOPICS: {
 ];
 
 const chip =
-  "rounded-full border px-4 py-2.5 text-sm font-semibold transition-all cursor-pointer select-none active:scale-[0.98]";
+  "rounded-full border px-5 py-3 text-[15px] font-semibold transition-all cursor-pointer select-none active:scale-[0.98]";
 
 export function TaxFinder({
   tools,
@@ -101,12 +101,12 @@ export function TaxFinder({
   const guideHref = topic ? guideHrefs?.[topic] : undefined;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-lg sm:p-6">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-7">
       <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500" aria-hidden="true" />
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="flex items-center gap-2">
-          <Calculator className="size-5 text-emerald-600" aria-hidden="true" />
-          <p className="text-lg font-bold text-slate-900">What did you do with crypto?</p>
+          <Calculator className="size-6 text-emerald-700" aria-hidden="true" />
+          <p className="text-xl font-bold text-slate-900">What did you do with crypto?</p>
         </div>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
           {daysToDeadline} days to 31 Oct
@@ -127,11 +127,14 @@ export function TaxFinder({
               onClick={() => setTopic(t.k)}
               className={`${chip} ${
                 on
-                  ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
-                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"
+                  ? "border-emerald-700 bg-emerald-700 text-white shadow-md ring-2 ring-emerald-700 ring-offset-2 ring-offset-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-emerald-500 hover:bg-emerald-50"
               }`}
             >
-              {t.label}
+              <span className="flex items-center gap-2">
+                {on && <Check className="size-4" aria-hidden="true" />}
+                {t.label}
+              </span>
             </button>
           );
         })}

@@ -3,17 +3,26 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ImageIcon } from "lucide-react";
+import { FileText, ImageIcon } from "lucide-react";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
 
 interface ContentCardImageProps {
   href: string;
   src?: string | null;
   alt: string;
+  title?: string;
+  type?: string;
   priority?: boolean;
 }
 
-export function ContentCardImage({ href, src, alt, priority = false }: ContentCardImageProps) {
+export function ContentCardImage({
+  href,
+  src,
+  alt,
+  title,
+  type,
+  priority = false,
+}: ContentCardImageProps) {
   const [imgError, setImgError] = useState(false);
 
   const image =
@@ -30,15 +39,39 @@ export function ContentCardImage({ href, src, alt, priority = false }: ContentCa
         loading={priority ? "eager" : "lazy"}
         onError={() => setImgError(true)}
       />
-    ) : (
-      <div className="flex h-full w-full items-center justify-center bg-gray-100 text-gray-400">
-        <ImageIcon className="h-10 w-10" aria-hidden="true" />
+    ) : null;
+
+  const fallback = !image && (
+    <div
+      className="flex h-full w-full flex-col justify-end bg-slate-800 bg-cover bg-center p-4"
+      style={{ backgroundImage: "url(/images/content-fallback-bg.png)" }}
+      aria-hidden={!!title}
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent" />
+      <div className="relative z-10">
+        {type && (
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-100 backdrop-blur-sm">
+            <FileText className="size-3" aria-hidden="true" />
+            {type}
+          </span>
+        )}
+        {title && (
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-white shadow-black drop-shadow-md">
+            {title}
+          </p>
+        )}
+        {!title && <ImageIcon className="size-10 text-white/80" aria-hidden="true" />}
       </div>
-    );
+    </div>
+  );
 
   return (
-    <Link href={href} className="relative block aspect-[16/10] w-full overflow-hidden bg-gray-100">
-      {image}
+    <Link
+      href={href}
+      aria-label={alt}
+      className="relative block aspect-[16/10] w-full overflow-hidden rounded-t-2xl bg-gray-100"
+    >
+      {image ?? fallback}
     </Link>
   );
 }
