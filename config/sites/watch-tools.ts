@@ -4,7 +4,7 @@ export const watchToolsSite = defineSite({
   id: "watch-tools",
   name: "WristNerd",
   domain: "wristnerd.xyz",
-  aliases: ["watch.localhost"],
+  aliases: ["www.wristnerd.xyz", "watch.localhost"],
   niche: "Watch Gift Guides & Reviews",
   description:
     "Expert watch gift guides and reviews — honest ratings and a proprietary Gift-Worthiness Score to help you pick the perfect watch.",
