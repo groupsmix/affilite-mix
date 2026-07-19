@@ -79,7 +79,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
       <header className="mb-8">
         <h1 className="mb-4 text-3xl font-bold">{site.language === "ar" ? "بحث" : "Search"}</h1>
-        <Suspense>
+        <Suspense
+          fallback={
+            <div className="flex gap-2" aria-hidden="true">
+              <div className="relative flex-1">
+                <div className="h-11 w-full rounded-lg border border-gray-200 bg-gray-100" />
+              </div>
+              <div className="h-11 w-24 rounded-lg bg-gray-100" />
+            </div>
+          }
+        >
           <SearchInput
             placeholder={
               site.language === "ar"
