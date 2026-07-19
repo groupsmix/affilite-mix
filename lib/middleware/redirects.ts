@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeRedirectUrl } from "@/lib/safe-redirect";
 import type { SiteRedirect } from "@/lib/middleware/site-resolution";
-import type { VerifiedSiteRef } from "@/lib/security/allowed-origins";
 
 function normalizePath(value: string): string {
   const trimmed = value.trim();
@@ -16,15 +16,8 @@ function findRedirect(
     const source = normalizePath(redirect.source_path);
     if (!source) continue;
     if (normalizedPath === source || pathname === redirect.source_path) {
-      const destination = redirect.destination_path.startsWith("http")
-        ? redirect.destination_path
-        : normalizePath(redirect.destination_path);
-      if (!destination) continue;
-      const destNormalized = normalizePath(
-        destination.startsWith("http") ? new URL(destination).pathname : destination,
-      );
-      if (destNormalized === normalizedPath) continue; // avoid loop
-      return { destination, permanent: redirect.permanent === true };
+      if (!redirect.destination_path) continue;
+      return { destination: redirect.destination_path, permanent: redirect.permanent === true };
     }
   }
   return null;
@@ -33,21 +26,29 @@ function findRedirect(
 export function applyRedirects(
   request: NextRequest,
   redirects: SiteRedirect[],
-  verifiedSite: VerifiedSiteRef | null,
 ): NextResponse | null {
   const redirect = findRedirect(request.nextUrl.pathname, redirects);
   if (!redirect) return null;
 
-  const isAbsolute =
-    redirect.destination.startsWith("http://") || redirect.destination.startsWith("https://");
-  const target = isAbsolute
-    ? new URL(redirect.destination)
-    : new URL(redirect.destination, `https://${verifiedSite?.domain ?? request.nextUrl.hostname}`);
+  // Validate the configured destination against the current request origin.
+  // safeRedirectUrl rejects off-site, malformed, or non-HTTP(S) targets.
+  const safeDestination = safeRedirectUrl(redirect.destination, request);
 
-  // Forward source query string for tracking/UTMs on relative redirects.
-  if (!isAbsolute && request.nextUrl.search) {
-    target.search = request.nextUrl.search;
+  try {
+    const target = new URL(safeDestination, request.url);
+
+    // Avoid redirect loops where the destination is the same path.
+    if (normalizePath(target.pathname) === normalizePath(request.nextUrl.pathname)) {
+      return null;
+    }
+
+    // Forward source query string for tracking/UTMs on relative/same-origin redirects.
+    if (!safeDestination.startsWith("http://") && !safeDestination.startsWith("https://")) {
+      target.search = request.nextUrl.search;
+    }
+
+    return NextResponse.redirect(target, redirect.permanent ? 301 : 302);
+  } catch {
+    return null;
   }
-
-  return NextResponse.redirect(target, redirect.permanent ? 301 : 302);
 }

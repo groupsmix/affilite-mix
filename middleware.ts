@@ -164,7 +164,7 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   ctx.traceId = traceId;
 
   // ── Per-site URL redirects (301/302 hygiene) — BEFORE trailing-slash ──
-  const redirectResponse = applyRedirects(request, redirects, verifiedSite);
+  const redirectResponse = applyRedirects(request, redirects);
   if (redirectResponse) return redirectResponse;
 
   // ── Trailing-slash normalization (SA9) — AFTER site resolution ──
