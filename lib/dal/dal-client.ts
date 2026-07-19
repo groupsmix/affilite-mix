@@ -74,7 +74,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Brand is nominal — `string & { __brand: "SiteId" }` is not assignable
  * from a bare `string` without an explicit cast.
  */
-type SiteId = string & { readonly __brand: unique symbol };
+export type SiteId = string & { readonly __brand: unique symbol };
 
 /** Type returned by both getTenantClient() and getPrivilegedSupabaseClient(). */
 type DalClient = SupabaseClient;

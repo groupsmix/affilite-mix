@@ -123,10 +123,3 @@ export function recordUnknownHostKvAccess(host: string): { allowed: boolean } {
 export function _resetUnknownHostGuardForTests(): void {
   recentUnknownHosts.clear();
 }
-
-const _internals = {
-  WINDOW_MS,
-  MAX_UNIQUE_HOSTS,
-  NEGATIVE_CACHE_TTL_FLOOR_SECONDS,
-  NEGATIVE_CACHE_TTL_CEILING_SECONDS,
-};

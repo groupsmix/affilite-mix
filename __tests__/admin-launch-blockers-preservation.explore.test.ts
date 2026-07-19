@@ -37,7 +37,6 @@ import fc from "fast-check";
 
 // Real, unfixed code under preservation:
 import { getDashboardStats, type DashboardStats } from "@/lib/dal/dashboard-stats";
-import { type NicheHealthRow } from "@/lib/dal/niche-health";
 import { validateCreateProduct } from "@/lib/validation";
 import { validatePasswordPolicy } from "@/lib/password-policy";
 // ── Shared resolver harness (same injection the Phase-1 tests use) ──────────

@@ -9,7 +9,6 @@ import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 import {
   COMPARISON_FEATURES,
   CRYPTO_TAX_PRODUCT_FEATURES,
-  type CryptoTaxProductFeatures,
   type ComparableFeatureKey,
 } from "@/lib/crypto-tax-au-tools";
 

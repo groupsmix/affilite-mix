@@ -1,4 +1,4 @@
-import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { type DalClientGetter } from "./dal-client";
 import { MAX_LIMIT } from "./pagination-guard";
 import { logger } from "@/lib/logger";
 // The RPC aggregates global/cross-tenant data (products, content, clicks,

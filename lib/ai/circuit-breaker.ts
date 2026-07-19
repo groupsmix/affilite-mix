@@ -53,7 +53,6 @@ export class CircuitBreaker {
   private lastStateChangeAt = Date.now();
   private readonly failureThreshold: number;
   private readonly recoveryTimeoutMs: number;
-  private readonly resetTimeoutMs: number;
 
   constructor(
     public readonly name: string,
@@ -61,7 +60,6 @@ export class CircuitBreaker {
   ) {
     this.failureThreshold = options.failureThreshold ?? 5;
     this.recoveryTimeoutMs = options.recoveryTimeoutMs ?? 30_000;
-    this.resetTimeoutMs = options.resetTimeoutMs ?? 300_000;
   }
 
   getState(): CircuitState {

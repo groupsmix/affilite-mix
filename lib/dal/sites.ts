@@ -1,6 +1,6 @@
 // DESIGN: No site_id filtering — this module manages the `sites` table itself (global scope).
 import { unstable_cache } from "next/cache";
-import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
+import { getAnonClient } from "@/lib/supabase-server";
 // listAdminSites reads the global `sites` registry for cross-site admin cards
 // (Niche Health, Estimated Revenue). The `authenticated` role has no SELECT
 // policy on `sites` (only `anon` and `service_role`), so tenant-scoped calls
