@@ -68,10 +68,13 @@ function decodeXmlValue(raw: string): string {
   if (cdata && cdata[1] !== undefined) {
     return cdata[1].trim();
   }
+  // Decode &amp; first so encoded entities like &amp;lt; become &lt; and
+  // then resolve to < in a single pass. The chained .replace calls process
+  // the string in order, so the order matters.
   return trimmed
+    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
 }
@@ -80,10 +83,6 @@ function extractHref(html: string | undefined): string | null {
   if (!html) return null;
   const match = html.match(/<a\b[^>]*\bhref=["']([^"']+)["']/i);
   return match?.[1]?.trim() ?? null;
-}
-
-function parseXmlFieldName(tag: string): string {
-  return tag.replace(/^\s*<\/?|\/?>\s*$/g, "");
 }
 
 function parseLinkBlock(block: string): Record<string, string> {
