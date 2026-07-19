@@ -6,7 +6,7 @@ import { clampPagination } from "./pagination-guard";
 const TABLE = "media";
 
 const LIST_COLUMNS =
-  "id, site_id, public_key, url, filename, content_type, size_bytes, alt_text, created_by, created_at, updated_at" as const;
+  "id, site_id, public_key, url, filename, content_type, size_bytes, alt_text, variants, created_by, created_at, updated_at" as const;
 
 export interface ListMediaOptions {
   siteId: string;
@@ -39,6 +39,10 @@ export interface CreateMediaInput {
   content_type?: string | null;
   size_bytes?: number | null;
   alt_text?: string | null;
+  variants?: Record<
+    string,
+    { url: string; width: number; height: number; size: number; content_type: string }
+  > | null;
   created_by?: string | null;
 }
 

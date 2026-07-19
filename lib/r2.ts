@@ -32,7 +32,6 @@
 
 import { reserveQuota, releaseQuota } from "@/lib/quotas";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
-import { logger } from "@/lib/logger";
 
 // ── Lightweight AWS Signature V4 presigner ────────────────────────────
 
@@ -49,8 +48,9 @@ async function hmacSha256(key: ArrayBuffer | Uint8Array, message: string): Promi
   return crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(message));
 }
 
-async function sha256Hex(data: string): Promise<string> {
-  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(data));
+async function sha256Hex(data: string | Uint8Array | ArrayBuffer): Promise<string> {
+  const payload = typeof data === "string" ? encoder.encode(data) : data;
+  const hash = await crypto.subtle.digest("SHA-256", payload);
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -406,12 +406,18 @@ interface SignedRequestParams {
   region: string;
   /** Optional copy-source for PUT (server-side R2 copy). */
   copySource?: string;
+  /** Content-Type to sign into a PUT request. */
+  contentType?: string;
+  /** Body length for PUT requests (must match the actual bytes sent). */
+  contentLength?: number;
+  /** Raw body for computing the signed payload hash. */
+  body?: Uint8Array;
 }
 
 /**
  * Build a fully signed S3 request (path-style). Used for HEAD / DELETE /
- * server-side COPY (PUT with x-amz-copy-source) operations triggered by
- * /api/admin/upload/finalize.
+ * server-side COPY (PUT with x-amz-copy-source), and server-side PUT with
+ * body operations triggered by /api/admin/upload/finalize.
  */
 async function signRequest(
   params: SignedRequestParams,
@@ -423,12 +429,18 @@ async function signRequest(
   const path = `/${params.bucket}/${encodeS3Key(params.key)}`;
   const scope = `${dateStamp}/${params.region}/s3/aws4_request`;
 
-  const payloadHashHex = await sha256Hex("");
+  const payloadHashHex = params.body ? await sha256Hex(params.body) : await sha256Hex("");
   const headers: Array<[string, string]> = [
     ["host", host],
     ["x-amz-content-sha256", payloadHashHex],
     ["x-amz-date", amzDate],
   ];
+  if (params.contentType) {
+    headers.push(["content-type", params.contentType]);
+  }
+  if (typeof params.contentLength === "number" && params.contentLength > 0) {
+    headers.push(["content-length", String(params.contentLength)]);
+  }
   if (params.copySource) {
     headers.push(["x-amz-copy-source", params.copySource]);
   }
@@ -457,6 +469,12 @@ async function signRequest(
     "x-amz-date": amzDate,
     Authorization: `AWS4-HMAC-SHA256 Credential=${params.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
   };
+  if (params.contentType) {
+    out["content-type"] = params.contentType;
+  }
+  if (typeof params.contentLength === "number" && params.contentLength > 0) {
+    out["content-length"] = String(params.contentLength);
+  }
   if (params.copySource) {
     out["x-amz-copy-source"] = params.copySource;
   }
@@ -527,63 +545,6 @@ export async function headStagingObject(stagingKey: string): Promise<number | nu
 }
 
 /**
- * Promote a validated staging object into the public bucket via R2's
- * server-side copy. Returns the canonical public URL.
- */
-export async function promoteToPublicBucket(
-  stagingKey: string,
-  contentType: string,
-): Promise<{ publicKey: string; publicUrl: string }> {
-  const env = readBucketEnv();
-  if (env.privateBucket === env.publicBucket) {
-    // Same bucket: nothing to copy. The public URL is already correct.
-    return {
-      publicKey: stagingKey,
-      publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${stagingKey}`,
-    };
-  }
-  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
-  const copySource = `/${env.privateBucket}/${encodeS3Key(stagingKey)}`;
-  const signed = await signRequest({
-    method: "PUT",
-    endpoint,
-    bucket: env.publicBucket,
-    key: stagingKey,
-    accessKeyId: env.accessKeyId,
-    secretAccessKey: env.secretAccessKey,
-    region: "auto",
-    copySource,
-  });
-  // AUDIT-FIX: Set Content-Disposition to "inline" with the content type
-  // so browsers render images normally but don't execute any non-image content.
-  // The filename from the staging key is sanitized to the UUID.<ext> portion.
-  const filename = stagingKey.split("/").pop() ?? stagingKey;
-  const res = await fetchWithTimeout(signed.url, {
-    method: "PUT",
-    headers: {
-      ...signed.headers,
-      "Content-Type": contentType,
-      "Content-Disposition": `inline; filename="${filename}"`,
-    },
-    timeoutMs: 30000,
-  });
-  if (!res.ok) {
-    throw new Error(`R2 promote failed: ${res.status}`);
-  }
-  // Best-effort cleanup of staging object on success.
-  await deleteFromBucket(env.privateBucket, stagingKey).catch((e) => {
-    logger.warn("Failed to clean up staging object after promotion", {
-      stagingKey,
-      error: e instanceof Error ? e.message : String(e),
-    });
-  });
-  return {
-    publicKey: stagingKey,
-    publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${stagingKey}`,
-  };
-}
-
-/**
  * Delete an object from the private staging bucket (used when magic-
  * byte validation fails so the bad upload doesn't linger).
  */
@@ -620,4 +581,69 @@ async function deleteFromBucket(bucket: string, key: string): Promise<void> {
   if (!res.ok && res.status !== 204 && res.status !== 404) {
     throw new Error(`R2 delete failed: ${res.status}`);
   }
+}
+
+/**
+ * Download the full validated staging object so the server can process it
+ * (e.g. image compression) before it is ever served publicly.
+ */
+export async function fetchStagingObject(stagingKey: string): Promise<Uint8Array> {
+  const env = readBucketEnv();
+  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+  const signed = await signRequest({
+    method: "GET",
+    endpoint,
+    bucket: env.privateBucket,
+    key: stagingKey,
+    accessKeyId: env.accessKeyId,
+    secretAccessKey: env.secretAccessKey,
+    region: "auto",
+  });
+  const res = await fetchWithTimeout(signed.url, {
+    method: "GET",
+    headers: signed.headers,
+    timeoutMs: 60_000,
+  });
+  if (!res.ok) {
+    throw new Error(`R2 staging fetch failed: ${res.status}`);
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/**
+ * Upload processed bytes directly to the public R2 bucket with the correct
+ * AWS Signature V4 content hash. Used for optimized image variants.
+ */
+export async function putPublicObject(
+  key: string,
+  contentType: string,
+  bytes: Uint8Array,
+): Promise<{ publicKey: string; publicUrl: string }> {
+  const env = readBucketEnv();
+  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+  const signed = await signRequest({
+    method: "PUT",
+    endpoint,
+    bucket: env.publicBucket,
+    key,
+    accessKeyId: env.accessKeyId,
+    secretAccessKey: env.secretAccessKey,
+    region: "auto",
+    contentType,
+    contentLength: bytes.length,
+    body: bytes,
+  });
+  const res = await fetchWithTimeout(signed.url, {
+    method: "PUT",
+    headers: signed.headers,
+    body: bytes,
+    timeoutMs: 60_000,
+  });
+  if (!res.ok) {
+    throw new Error(`R2 public put failed: ${res.status}`);
+  }
+  return {
+    publicKey: key,
+    publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${key}`,
+  };
 }

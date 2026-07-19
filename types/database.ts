@@ -320,6 +320,10 @@ export interface MediaRow {
   content_type: string | null;
   size_bytes: number | null;
   alt_text: string | null;
+  variants: Record<
+    string,
+    { url: string; width: number; height: number; size: number; content_type: string }
+  > | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

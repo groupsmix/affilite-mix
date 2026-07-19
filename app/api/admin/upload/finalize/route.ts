@@ -6,21 +6,23 @@ import { parseJsonBody } from "@/lib/api-error";
 import {
   deleteStagingObject,
   fetchStagingBytes,
+  fetchStagingObject,
   headStagingObject,
-  promoteToPublicBucket,
+  putPublicObject,
   sanitizeOriginalName,
 } from "@/lib/r2";
 import { createMedia } from "@/lib/dal/media";
-import { recordUsage } from "@/lib/quotas";
+import { recordUsage, releaseQuota } from "@/lib/quotas";
 import { logger } from "@/lib/logger";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { getTenantClientForSite } from "@/lib/supabase-server";
+import { optimizeImageVariants, ImageOptimizerError } from "@/lib/image-optimizer";
 
 /**
  * POST /api/admin/upload/finalize
-
- * Audit-driven hardening (#U-3 / #U-4 / #U-5 / #U-6 / #U-9):
  *
+ * Audit-driven hardening (#U-3 / #U-4 / #U-5 / #U-6 / #U-9) plus pro image
+ * optimization:
  *   • Reads the first 32 bytes from the *private staging* bucket using a
  *     signed S3 GET so the file is never served at the public URL until
  *     it has cleared validation.
@@ -29,10 +31,12 @@ import { getTenantClientForSite } from "@/lib/supabase-server";
  *   • If validation fails, the staging object is deleted before the
  *     route returns. There is no path that leaves a malicious upload
  *     reachable.
- *   • On success the file is promoted to the public bucket via R2's
- *     server-side copy (no bytes flow through the worker) and the
- *     audit event is recorded — replacing the previous behaviour where
- *     the audit log fired before the upload completed (#U-9).
+ *   • On success the full file is downloaded, compressed into responsive
+ *     WebP variants (thumb/small/medium/master) with optional AVIF master,
+ *     and the variants are uploaded to the public bucket. The original
+ *     staging object is then removed.
+ *   • Per-tenant R2 storage quota is reconciled: the original reservation is
+ *     released and the final optimized bytes are recorded.
  */
 export const POST = withAuthz("upload", "create", async (request, { session, siteId }) => {
   const getClient = () => getTenantClientForSite(siteId, session.userId);
@@ -60,6 +64,8 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
     return NextResponse.json({ error: "Invalid stagingKey" }, { status: 400 });
   }
 
+  let stagingSize: number | null = null;
+
   try {
     const bytes = await fetchStagingBytes(stagingKey, 32);
     if (!isMagicByteMatch(expectedType, bytes)) {
@@ -70,7 +76,7 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
       // HEAD failures are non-fatal: skip the credit rather than guess.
       const size = await headStagingObject(stagingKey).catch(() => null);
       if (size !== null && size > 0 && siteId) {
-        await recordUsage(siteId, "r2_storage_bytes", -size);
+        await releaseQuota(siteId, "r2_storage_bytes", size);
       }
 
       // Delete the bad upload before returning so it can never become
@@ -90,19 +96,96 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
       );
     }
 
-    const promoted = await promoteToPublicBucket(stagingKey, expectedType);
+    // Capture the actual staging size for accurate quota reconciliation.
+    stagingSize = await headStagingObject(stagingKey).catch(() => null);
+
+    // Download the full validated file for server-side optimization.
+    const originalBytes = await fetchStagingObject(stagingKey);
+
+    const enableAvif = process.env.IMAGE_OPTIMIZER_AVIF === "true";
+    const optimized = await optimizeImageVariants(originalBytes, expectedType, { enableAvif });
+
+    // Build a deterministic folder from the original staging key:
+    // uploads/YYYY/MM/DD/<uuid>.png  ->  uploads/YYYY/MM/DD/<uuid>/master.webp
+    const baseKey = stagingKey.replace(/\.[^./]+$/, "");
+
+    const variants: Record<
+      string,
+      { url: string; width: number; height: number; size: number; content_type: string }
+    > = {};
+    let masterKey = "";
+    let masterUrl = "";
+    let masterSize = 0;
+
+    await Promise.all(
+      optimized.variants.map(async (variant) => {
+        const ext = variant.format === "jpeg" ? "jpg" : variant.format;
+        const variantKey = `${baseKey}/${variant.name}.${ext}`;
+        const uploaded = await putPublicObject(variantKey, variant.contentType, variant.bytes);
+        variants[variant.name] = {
+          url: uploaded.publicUrl,
+          width: variant.width,
+          height: variant.height,
+          size: variant.size,
+          content_type: variant.contentType,
+        };
+        if (variant.name === "master") {
+          masterKey = uploaded.publicKey;
+          masterUrl = uploaded.publicUrl;
+          masterSize = variant.size;
+        }
+      }),
+    );
+
+    // Guard: if "master" variant was somehow skipped, fall back to the first.
+    if (!masterKey) {
+      const first = optimized.variants[0];
+      if (first) {
+        const ext = first.format === "jpeg" ? "jpg" : first.format;
+        const variantKey = `${baseKey}/${first.name}.${ext}`;
+        const fallback = await putPublicObject(variantKey, first.contentType, first.bytes);
+        variants[first.name] = {
+          url: fallback.publicUrl,
+          width: first.width,
+          height: first.height,
+          size: first.size,
+          content_type: first.contentType,
+        };
+        masterKey = fallback.publicKey;
+        masterUrl = fallback.publicUrl;
+        masterSize = first.size;
+      }
+    }
+
+    // Best-effort cleanup of the original staging object now that variants
+    // are safely in the public bucket.
+    await deleteStagingObject(stagingKey).catch((err) => {
+      logger.warn("Failed to clean up staging object after optimization", {
+        stagingKey,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    // Reconcile per-tenant storage quota: release the original reservation
+    // and record the final optimized footprint.
+    if (stagingSize !== null && stagingSize > 0 && siteId) {
+      await releaseQuota(siteId, "r2_storage_bytes", stagingSize);
+    }
+    if (siteId) {
+      await recordUsage(siteId, "r2_storage_bytes", optimized.totalBytes);
+    }
 
     // Record the validated upload in the unified media library.
     try {
-      const size = await headStagingObject(stagingKey);
       await createMedia(
         {
           site_id: siteId,
-          public_key: promoted.publicKey,
-          url: promoted.publicUrl,
+          public_key: masterKey,
+          url: masterUrl,
           filename: sanitizeOriginalName(fileName),
-          content_type: expectedType,
-          size_bytes: size ?? null,
+          content_type: "image/webp",
+          size_bytes: masterSize,
+          variants,
           created_by: session.userId ?? null,
         },
         getClient,
@@ -119,16 +202,32 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
       actor: session.email ?? session.userId ?? "admin",
       action: "upload",
       entity_type: "image",
-      entity_id: promoted.publicKey,
-      details: { contentType: expectedType, publicUrl: promoted.publicUrl },
+      entity_id: masterKey,
+      details: { contentType: "image/webp", publicUrl: masterUrl, variants: Object.keys(variants) },
     });
 
     return NextResponse.json({
       ok: true,
-      publicUrl: promoted.publicUrl,
-      publicKey: promoted.publicKey,
+      publicUrl: masterUrl,
+      publicKey: masterKey,
+      variants,
+      original: {
+        width: optimized.originalWidth,
+        height: optimized.originalHeight,
+        format: optimized.originalFormat,
+      },
+      optimizedBytes: optimized.totalBytes,
     });
   } catch (err) {
+    if (err instanceof ImageOptimizerError) {
+      // User-facing, non-sensitive image errors map to 400.
+      if (stagingSize !== null && stagingSize > 0 && siteId) {
+        await releaseQuota(siteId, "r2_storage_bytes", stagingSize).catch(() => {});
+      }
+      await deleteStagingObject(stagingKey).catch(() => {});
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+
     captureException(err, { context: "[api/admin/upload/finalize] failed" });
     return NextResponse.json({ error: "Validation failed" }, { status: 500 });
   }
