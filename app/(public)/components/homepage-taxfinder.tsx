@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
 import { ContentCard } from "./content-card";
@@ -21,6 +20,11 @@ import {
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 import { TaxFinder, type TaxFinderTool, type TopicKey } from "./tax-finder";
+import { HeroImage } from "./hero-image";
+import { TrustSignals } from "./trust-signals";
+import { ScoreRing } from "./score-ring";
+import { StarRating } from "./star-rating";
+import { CRYPTO_TAX_PRODUCT_FEATURES } from "@/lib/crypto-tax-au-tools";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
 
@@ -73,6 +77,21 @@ function toFinderTool(p: ProductRow): TaxFinderTool {
   };
 }
 
+function parseBulletList(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/[,;]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+const subScoreLabel: Record<string, string> = {
+  features: "Features",
+  pricing: "Pricing",
+  support: "Support",
+  ato: "ATO report",
+};
+
 export function TaxFinderHomepage({
   site,
   recentContent,
@@ -124,109 +143,82 @@ export function TaxFinderHomepage({
   ];
 
   return (
-    <main>
+    <main className="bg-[#F8F9FA]">
       <JsonLd data={organizationJsonLd(site)} />
       <JsonLd data={webSiteJsonLd(site)} />
 
-      {/* Hero */}
-      <section className="border-b border-gray-200 bg-gray-50">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:py-16">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <p className="text-[13.5px] font-semibold uppercase tracking-[0.04em] text-[color:var(--color-accent-text,#15803D)]">
-                Australian crypto tax
-              </p>
-              <h1 className="mt-3 max-w-[18ch] text-4xl font-extrabold leading-[1.05] tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">
-                Find the right crypto tax tool for your ATO return.
-              </h1>
-              <p className="mt-4 max-w-[55ch] text-lg leading-relaxed text-gray-600">
-                Pick what you did with crypto. We&apos;ll show your taxable events and the software
-                built for it.
-              </p>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <a
-                  href="#finder"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:var(--color-accent,#16A34A)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
-                >
-                  Find my tool
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </a>
-                <a
-                  href="#compare"
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-800 transition-all hover:border-gray-300 hover:bg-gray-50 active:scale-[0.98]"
-                >
-                  Compare all tools
-                </a>
+      {/* Hero + Finder */}
+      <section className="border-b border-slate-200 bg-[#F8F9FA] pt-10 pb-12 sm:pt-12 sm:pb-16 lg:pb-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid items-start gap-10 lg:grid-cols-2">
+            <div className="flex flex-col gap-6">
+              <div>
+                <p className="text-[13.5px] font-semibold uppercase tracking-[0.04em] text-emerald-700">
+                  Australian crypto tax
+                </p>
+                <h1 className="mt-3 max-w-[20ch] text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+                  Find the right crypto tax tool for your ATO return.
+                </h1>
+                <p className="mt-4 max-w-[55ch] text-lg leading-relaxed text-slate-600">
+                  Pick what you did with crypto. We&apos;ll show your taxable events and the
+                  software built for it.
+                </p>
               </div>
-            </div>
 
-            <div className="relative mt-6 aspect-[3/2] w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg lg:mt-0">
-              <Image
-                src="/images/hero-crypto-tax-au.png"
-                alt="Crypto tax report with Australian dollar coins, calculator and rising chart"
-                fill
-                priority
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
+              <TaxFinder
+                tools={finderTools}
+                accountant={accountant}
+                guideHrefs={guideHrefs}
+                daysToDeadline={days}
+                affiliateDisclosure=""
+                sourceType="homepage-finder"
               />
             </div>
+
+            <div className="lg:sticky lg:top-28">
+              <HeroImage />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Trust strip */}
-      <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-            <TrustBadge text="Based on ATO rules" />
-            <TrustBadge text="Covers DeFi, staking and NFTs" />
-            <TrustBadge text="No signup required" />
-          </div>
-        </div>
-      </section>
-
-      {/* Finder */}
-      <section id="finder" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <TaxFinder
-          tools={finderTools}
-          accountant={accountant}
-          guideHrefs={guideHrefs}
-          daysToDeadline={days}
-          affiliateDisclosure={site.affiliateDisclosure}
-          sourceType="homepage-finder"
-        />
-      </section>
+      {/* Trust signals */}
+      <TrustSignals
+        affiliateDisclosure={site.affiliateDisclosure}
+        contentDisclosure={site.contentDisclosure}
+        contactEmail={site.brand.contactEmail}
+      />
 
       {/* Comparison */}
       {ranked.length > 0 && (
-        <section id="compare" className="border-t border-gray-200 bg-gray-50 py-12 lg:py-16">
+        <section id="compare" className="border-y border-slate-200 bg-[#F8F9FA] py-12 lg:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
-              Compare every tool
-            </h2>
-            <p className="mt-2 max-w-[55ch] text-gray-600">
-              The full ranking, if you prefer to browse before you pick.
-            </p>
-            <div className="mt-8 flex flex-col gap-4">
+            <div className="mb-8">
+              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+                Compare every tool
+              </h2>
+              <p className="mt-2 max-w-[55ch] text-slate-600">
+                Editorial ratings, feature breakdowns and quick pros & cons so you can choose with
+                confidence.
+              </p>
+            </div>
+            <div className="flex flex-col gap-4">
               {ranked.map((p, i) => (
                 <ToolRow key={p.id} product={p} index={i} sourceType="homepage-compare" />
               ))}
             </div>
-            <p className="mt-5 max-w-3xl text-[13px] leading-relaxed text-gray-500">
-              {site.affiliateDisclosure}
-            </p>
           </div>
         </section>
       )}
 
       {/* Topic hubs */}
       {categories.length > 0 && (
-        <section className="border-t border-gray-200 bg-white py-12 lg:py-16">
+        <section className="border-b border-slate-200 bg-white py-12 lg:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
+            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
               Crypto tax by transaction type
             </h2>
-            <p className="mt-2 max-w-[55ch] text-gray-600">
+            <p className="mt-2 max-w-[55ch] text-slate-600">
               Go deeper on how the ATO treats each one.
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -236,20 +228,20 @@ export function TaxFinderHomepage({
                   <Link
                     key={cat.id}
                     href={`/category/${cat.slug}`}
-                    className={`group rounded-2xl border border-gray-200 bg-gray-50 p-5 transition-all hover:-translate-y-0.5 hover:border-[color:var(--color-accent,#16A34A)]/30 hover:bg-white hover:shadow-md ${
+                    className={`group rounded-2xl border border-slate-200 bg-[#F8F9FA] p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-white hover:shadow-md ${
                       i === 0 ? "sm:col-span-2" : ""
                     }`}
                   >
-                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-[color:var(--color-accent,#16A34A)]/10 text-[color:var(--color-accent-text,#15803D)] ring-1 ring-[color:var(--color-accent,#16A34A)]/10 transition-colors group-hover:bg-[color:var(--color-accent,#16A34A)] group-hover:text-white group-hover:ring-[color:var(--color-accent,#16A34A)]">
+                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 transition-colors group-hover:bg-emerald-600 group-hover:text-white group-hover:ring-emerald-600">
                       <Icon className="size-5" aria-hidden="true" />
                     </span>
-                    <h3 className="mt-3 font-bold text-gray-900">{cat.name}</h3>
+                    <h3 className="mt-3 font-bold text-slate-900">{cat.name}</h3>
                     {cat.description && (
-                      <p className="mt-1 line-clamp-2 text-[13px] text-gray-500">
+                      <p className="mt-1 line-clamp-2 text-[13px] text-slate-500">
                         {cat.description}
                       </p>
                     )}
-                    <span className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--color-accent-text,#15803D)] group-hover:underline">
+                    <span className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-emerald-700 group-hover:underline">
                       Learn more <ArrowRight className="size-3.5" aria-hidden="true" />
                     </span>
                   </Link>
@@ -266,16 +258,16 @@ export function TaxFinderHomepage({
           <section className="py-12 lg:py-16">
             <div className="mb-6 flex items-end justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
+                <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
                   Popular guides
                 </h2>
-                <p className="mt-2 text-gray-600">
+                <p className="mt-2 text-slate-600">
                   Plain-English answers for Australian investors.
                 </p>
               </div>
               <Link
                 href={`/${firstContentType}`}
-                className="shrink-0 text-sm font-semibold text-[color:var(--color-accent-text,#15803D)] hover:underline"
+                className="shrink-0 text-sm font-semibold text-emerald-700 hover:underline"
               >
                 View all
               </Link>
@@ -290,31 +282,28 @@ export function TaxFinderHomepage({
 
         {/* FAQ */}
         <section className="pb-16 pt-4">
-          <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
             Common questions
           </h2>
-          <div className="mt-5 border-t border-gray-200 divide-y divide-gray-200">
+          <div className="mt-5 divide-y divide-slate-200 border-t border-slate-200">
             {faqs.map((f) => (
               <details key={f.q} className="group py-1">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3 text-[17px] font-bold text-gray-900 marker:hidden [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3 text-[17px] font-bold text-slate-900 marker:hidden [&::-webkit-details-marker]:hidden">
                   {f.q}
                   <ChevronDown
-                    className="size-5 shrink-0 text-gray-400 transition-transform group-open:rotate-180"
+                    className="size-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
                     aria-hidden="true"
                   />
                 </summary>
-                <p className="pb-4 max-w-3xl text-[15px] leading-relaxed text-gray-700">{f.a}</p>
+                <p className="pb-4 max-w-3xl text-[15px] leading-relaxed text-slate-700">{f.a}</p>
               </details>
             ))}
           </div>
-          <p className="mt-5 max-w-3xl text-[13px] leading-relaxed text-gray-500">
-            {site.contentDisclosure}
-          </p>
         </section>
 
         {/* Empty state */}
         {recentContent.length === 0 && featuredProducts.length === 0 && (
-          <div className="py-16 text-center text-gray-500">
+          <div className="py-16 text-center text-slate-500">
             <p className="text-lg">No content yet</p>
           </div>
         )}
@@ -333,20 +322,23 @@ function ToolRow({
   sourceType: string;
 }) {
   const isTop = index === 0;
+  const slugData = CRYPTO_TAX_PRODUCT_FEATURES[product.slug];
+  const subScores = slugData?.subScores;
+  const pros = parseBulletList(product.pros);
+  const cons = parseBulletList(product.cons);
+
   return (
     <div
-      className={`group grid grid-cols-1 items-start gap-5 rounded-2xl border p-5 transition-all hover:-translate-y-0.5 sm:grid-cols-[auto_1fr_auto] sm:items-center ${
+      className={`group grid grid-cols-1 items-start gap-5 rounded-2xl border p-5 transition-all sm:grid-cols-[auto_1fr_auto] ${
         isTop
-          ? "border-[color:var(--color-accent,#16A34A)]/30 bg-white shadow-md"
-          : "border-gray-200 bg-white hover:shadow-md"
+          ? "border-emerald-300 bg-white shadow-md"
+          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-md"
       }`}
     >
       <div className="flex items-center gap-3">
         <span
           className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
-            isTop
-              ? "bg-[color:var(--color-accent,#16A34A)] text-white"
-              : "bg-gray-100 text-gray-500"
+            isTop ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
           }`}
         >
           {index + 1}
@@ -355,49 +347,107 @@ function ToolRow({
           name={product.name}
           src={product.image_url}
           size={48}
-          className="rounded-lg bg-white p-1 shadow-sm ring-1 ring-gray-100"
+          className="rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-100"
           priority={index < 3}
         />
       </div>
 
       <div className="min-w-0">
-        {isTop && (
-          <span className="mb-1 inline-flex items-center rounded bg-[color:var(--color-accent,#16A34A)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-            Recommended
-          </span>
-        )}
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-lg font-bold text-gray-900">{product.name}</p>
+          {isTop && (
+            <span className="inline-flex items-center rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+              Recommended
+            </span>
+          )}
+          <p className="text-lg font-bold text-slate-900">{product.name}</p>
           {BEST_FOR[product.slug] && (
-            <span className="rounded-full bg-[color:var(--color-accent,#16A34A)]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[color:var(--color-accent-text,#15803D)]">
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-100">
               {BEST_FOR[product.slug]}
             </span>
           )}
         </div>
         {product.description && (
-          <p className="mt-1 max-w-[60ch] text-sm text-gray-600">{product.description}</p>
+          <p className="mt-1 max-w-[60ch] text-sm text-slate-600">{product.description}</p>
+        )}
+
+        {(pros.length > 0 || cons.length > 0) && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {pros.length > 0 && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Pros</p>
+                <ul className="mt-2 space-y-1.5">
+                  {pros.slice(0, 3).map((p) => (
+                    <li key={p} className="flex items-start gap-2 text-sm text-slate-700">
+                      <Check
+                        className="mt-0.5 size-3.5 shrink-0 text-emerald-600"
+                        aria-hidden="true"
+                      />
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {cons.length > 0 && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Cons</p>
+                <ul className="mt-2 space-y-1.5">
+                  {cons.slice(0, 3).map((c) => (
+                    <li key={c} className="flex items-start gap-2 text-sm text-slate-600">
+                      <span
+                        className="mt-1.5 size-1.5 shrink-0 rounded-full bg-slate-400"
+                        aria-hidden="true"
+                      />
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end sm:gap-3">
+      <div className="flex flex-col gap-3 sm:items-end">
         {product.score !== null && (
-          <div className="text-2xl font-extrabold text-gray-900">
-            {product.score.toFixed(1)}
-            <span className="text-sm font-medium text-gray-500">/10</span>
+          <div className="flex flex-col items-start gap-1 sm:items-end">
+            <ScoreRing score={product.score} size="md" label="Editorial score" />
+            <StarRating score={product.score / 2} size="sm" />
           </div>
         )}
+
+        {subScores && (
+          <div className="w-full min-w-[10rem] space-y-1.5">
+            {Object.entries(subScores).map(([key, value]) => (
+              <div key={key} className="flex items-center gap-2 text-xs">
+                <span className="w-14 shrink-0 font-medium text-slate-500">
+                  {subScoreLabel[key] ?? key}
+                </span>
+                <div className="h-1.5 flex-1 rounded-full bg-slate-100">
+                  <div
+                    className="h-1.5 rounded-full bg-emerald-500"
+                    style={{ width: `${Math.min(10, value) * 10}%` }}
+                  />
+                </div>
+                <span className="w-5 shrink-0 text-right font-semibold text-slate-700">
+                  {value.toFixed(1)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {hasUsableAffiliateUrl(product.affiliate_url) && (
           <ProductCardCta
             href={product.affiliate_url}
             slug={product.slug}
             sourceType={sourceType}
-            label={`Visit ${product.name} →`}
-            className={`inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-all active:scale-[0.98] ${
-              isTop
-                ? "text-white shadow-sm hover:opacity-90"
-                : "border border-gray-200 bg-white text-gray-800 hover:border-gray-300 hover:bg-gray-50"
-            }`}
-            style={isTop ? { backgroundColor: "var(--color-accent, #16A34A)" } : undefined}
+            label={
+              <span className="inline-flex items-center justify-center gap-2">
+                Visit site <ArrowRight className="size-4" aria-hidden="true" />
+              </span>
+            }
+            className="mt-1 inline-flex w-full items-center justify-center rounded-lg border border-slate-900 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-900 hover:text-white active:scale-[0.98] sm:w-auto"
           />
         )}
       </div>
@@ -424,15 +474,4 @@ function categoryIcon(slug: string) {
     default:
       return ShieldCheck;
   }
-}
-
-function TrustBadge({ text }: { text: string }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700">
-      <span className="inline-flex size-5 items-center justify-center rounded-full bg-[color:var(--color-accent,#16A34A)]/10">
-        <Check className="size-3.5 text-[color:var(--color-accent,#16A34A)]" aria-hidden="true" />
-      </span>
-      {text}
-    </span>
-  );
 }

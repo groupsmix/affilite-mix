@@ -99,7 +99,12 @@ export function HeaderWordmark({
     >
       {showImage && (
         // eslint-disable-next-line @next/next/no-img-element -- logo is a small, already-optimised site asset; next/image adds no value in the header and complicates token-based sizing.
-        <img src={site.brand.logo} alt="" className="h-8 w-auto" aria-hidden="true" />
+        <img
+          src={site.brand.logo}
+          alt=""
+          className={`w-auto ${logoMode === "image" ? "h-10 rounded bg-white p-1 shadow-sm" : "h-8"}`}
+          aria-hidden="true"
+        />
       )}
       {showText && (
         <span className="flex items-center gap-0.5">

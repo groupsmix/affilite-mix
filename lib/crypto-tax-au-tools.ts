@@ -14,10 +14,18 @@ export interface CryptoTaxProductFeatures {
   freeTier: string;
   support: string;
   bestFor: string;
+  subScores: {
+    features: number;
+    pricing: number;
+    support: number;
+    ato: number;
+  };
 }
 
+export type ComparableFeatureKey = keyof Omit<CryptoTaxProductFeatures, "subScores">;
+
 export const COMPARISON_FEATURES: {
-  key: keyof CryptoTaxProductFeatures;
+  key: ComparableFeatureKey;
   label: string;
 }[] = [
   { key: "pricing", label: "Pricing" },
@@ -38,6 +46,7 @@ export const CRYPTO_TAX_PRODUCT_FEATURES: Record<string, CryptoTaxProductFeature
     freeTier: "Unlimited portfolio tracking",
     support: "Chat + email",
     bestFor: "Most Australian investors",
+    subScores: { features: 9.2, pricing: 8.5, support: 8.8, ato: 9.5 },
   },
   syla: {
     pricing: "From A$59/yr",
@@ -47,6 +56,7 @@ export const CRYPTO_TAX_PRODUCT_FEATURES: Record<string, CryptoTaxProductFeature
     freeTier: "No",
     support: "Email + knowledge base",
     bestFor: "Australia-only tax minimisation",
+    subScores: { features: 8.0, pricing: 9.0, support: 7.5, ato: 9.2 },
   },
   "crypto-tax-calculator": {
     pricing: "From A$99/yr",
@@ -56,6 +66,7 @@ export const CRYPTO_TAX_PRODUCT_FEATURES: Record<string, CryptoTaxProductFeature
     freeTier: "No",
     support: "Email + chat",
     bestFor: "Complex DeFi / on-chain users",
+    subScores: { features: 9.6, pricing: 7.0, support: 8.0, ato: 9.0 },
   },
   coinledger: {
     pricing: "From ~A$79/yr",
@@ -65,6 +76,7 @@ export const CRYPTO_TAX_PRODUCT_FEATURES: Record<string, CryptoTaxProductFeature
     freeTier: "No",
     support: "Chat + email (rated highly)",
     bestFor: "Easy UX & support",
+    subScores: { features: 8.2, pricing: 8.0, support: 9.2, ato: 8.0 },
   },
   cointracking: {
     pricing: "Free tier; paid from ~A$150/yr",
@@ -74,6 +86,7 @@ export const CRYPTO_TAX_PRODUCT_FEATURES: Record<string, CryptoTaxProductFeature
     freeTier: "Up to 100 transactions",
     support: "Email + forum",
     bestFor: "Power users & analytics",
+    subScores: { features: 9.0, pricing: 6.5, support: 7.0, ato: 8.5 },
   },
   coinpanda: {
     pricing: "Free 25 tx; from US$79/yr",
@@ -83,6 +96,7 @@ export const CRYPTO_TAX_PRODUCT_FEATURES: Record<string, CryptoTaxProductFeature
     freeTier: "25 transactions",
     support: "Chat + email",
     bestFor: "Multi-country users",
+    subScores: { features: 8.8, pricing: 8.0, support: 8.0, ato: 8.8 },
   },
 };
 
