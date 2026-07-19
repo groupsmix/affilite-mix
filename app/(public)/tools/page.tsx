@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { getCurrentSite } from "@/lib/site-context";
+import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { getCurrentSite } from "@/lib/site-context";
 import { JsonLd, organizationJsonLd } from "../components/json-ld";
 
 export const revalidate = 60;
@@ -34,20 +36,26 @@ export default async function ToolsIndexPage() {
     {
       href: "/tools/crypto-tax-comparison",
       title: "Crypto Tax Software Comparison",
+      image: "/images/tools-crypto-tax-comparison.png",
       description:
         "Side-by-side comparison of Australian crypto tax tools — pricing, ATO reports, integrations and support.",
+      cta: "Compare now",
     },
     {
       href: "/tools/cgt-calculator",
       title: "ATO CGT Calculator",
+      image: "/images/tools-cgt-calculator.png",
       description:
         "Estimate your Australian crypto capital gains tax with the 12-month 50% discount, income bracket and Medicare levy.",
+      cta: "Calculate now",
     },
     {
       href: "/tools/sync-guide/coinspot/koinly",
       title: "Sync Guides",
+      image: "/images/tools-sync-guides.png",
       description:
         "Step-by-step help for importing CoinSpot, Swyftx, Binance Australia and Crypto.com into Koinly, Syla, CoinLedger and more.",
+      cta: "View guides",
     },
   ];
 
@@ -68,12 +76,22 @@ export default async function ToolsIndexPage() {
           <Link
             key={tool.href}
             href={tool.href}
-            className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+            className="group flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
           >
-            <h2 className="text-xl font-semibold text-gray-900 group-hover:text-[color:var(--color-accent,#16A34A)]">
-              {tool.title}
-            </h2>
-            <p className="mt-2 text-gray-600">{tool.description}</p>
+            <div className="relative aspect-[3/2] w-full overflow-hidden rounded-xl border border-gray-100">
+              <Image
+                src={tool.image}
+                alt={tool.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              />
+            </div>
+            <p className="mt-4 text-gray-600">{tool.description}</p>
+            <span className="mt-auto inline-flex items-center pt-3 text-sm font-semibold text-[color:var(--color-accent,#16A34A)] group-hover:underline">
+              {tool.cta}
+              <ArrowRight className="ml-1 size-4" aria-hidden="true" />
+            </span>
           </Link>
         ))}
       </div>
