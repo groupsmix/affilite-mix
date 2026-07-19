@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, BadgeCheck } from "lucide-react";
+import { ArrowRight, BadgeCheck, Calculator } from "lucide-react";
 import { ProductCardCta } from "./product-card-client";
 import { ProductLogo } from "./product-logo";
 
@@ -101,15 +101,19 @@ export function TaxFinder({
   const guideHref = topic ? guideHrefs?.[topic] : undefined;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-lg sm:p-6">
+      <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500" aria-hidden="true" />
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className="text-[15px] font-bold text-gray-900">What did you do with crypto?</p>
-        <span className="rounded-full border border-[color:var(--color-accent,#16A34A)]/20 bg-[color:var(--color-accent,#16A34A)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--color-accent-text,#15803D)]">
+        <div className="flex items-center gap-2">
+          <Calculator className="size-5 text-emerald-600" aria-hidden="true" />
+          <p className="text-lg font-bold text-slate-900">What did you do with crypto?</p>
+        </div>
+        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
           {daysToDeadline} days to 31 Oct
         </span>
       </div>
-      <p className="mt-1 text-sm text-gray-500">
-        Pick one to see what the ATO taxes and the tool built for it.
+      <p className="mt-1 text-sm text-slate-500">
+        Pick one activity to see the ATO rule and the software built for it.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2.5">
@@ -123,8 +127,8 @@ export function TaxFinder({
               onClick={() => setTopic(t.k)}
               className={`${chip} ${
                 on
-                  ? "border-[color:var(--color-accent,#16A34A)] bg-[color:var(--color-accent,#16A34A)]/10 text-[color:var(--color-accent-text,#15803D)]"
-                  : "border-gray-200 text-gray-700 hover:border-gray-300"
+                  ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
+                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"
               }`}
             >
               {t.label}
@@ -136,14 +140,14 @@ export function TaxFinder({
       {selected && (
         <div className="mt-5 grid items-start gap-4 border-t border-gray-100 pt-5 md:grid-cols-2">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-500">
+            <p className="text-xs font-bold uppercase tracking-[0.04em] text-slate-500">
               What the ATO taxes
             </p>
-            <p className="mt-2 text-[15px] leading-relaxed text-gray-700">{selected.ato}</p>
+            <p className="mt-2 text-[15px] leading-relaxed text-slate-700">{selected.ato}</p>
             {guideHref && (
               <Link
                 href={guideHref}
-                className="mt-3 inline-block text-sm font-semibold text-[color:var(--color-accent-text,#15803D)] hover:underline"
+                className="mt-3 inline-block text-sm font-semibold text-emerald-700 hover:underline"
               >
                 Read the {selected.label.toLowerCase()} tax guide →
               </Link>
@@ -151,8 +155,8 @@ export function TaxFinder({
           </div>
 
           {pick && (
-            <div className="relative rounded-xl border border-[color:var(--color-accent,#16A34A)]/20 bg-[color:var(--color-accent,#16A34A)]/5 p-5 shadow-sm">
-              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.04em] text-[color:var(--color-accent-text,#15803D)]">
+            <div className="relative rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
+              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.04em] text-emerald-700">
                 <BadgeCheck className="size-4" aria-hidden="true" />
                 Best tool for {selected.label}
               </p>
@@ -179,8 +183,7 @@ export function TaxFinder({
                       Get started <ArrowRight className="size-4" aria-hidden="true" />
                     </span>
                   }
-                  className="block w-full rounded-lg px-4 py-3 text-center text-base font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
-                  style={{ backgroundColor: "var(--color-accent, #16A34A)" }}
+                  className="block w-full rounded-lg border border-slate-900 bg-slate-900 px-4 py-3 text-center text-base font-semibold text-white shadow-sm transition-all hover:bg-slate-800 active:scale-[0.98]"
                 />
                 {accountant && (
                   <ProductCardCta
@@ -202,9 +205,11 @@ export function TaxFinder({
         </div>
       )}
 
-      <p className="mt-5 border-t border-gray-100 pt-4 text-[11.5px] leading-relaxed text-gray-500">
-        {affiliateDisclosure}
-      </p>
+      {affiliateDisclosure && (
+        <p className="mt-5 border-t border-slate-100 pt-4 text-[11.5px] leading-relaxed text-slate-500">
+          {affiliateDisclosure}
+        </p>
+      )}
     </div>
   );
 }

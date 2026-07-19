@@ -137,6 +137,24 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
           </div>
         )}
 
+        {/* Disclaimer / contact */}
+        <div className="mt-10 rounded-xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-gray-400 sm:p-6">
+          <p className="font-semibold text-gray-300">Important legal notice</p>
+          <p className="mt-2">{site.affiliateDisclosure}</p>
+          <p className="mt-2">{site.contentDisclosure}</p>
+          {site.brand.contactEmail && (
+            <p className="mt-2">
+              Contact:{" "}
+              <a
+                href={`mailto:${site.brand.contactEmail}`}
+                className="text-gray-300 underline hover:text-white"
+              >
+                {site.brand.contactEmail}
+              </a>
+            </p>
+          )}
+        </div>
+
         {/* Bottom bar */}
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 py-6 text-xs text-gray-400">
           <span>
