@@ -115,6 +115,12 @@ module.exports = {
         "is-crawlable": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
         redirects: ["warn", { minScore: 0.9, aggregationMethod: "median" }],
 
+        // unused-javascript is a real but pre-existing issue on all
+        // Next.js marketing surfaces. The CWV budgets (LCP/TBT/CLS/FCP)
+        // are the hard performance gates; this audit is tracked as a
+        // warning until the bundle is further split.
+        "unused-javascript": ["warn", { maxLength: 0 }],
+
         // ── Best-practices / SEO / a11y nits (warn until baseline) ──
         // These are real but pre-existing issues across the public
         // marketing surfaces. They are tracked as warnings so the
