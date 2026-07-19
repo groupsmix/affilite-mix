@@ -1,5 +1,5 @@
 // DESIGN: No site_id filtering — operates on product_affiliate_links within already-scoped product contexts.
-import { assertRows } from "./type-guards";
+import { assertRow, assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface ProductAffiliateLinkRow {
@@ -56,4 +56,25 @@ export async function pickBestAffiliateLink(
   if (wildcardMatches.length > 0) return wildcardMatches[0]!;
 
   return links[0]!;
+}
+
+type ProductAffiliateLinkInsert = Omit<ProductAffiliateLinkRow, "id" | "created_at" | "updated_at">;
+
+/**
+ * Upsert an affiliate link for a product keyed by (product_id, network, geo).
+ * Returns the row with any server-default timestamps / IDs populated.
+ */
+export async function upsertProductAffiliateLink(
+  input: ProductAffiliateLinkInsert,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ProductAffiliateLinkRow> {
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .upsert(input, { onConflict: "product_id, network, geo", ignoreDuplicates: false })
+    .select(ALL_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return assertRow<ProductAffiliateLinkRow>(data, "ProductAffiliateLink");
 }
