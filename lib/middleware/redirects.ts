@@ -7,6 +7,16 @@ function normalizePath(value: string): string {
   return trimmed.length > 1 ? trimmed.replace(/\/+$/, "") : trimmed;
 }
 
+/** Combine a configured destination with the source request's query string. */
+function mergeSearch(destination: string, search: string): string {
+  if (!search) return destination;
+  if (destination.includes("?")) {
+    const sep = destination.endsWith("?") || destination.endsWith("&") ? "" : "&";
+    return destination + sep + search.slice(1);
+  }
+  return destination + search;
+}
+
 function findRedirect(
   pathname: string,
   redirects: SiteRedirect[],
@@ -30,9 +40,14 @@ export function applyRedirects(
   const redirect = findRedirect(request.nextUrl.pathname, redirects);
   if (!redirect) return null;
 
-  // Validate the configured destination against the current request origin.
-  // safeRedirectUrl rejects off-site, malformed, or non-HTTP(S) targets.
-  const safeDestination = safeRedirectUrl(redirect.destination, request);
+  // Preserve tracking/UTM query parameters on the redirect target.
+  const destinationWithQuery = mergeSearch(redirect.destination, request.nextUrl.search);
+
+  // safeRedirectUrl validates the destination against the request origin and
+  // rejects off-site, malformed, or non-HTTP(S) targets. It must be the
+  // first argument to NextResponse.redirect so the Semgrep sanitizer rule
+  // (unsafe-redirect-nextresponse-status) recognizes it as a safe redirect.
+  const safeDestination = safeRedirectUrl(destinationWithQuery, request);
 
   try {
     const target = new URL(safeDestination, request.url);
@@ -42,12 +57,10 @@ export function applyRedirects(
       return null;
     }
 
-    // Forward source query string for tracking/UTMs on relative/same-origin redirects.
-    if (!safeDestination.startsWith("http://") && !safeDestination.startsWith("https://")) {
-      target.search = request.nextUrl.search;
-    }
-
-    return NextResponse.redirect(target, redirect.permanent ? 301 : 302);
+    return NextResponse.redirect(
+      safeRedirectUrl(destinationWithQuery, request),
+      redirect.permanent ? 301 : 302,
+    );
   } catch {
     return null;
   }
