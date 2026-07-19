@@ -13,12 +13,15 @@ import { defaultDalClientGetter, type DalClientGetter } from "@/lib/dal/dal-clie
 import { pickBestAffiliateLink } from "@/lib/dal/product-affiliate-links";
 import { getTrackingKeyForSite } from "@/lib/dal/affiliate-tracking-keys";
 import { hasUsableAffiliateUrl, isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
+import { captureException } from "@/lib/sentry";
 import {
   getNetworkFromUrl,
   getTrackingParamForNetwork,
   toAffiliateNetwork,
   type AffiliateNetwork,
 } from "./networks";
+import { findCjDeepLink, isCjConfigured } from "./cj-client";
+import { upsertProductAffiliateLink } from "@/lib/dal/product-affiliate-links";
 
 export interface InjectAffiliateShortcodeLinksInput {
   siteId: string;
@@ -150,6 +153,29 @@ async function resolveProductLink(
   if (bestLink?.url && !isPlaceholderAffiliateUrl(bestLink.url)) {
     const network = toAffiliateNetwork(bestLink.network) ?? getNetworkFromUrl(bestLink.url);
     return { url: bestLink.url, network };
+  }
+
+  // No persisted link — try to discover a live CJ deep link and cache it.
+  if (isCjConfigured() && product.name.trim().length > 2) {
+    const cjUrl = await findCjDeepLink(product.name);
+    if (cjUrl) {
+      try {
+        await upsertProductAffiliateLink(
+          {
+            product_id: product.id,
+            network: "cj",
+            geo: "*",
+            url: cjUrl,
+            weight: 1,
+            is_active: true,
+          },
+          getClient,
+        );
+      } catch (err) {
+        captureException(err);
+      }
+      return { url: cjUrl, network: "cj" };
+    }
   }
 
   if (hasUsableAffiliateUrl(product.affiliate_url)) {
