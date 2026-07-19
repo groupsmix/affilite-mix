@@ -6,7 +6,6 @@ import { ProductCardCta } from "./product-card-client";
 import { ProductLogo } from "./product-logo";
 import {
   BookOpen,
-  ArrowRightLeft,
   ArrowRight,
   ChevronDown,
   Coins,
@@ -15,6 +14,7 @@ import {
   Calculator,
   ShieldCheck,
   UserCheck,
+  Network,
   Check,
 } from "lucide-react";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
@@ -223,17 +223,20 @@ export function TaxFinderHomepage({
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               {categories.slice(0, 7).map((cat, i) => {
-                const Icon = categoryIcon(cat.slug);
+                const { Icon, iconBg, iconText, iconRing, hoverBg, hoverText, labelColor } =
+                  categoryStyle(cat.slug);
                 return (
                   <Link
                     key={cat.id}
                     href={`/category/${cat.slug}`}
-                    className={`group rounded-2xl border border-slate-200 bg-[#F8F9FA] p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-white hover:shadow-md ${
+                    className={`group flex flex-col rounded-2xl border border-slate-200 bg-[#F8F9FA] p-5 transition-all hover:-translate-y-1 hover:border-slate-300 hover:bg-white hover:shadow-lg ${
                       i === 0 ? "sm:col-span-2" : ""
                     }`}
                   >
-                    <span className="inline-flex size-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 transition-colors group-hover:bg-emerald-600 group-hover:text-white group-hover:ring-emerald-600">
-                      <Icon className="size-5" aria-hidden="true" />
+                    <span
+                      className={`inline-flex size-10 items-center justify-center rounded-lg ${iconBg} ${iconText} ring-1 ${iconRing} transition-colors ${hoverBg} ${hoverText}`}
+                    >
+                      <Icon className="size-5" aria-hidden={true} />
                     </span>
                     <h3 className="mt-3 font-bold text-slate-900">{cat.name}</h3>
                     {cat.description && (
@@ -241,7 +244,9 @@ export function TaxFinderHomepage({
                         {cat.description}
                       </p>
                     )}
-                    <span className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-emerald-700 group-hover:underline">
+                    <span
+                      className={`mt-auto inline-flex items-center gap-1 pt-3 text-[13px] font-semibold ${labelColor} group-hover:underline`}
+                    >
                       Learn more <ArrowRight className="size-3.5" aria-hidden="true" />
                     </span>
                   </Link>
@@ -361,7 +366,7 @@ function ToolRow({
           )}
           <p className="text-lg font-bold text-slate-900">{product.name}</p>
           {BEST_FOR[product.slug] && (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-100">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-700 ring-1 ring-slate-200">
               {BEST_FOR[product.slug]}
             </span>
           )}
@@ -408,16 +413,16 @@ function ToolRow({
         )}
       </div>
 
-      <div className="flex flex-col gap-3 sm:items-end">
+      <div className="flex w-full flex-col gap-4 sm:w-56">
         {product.score !== null && (
-          <div className="flex flex-col items-start gap-1 sm:items-end">
+          <div className="flex flex-col gap-1">
             <ScoreRing score={product.score} size="md" label="Editorial score" />
             <StarRating score={product.score / 2} size="sm" />
           </div>
         )}
 
         {subScores && (
-          <div className="w-full min-w-[10rem] space-y-1.5">
+          <div className="w-full space-y-1.5">
             {Object.entries(subScores).map(([key, value]) => (
               <div key={key} className="flex items-center gap-2 text-xs">
                 <span className="w-14 shrink-0 font-medium text-slate-500">
@@ -447,7 +452,7 @@ function ToolRow({
                 Visit site <ArrowRight className="size-4" aria-hidden="true" />
               </span>
             }
-            className="mt-1 inline-flex w-full items-center justify-center rounded-lg border border-slate-900 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-900 hover:text-white active:scale-[0.98] sm:w-auto"
+            className="mt-auto inline-flex w-full items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-4 py-3 text-base font-semibold text-white shadow-sm transition-all hover:bg-slate-800 hover:shadow active:scale-[0.98]"
           />
         )}
       </div>
@@ -455,23 +460,92 @@ function ToolRow({
   );
 }
 
-function categoryIcon(slug: string) {
-  switch (slug) {
-    case "crypto-tax-basics":
-      return BookOpen;
-    case "defi-tax":
-      return ArrowRightLeft;
-    case "staking-tax":
-      return Coins;
-    case "airdrop-tax":
-      return Gift;
-    case "nft-tax":
-      return ImageIcon;
-    case "crypto-tax-software":
-      return Calculator;
-    case "crypto-accountants":
-      return UserCheck;
-    default:
-      return ShieldCheck;
-  }
+type CategoryStyle = {
+  Icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  iconBg: string;
+  iconText: string;
+  iconRing: string;
+  hoverBg: string;
+  hoverText: string;
+  labelColor: string;
+};
+
+const CATEGORY_STYLES: Record<string, CategoryStyle> = {
+  "crypto-tax-basics": {
+    Icon: BookOpen,
+    iconBg: "bg-blue-50",
+    iconText: "text-blue-700",
+    iconRing: "ring-blue-100",
+    hoverBg: "group-hover:bg-blue-600",
+    hoverText: "group-hover:text-white",
+    labelColor: "text-blue-700",
+  },
+  "defi-tax": {
+    Icon: Network,
+    iconBg: "bg-violet-50",
+    iconText: "text-violet-700",
+    iconRing: "ring-violet-100",
+    hoverBg: "group-hover:bg-violet-600",
+    hoverText: "group-hover:text-white",
+    labelColor: "text-violet-700",
+  },
+  "staking-tax": {
+    Icon: Coins,
+    iconBg: "bg-amber-50",
+    iconText: "text-amber-700",
+    iconRing: "ring-amber-100",
+    hoverBg: "group-hover:bg-amber-600",
+    hoverText: "group-hover:text-white",
+    labelColor: "text-amber-700",
+  },
+  "airdrop-tax": {
+    Icon: Gift,
+    iconBg: "bg-sky-50",
+    iconText: "text-sky-700",
+    iconRing: "ring-sky-100",
+    hoverBg: "group-hover:bg-sky-600",
+    hoverText: "group-hover:text-white",
+    labelColor: "text-sky-700",
+  },
+  "nft-tax": {
+    Icon: ImageIcon,
+    iconBg: "bg-pink-50",
+    iconText: "text-pink-700",
+    iconRing: "ring-pink-100",
+    hoverBg: "group-hover:bg-pink-600",
+    hoverText: "group-hover:text-white",
+    labelColor: "text-pink-700",
+  },
+  "crypto-tax-software": {
+    Icon: Calculator,
+    iconBg: "bg-emerald-50",
+    iconText: "text-emerald-700",
+    iconRing: "ring-emerald-100",
+    hoverBg: "group-hover:bg-emerald-600",
+    hoverText: "group-hover:text-white",
+    labelColor: "text-emerald-700",
+  },
+  "crypto-accountants": {
+    Icon: UserCheck,
+    iconBg: "bg-indigo-50",
+    iconText: "text-indigo-700",
+    iconRing: "ring-indigo-100",
+    hoverBg: "group-hover:bg-indigo-600",
+    hoverText: "group-hover:text-white",
+    labelColor: "text-indigo-700",
+  },
+};
+
+function categoryStyle(slug: string): CategoryStyle {
+  return (
+    CATEGORY_STYLES[slug] ?? {
+      Icon: ShieldCheck,
+      iconBg: "bg-slate-50",
+      iconText: "text-slate-700",
+      iconRing: "ring-slate-100",
+      hoverBg: "group-hover:bg-slate-600",
+      hoverText: "group-hover:text-white",
+      labelColor: "text-slate-700",
+    }
+  );
 }

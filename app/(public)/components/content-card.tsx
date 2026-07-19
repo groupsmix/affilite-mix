@@ -27,6 +27,8 @@ export function ContentCard({
         href={href}
         src={content.featured_image}
         alt={content.title}
+        title={content.title}
+        type={content.type}
         priority={priority}
       />
       <div className="flex flex-1 flex-col p-5">
