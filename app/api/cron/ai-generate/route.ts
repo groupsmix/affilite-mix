@@ -14,13 +14,82 @@ import { containsProhibitedContent } from "@/lib/ai/content-moderation";
 import { supabaseBreaker } from "@/lib/supabase-circuit-breaker";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { logger } from "@/lib/logger";
+import { getPolicyForAction, type AutomationPolicyRow } from "@/lib/dal/automation-policies";
+import { getCategoryById } from "@/lib/dal/categories";
+import { publishDraft } from "@/lib/automation/publish-draft";
+
+const VALID_AI_CONTENT_TYPES: AIContentType[] = ["article", "review", "comparison", "guide"];
+const DEFAULT_TOPICS = [
+  (niche: string) => `Top ${niche} picks this month`,
+  (niche: string) => `Best ${niche} for beginners`,
+  (niche: string) => `${niche} buying guide`,
+];
+
+interface SiteSchedule {
+  maxPerDay: number;
+  contentType: AIContentType;
+  categoryId: string | null;
+  autoApprove: boolean;
+  frequency: "daily" | "weekly" | "monthly";
+  isActive: boolean;
+}
+
+function isAIContentType(value: unknown): value is AIContentType {
+  return typeof value === "string" && (VALID_AI_CONTENT_TYPES as string[]).includes(value);
+}
+
+function resolveSchedule(
+  policy: AutomationPolicyRow | null,
+  fallbackNiche: string,
+): SiteSchedule | null {
+  if (!policy) {
+    return {
+      maxPerDay: 3,
+      contentType: "article",
+      categoryId: null,
+      autoApprove: false,
+      frequency: "daily",
+      isActive: true,
+    };
+  }
+
+  if (!policy.is_active || policy.mode === "deny") return null;
+
+  const c = (policy.constraints ?? {}) as Record<string, unknown>;
+  const rawMax =
+    typeof c.max_per_day === "number" && Number.isFinite(c.max_per_day) ? c.max_per_day : 3;
+  const contentType = isAIContentType(c.content_type) ? c.content_type : "article";
+  const categoryId = typeof c.category_id === "string" ? c.category_id : null;
+  const frequency = ["daily", "weekly", "monthly"].includes(c.frequency as string)
+    ? (c.frequency as "daily" | "weekly" | "monthly")
+    : "daily";
+
+  return {
+    maxPerDay: Math.max(1, Math.min(100, rawMax)),
+    contentType,
+    categoryId,
+    autoApprove: policy.mode === "allow",
+    frequency,
+    isActive: policy.is_active,
+  };
+}
+
+function shouldRunForFrequency(frequency: "daily" | "weekly" | "monthly"): boolean {
+  const now = new Date();
+  if (frequency === "daily") return true;
+  if (frequency === "weekly") return now.getUTCDay() === 1; // Monday
+  if (frequency === "monthly") return now.getUTCDate() === 1;
+  return true;
+}
 
 /**
  * Cron endpoint: Auto-generate AI articles for all active sites.
- * Intended to run daily (e.g. 8am UTC).
+ * Intended to run daily (e.g. 2am UTC).
  * Protected by CRON_SECRET header.
  *
- * Generates 3 articles per site — topics are auto-selected based on niche.
+ * Reads per-site automation policy (action_type = content.draft.create) to
+ * decide how many articles to generate, which content type and category to
+ * target, and whether to auto-publish drafts that pass moderation.
  */
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/ai-generate"))) {
@@ -38,9 +107,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const ARTICLES_PER_SITE = 3;
-    const contentTypes: AIContentType[] = ["article", "review", "guide"];
-    const results: { site: string; generated: number; errors: string[] }[] = [];
+    const results: {
+      site: string;
+      generated: number;
+      published: number;
+      rejected: number;
+      errors: string[];
+    }[] = [];
 
     // S3-056: Resumable cursor — skip sites/articles already processed.
     const cursorParam = request.nextUrl.searchParams.get("cursor");
@@ -58,7 +131,13 @@ export async function POST(request: NextRequest) {
 
     for (let si = startSite; si < allSites.length; si++) {
       const site = allSites[si];
-      const siteResult = { site: site!.id, generated: 0, errors: [] as string[] };
+      const siteResult = {
+        site: site!.id,
+        generated: 0,
+        published: 0,
+        rejected: 0,
+        errors: [] as string[],
+      };
 
       let dbSiteId: string;
       try {
@@ -69,25 +148,47 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const articleStart = si === startSite ? startArticle : 0;
-      for (let i = articleStart; i < ARTICLES_PER_SITE; i++) {
-        const contentType = contentTypes[i % contentTypes.length];
-        const niche = site!.brand.niche;
-        const topics = [
-          `Top ${niche} picks this month`,
-          `Best ${niche} for beginners`,
-          `${niche} buying guide`,
-        ];
+      let schedule: SiteSchedule;
+      try {
+        const policy = await getPolicyForAction(dbSiteId, "content.draft.create");
+        const resolved = resolveSchedule(policy, site!.brand.niche);
+        if (!resolved || !shouldRunForFrequency(resolved.frequency)) {
+          results.push({ ...siteResult, generated: 0 });
+          continue;
+        }
+        schedule = resolved;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        siteResult.errors.push(`Could not read automation policy: ${msg}`);
+        results.push(siteResult);
+        continue;
+      }
 
-        const topic = topics[i % topics.length];
+      const articleStart = si === startSite ? startArticle : 0;
+      for (let i = articleStart; i < schedule.maxPerDay; i++) {
+        const niche = site!.brand.niche;
+        let topic = DEFAULT_TOPICS[i % DEFAULT_TOPICS.length]?.(niche) ?? `Latest ${niche} update`;
+
+        if (schedule.categoryId) {
+          try {
+            const category = await getCategoryById(
+              dbSiteId,
+              schedule.categoryId,
+              getPrivilegedSupabaseClient,
+            );
+            if (category?.name) topic = category.name;
+          } catch {
+            // Fallback to default topic if category cannot be read.
+          }
+        }
 
         try {
           const result = await generateContent({
             siteId: site!.id,
             siteName: site!.name,
             niche: site!.brand.niche,
-            contentType: contentType!,
-            topic: topic!,
+            contentType: schedule.contentType,
+            topic,
             language: site!.language,
           });
 
@@ -96,7 +197,7 @@ export async function POST(request: NextRequest) {
           const combinedText = `${result.title} ${result.excerpt} ${result.metaTitle} ${result.metaDescription} ${result.body}`;
           const flagged = containsProhibitedContent(combinedText);
 
-          await supabaseBreaker.execute(() =>
+          const draft = await supabaseBreaker.execute(() =>
             createAIDraft(
               {
                 site_id: dbSiteId,
@@ -105,7 +206,7 @@ export async function POST(request: NextRequest) {
                 body: result.body,
                 excerpt: result.excerpt,
                 content_type: result.contentType,
-                topic: topic!,
+                topic,
                 keywords: [],
                 ai_provider: result.provider,
                 ai_model: result.model,
@@ -120,11 +221,30 @@ export async function POST(request: NextRequest) {
 
           siteResult.generated++;
 
-          // E2-005: Audit trail for AI-generated content requiring human review.
+          if (!flagged && schedule.autoApprove) {
+            try {
+              await publishDraft(dbSiteId, draft.id, "auto-approve");
+              siteResult.published++;
+            } catch (publishErr) {
+              const msg = publishErr instanceof Error ? publishErr.message : String(publishErr);
+              siteResult.errors.push(`Publish failed for "${result.title}": ${msg}`);
+              captureException(publishErr, {
+                context: `[cron/ai-generate] Auto-publish failed for ${site!.id}`,
+              });
+            }
+          }
+
+          if (flagged) siteResult.rejected++;
+
+          // E2-005: Audit trail for AI-generated content.
           void recordAuditEvent({
             site_id: dbSiteId,
             actor: "cron:ai-generate",
-            action: flagged ? "ai_draft_rejected" : "ai_draft_pending_review",
+            action: flagged
+              ? "ai_draft_rejected"
+              : schedule.autoApprove
+                ? "ai_draft_auto_published"
+                : "ai_draft_pending_review",
             entity_type: "ai_draft",
             entity_id: result.slug,
             details: {
@@ -133,11 +253,12 @@ export async function POST(request: NextRequest) {
               provider: result.provider,
               model: result.model,
               flagged,
+              autoApproved: !flagged && schedule.autoApprove,
             },
           });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          siteResult.errors.push(`${contentType} "${topic}": ${msg}`);
+          siteResult.errors.push(`${schedule.contentType} "${topic}": ${msg}`);
           captureException(err, {
             context: `[cron/ai-generate] Failed for ${site!.id}`,
           });
@@ -150,12 +271,16 @@ export async function POST(request: NextRequest) {
     }
 
     const totalGenerated = results.reduce((sum, r) => sum + r.generated, 0);
+    const totalPublished = results.reduce((sum, r) => sum + r.published, 0);
+    const totalRejected = results.reduce((sum, r) => sum + r.rejected, 0);
     const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
 
     // E2-005: Log summary so operators see pending review count in structured logs.
     if (totalGenerated > 0) {
-      logger.info("[cron/ai-generate] Drafts created — require human review before publishing", {
+      logger.info("[cron/ai-generate] Drafts processed", {
         totalGenerated,
+        totalPublished,
+        totalRejected,
         totalErrors,
         sites: results.length,
       });
@@ -165,7 +290,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       cursor: lastCursor,
-      summary: `Generated ${totalGenerated} drafts across ${results.length} sites (${totalErrors} errors)`,
+      summary: `Generated ${totalGenerated} drafts across ${results.length} sites (${totalErrors} errors), ${totalPublished} auto-published, ${totalRejected} rejected`,
       results,
     });
   } finally {

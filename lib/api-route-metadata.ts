@@ -213,6 +213,16 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/automation/schedule",
+    methods: ["GET", "POST"],
+    requestSchema: "AutomationScheduleInput",
+    responseSchema: "AutomationSchedule",
+    sensitiveFields: [],
+    notes:
+      "Per-site AI content schedule. The daily cron reads this policy to decide content type, category, volume, and auto-approve behavior.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
     auth: "super_admin",
     path: "/api/admin/automation/service-accounts",
     methods: ["GET", "POST"],

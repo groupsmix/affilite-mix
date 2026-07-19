@@ -1,6 +1,6 @@
 // Automation policies — per-site, per-action override of the default policy
 // matrix. Site-scoped; RLS service_role-only (migration 2026071505).
-import { rowOrNull, untypedFrom } from "./type-guards";
+import { assertRow, rowOrNull, untypedFrom } from "./type-guards";
 import { type DalClientGetter } from "./dal-client";
 import { getAutomationDbClient } from "@/lib/automation/db";
 import type { PolicyMode } from "@/lib/automation/policy";
@@ -46,4 +46,24 @@ export async function listPoliciesForSite(
     .order("action_type", { ascending: true });
   if (error) throw error;
   return (data ?? []) as AutomationPolicyRow[];
+}
+
+type AutomationPolicyInsert = Omit<AutomationPolicyRow, "id" | "updated_at">;
+
+/**
+ * Upsert a per-site automation policy keyed by (site_id, action_type).
+ * Returns the row with any server-default timestamps / IDs populated.
+ */
+export async function upsertAutomationPolicy(
+  input: AutomationPolicyInsert,
+  getClient: DalClientGetter = getAutomationDbClient,
+): Promise<AutomationPolicyRow> {
+  const sb = await getClient();
+  const { data, error } = await untypedFrom(sb, TABLE)
+    .upsert(input, { onConflict: "site_id, action_type", ignoreDuplicates: false })
+    .select(ALL_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return assertRow<AutomationPolicyRow>(data, "AutomationPolicy");
 }

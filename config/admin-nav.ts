@@ -11,6 +11,7 @@
 
 import {
   BarChart3,
+  Calendar,
   Coins,
   FileText,
   Files,
@@ -103,6 +104,13 @@ export const adminNavItems: AdminNavItem[] = [
         label: "AI Generator",
         iconKey: "ai",
         icon: Sparkles,
+        requiresActiveSite: true,
+      },
+      {
+        href: adminRoute("/automation"),
+        label: "Automation",
+        iconKey: "automation",
+        icon: Calendar,
         requiresActiveSite: true,
       },
       {
