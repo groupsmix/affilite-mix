@@ -58,10 +58,3 @@ export async function getStripeClient(secretKey: string): Promise<Stripe> {
   _stripeClientKey = secretKey;
   return client;
 }
-
-/** Test-only: reset the cached client. Not part of the public API. */
-function __resetStripeClientCacheForTests(): void {
-  _stripeCtor = null;
-  _stripeClient = null;
-  _stripeClientKey = null;
-}

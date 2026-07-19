@@ -1,5 +1,5 @@
 import { assertRows, rowOrNull } from "./type-guards";
-import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { type DalClientGetter } from "./dal-client";
 import type { AdminSiteMembershipRow } from "@/types/database";
 // M2: admin_site_memberships is global authz metadata; RLS grants access only
 // to service_role. The per-tenant client returns zero rows and would cause

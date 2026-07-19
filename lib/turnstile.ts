@@ -1,5 +1,4 @@
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
-import { logger } from "@/lib/logger";
 /**
  * Server-side Cloudflare Turnstile verification.
  *

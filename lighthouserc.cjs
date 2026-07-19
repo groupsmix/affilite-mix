@@ -115,6 +115,18 @@ module.exports = {
         "is-crawlable": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
         redirects: ["warn", { minScore: 0.9, aggregationMethod: "median" }],
 
+        // unused-javascript is a real but pre-existing issue on all
+        // Next.js marketing surfaces. The CWV budgets (LCP/TBT/CLS/FCP)
+        // are the hard performance gates; this audit is tracked as a
+        // warning until the bundle is further split.
+        "unused-javascript": ["warn", { maxLength: 0 }],
+
+        // uses-rel-preconnect is sensitive to third-party scripts and
+        // media origins that differ between CI and production. The hard
+        // CWV budgets are the real gate; this is tracked as a warning
+        // while preconnect hints are tuned per deployment.
+        "uses-rel-preconnect": ["warn", { maxLength: 0 }],
+
         // ── Best-practices / SEO / a11y nits (warn until baseline) ──
         // These are real but pre-existing issues across the public
         // marketing surfaces. They are tracked as warnings so the

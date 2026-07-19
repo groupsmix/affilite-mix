@@ -1,4 +1,3 @@
-import { getTenantClient } from "@/lib/supabase-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 import type { CategoryRow, TaxonomyType } from "@/types/database";

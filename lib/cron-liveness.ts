@@ -24,7 +24,7 @@
  * threshold are documented in `docs/cron-liveness.md`.
  */
 
-import { cronJobs, type CronJob } from "@/lib/cron-registry";
+import { cronJobs } from "@/lib/cron-registry";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import { getAppCacheKV, readGlobalBinding } from "@/lib/runtime-env";
@@ -222,9 +222,4 @@ function readKV(): KVNamespace | undefined {
 // Inline to avoid circular import
 function readKVBinding(): KVNamespace | undefined {
   return readKV();
-}
-
-/** Test helper: reset liveness check throttle. */
-function __resetLivenessCheckForTests(): void {
-  lastLivenessCheckAt = 0;
 }

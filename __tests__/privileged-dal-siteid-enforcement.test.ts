@@ -46,7 +46,6 @@ describe("FIX-04: privileged DAL siteId enforcement", () => {
       const exportFnPattern = /export\s+(?:async\s+)?function\s+\w+\s*\(([^)]*)\)/g;
       let match: RegExpExecArray | null;
       let hasExportedFn = false;
-      let allHaveSiteId = true;
 
       while ((match = exportFnPattern.exec(content)) !== null) {
         hasExportedFn = true;
@@ -54,17 +53,6 @@ describe("FIX-04: privileged DAL siteId enforcement", () => {
         // Skip helper/internal functions that don't need siteId
         if (params!.includes("getClient") || params!.includes("siteId")) {
           continue;
-        }
-        // If the function uses the privileged client directly (not via getClient param),
-        // it must have siteId as a parameter
-        const fnBody = content.slice(match.index);
-        const fnBodyEnd = fnBody.indexOf("\nexport");
-        const bodySlice = fnBody.slice(0, fnBodyEnd > 0 ? fnBodyEnd : 500);
-        if (
-          bodySlice.includes("getPrivilegedSupabaseClient()") ||
-          bodySlice.includes("getPrivilegedSupabaseClient,")
-        ) {
-          allHaveSiteId = false;
         }
       }
 

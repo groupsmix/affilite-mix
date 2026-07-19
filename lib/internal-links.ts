@@ -261,10 +261,9 @@ function isInsideAnchorTag(html: string, position: number): boolean {
   const closePattern = /<\/a>/gi;
 
   let openCount = 0;
-  let m: RegExpExecArray | null;
 
-  while ((m = openPattern.exec(before)) !== null) openCount++;
-  while ((m = closePattern.exec(before)) !== null) openCount--;
+  while (openPattern.exec(before) !== null) openCount++;
+  while (closePattern.exec(before) !== null) openCount--;
 
   return openCount > 0;
 }
