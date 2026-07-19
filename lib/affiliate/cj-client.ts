@@ -68,15 +68,15 @@ function decodeXmlValue(raw: string): string {
   if (cdata && cdata[1] !== undefined) {
     return cdata[1].trim();
   }
-  // Decode &amp; first so encoded entities like &amp;lt; become &lt; and
-  // then resolve to < in a single pass. The chained .replace calls process
-  // the string in order, so the order matters.
+  // Decode named and numeric entities first, then &amp; last. This prevents
+  // double-unescaping: an input like &amp;quot; must stay as &quot; rather
+  // than becoming a quote.
   return trimmed
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
 }
 
 function extractHref(html: string | undefined): string | null {
