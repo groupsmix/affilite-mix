@@ -25,10 +25,14 @@ export async function generateViewport(): Promise<Viewport> {
   try {
     const site = await getCurrentSite();
     const themeColor = site.theme?.primaryColor || "#1e293b";
-    return { themeColor };
+    return {
+      width: "device-width",
+      initialScale: 1,
+      themeColor,
+    };
   } catch {
     // fail-open: best-effort
-    return { themeColor: "#1e293b" };
+    return { width: "device-width", initialScale: 1, themeColor: "#1e293b" };
   }
 }
 

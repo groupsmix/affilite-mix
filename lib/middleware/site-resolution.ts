@@ -49,6 +49,12 @@ const PREVIEW_HOST_ALLOWLIST: Set<string> | null = (() => {
  * - `response`: a terminal response the middleware should return immediately.
  * - `resolved`: the verified site context the middleware should continue with.
  */
+export interface SiteRedirect {
+  source_path: string;
+  destination_path: string;
+  permanent?: boolean;
+}
+
 export type SiteResolution =
   | { type: "response"; response: NextResponse }
   | {
@@ -56,7 +62,26 @@ export type SiteResolution =
       siteId: string;
       verifiedSite: VerifiedSiteRef | null;
       traceId: string;
+      redirects: SiteRedirect[];
     };
+
+function parseSiteRedirects(value: unknown): SiteRedirect[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (r): r is SiteRedirect =>
+        typeof r === "object" &&
+        r !== null &&
+        typeof (r as SiteRedirect).source_path === "string" &&
+        typeof (r as SiteRedirect).destination_path === "string" &&
+        (r as SiteRedirect).source_path.trim().length > 0,
+    )
+    .map((r) => ({
+      source_path: r.source_path,
+      destination_path: r.destination_path,
+      permanent: r.permanent === true,
+    }));
+}
 
 function originMatchesVerifiedSite(
   request: NextRequest,
@@ -91,6 +116,7 @@ export async function resolveSite(
   let verifiedSite: VerifiedSiteRef | null = site
     ? { slug: site.id, domain: site.domain, aliases: site.aliases }
     : null;
+  let redirects: SiteRedirect[] = [];
 
   // A98-49: Check abort before expensive DB/KV operations
   throwIfAborted(signal);
@@ -271,6 +297,7 @@ export async function resolveSite(
         // site. Build the verified ref from it so downstream callers
         // can extend the allow-list safely.
         verifiedSite = { slug: row.slug, domain: hostname };
+        redirects = parseSiteRedirects(row.url_redirects);
       } else if (row && !row.is_active) {
         return { type: "response", response: nicheNotFoundResponse(request) };
       } else if (!row) {
@@ -348,5 +375,5 @@ export async function resolveSite(
     };
   }
 
-  return { type: "resolved", siteId, verifiedSite, traceId };
+  return { type: "resolved", siteId, verifiedSite, traceId, redirects };
 }

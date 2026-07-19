@@ -9,6 +9,7 @@ import {
   nicheNotFoundResponse,
 } from "@/lib/middleware/hostname";
 import { resolveSite } from "@/lib/middleware/site-resolution";
+import { applyRedirects } from "@/lib/middleware/redirects";
 // CA-302: canonical "X-vs-Y" comparison slug ordering.
 import { canonicalComparisonPath } from "@/lib/vs-slug";
 // F-007: CORS preflight + CSRF concerns extracted to independently-tested
@@ -155,12 +156,16 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // resolved site context to continue with.
   const resolution = await resolveSite(request, hostname, signal);
   if (resolution.type === "response") return resolution.response;
-  const { siteId, verifiedSite, traceId } = resolution;
+  const { siteId, verifiedSite, traceId, redirects } = resolution;
   // Thread resolved identity into the shared context for downstream
   // composable concerns (CSRF, and any future withX modules).
   ctx.siteId = siteId;
   ctx.verifiedSite = verifiedSite;
   ctx.traceId = traceId;
+
+  // ── Per-site URL redirects (301/302 hygiene) — BEFORE trailing-slash ──
+  const redirectResponse = applyRedirects(request, redirects, verifiedSite);
+  if (redirectResponse) return redirectResponse;
 
   // ── Trailing-slash normalization (SA9) — AFTER site resolution ──
   // AUDIT-FIX A1-001/A2-001: Force canonical hostname so an attacker

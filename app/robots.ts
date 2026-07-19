@@ -55,19 +55,29 @@ async function resolveDomain(): Promise<string> {
 }
 
 /**
- * AI-training crawlers and default scraper UAs blocked site-wide
- * (A113-F2, F-14, A9-01). robots.txt is advisory — hostile bots may
- * ignore it. The enforcing layer is the Cloudflare WAF edge rules.
+ * Major AI search crawlers explicitly allowed to crawl the full public site.
+ * These drive Generative Engine Optimization (GEO) traffic; blocking them
+ * removes the site from AI search answers.
  */
-const AI_AND_SCRAPER_BOTS = [
+const AI_SEARCH_CRAWLERS_ALLOWED = [
   "GPTBot",
+  "OAI-SearchBot",
+  "PerplexityBot",
+  "ClaudeBot",
+  "Claude-Web",
   "Google-Extended",
+];
+
+/**
+ * AI-training / scraper UAs blocked site-wide (A113-F2, F-14, A9-01).
+ * robots.txt is advisory — hostile bots may ignore it. The enforcing layer
+ * is the Cloudflare WAF edge rules.
+ */
+const AI_TRAINING_AND_SCRAPER_BOTS_BLOCKED = [
   "CCBot",
   "anthropic-ai",
-  "Claude-Web",
   "Bytespider",
   "cohere-ai",
-  "PerplexityBot",
   "FacebookBot",
   "ImagesiftBot",
   "Omgilibot",
@@ -86,7 +96,6 @@ const AI_AND_SCRAPER_BOTS = [
   "Applebot-Extended",
   "Meta-ExternalAgent",
   "Meta-ExternalFetcher",
-  "OAI-SearchBot",
   "MistralAI-User",
   "pangubot",
   "iaskspider/2.0",
@@ -99,7 +108,13 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
 
   return {
     rules: [
-      ...AI_AND_SCRAPER_BOTS.map((bot) => ({
+      // Allow major AI search crawlers first so they take precedence over
+      // the broader training-bot block below.
+      ...AI_SEARCH_CRAWLERS_ALLOWED.map((bot) => ({
+        userAgent: bot,
+        allow: ["/"],
+      })),
+      ...AI_TRAINING_AND_SCRAPER_BOTS_BLOCKED.map((bot) => ({
         userAgent: bot,
         disallow: ["/"],
       })),

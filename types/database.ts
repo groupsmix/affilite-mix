@@ -64,6 +64,11 @@ export interface SiteRow {
   meta_title: string | null;
   meta_description: string | null;
   og_image_url: string | null;
+  url_redirects?: Array<{
+    source_path: string;
+    destination_path: string;
+    permanent?: boolean;
+  }> | null;
 
   // Social links
   social_links: Record<string, string>;
