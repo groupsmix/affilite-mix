@@ -11,6 +11,7 @@ import { WebVitals } from "./web-vitals";
 import { logger } from "@/lib/logger";
 import CookieConsentCmp from "./(public)/components/cookie-consent-cmp";
 import { GoogleAnalytics } from "./(public)/components/google-analytics";
+import { AIReferrerTracker } from "./(public)/components/ai-referrer-tracker";
 import { DEFAULT_GA4_MEASUREMENT_ID, GA4_LINKER_DOMAINS } from "@/lib/analytics";
 import "./globals.css";
 
@@ -182,11 +183,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <style nonce={nonce}>{themeFontCss}</style>
         <WebVitals />
         {!isAdminRoute && (
-          <GoogleAnalytics
-            measurementId={site.ga4MeasurementId || DEFAULT_GA4_MEASUREMENT_ID}
-            domains={GA4_LINKER_DOMAINS}
-            nonce={nonce}
-          />
+          <>
+            <GoogleAnalytics
+              measurementId={site.ga4MeasurementId || DEFAULT_GA4_MEASUREMENT_ID}
+              domains={GA4_LINKER_DOMAINS}
+              nonce={nonce}
+            />
+            <AIReferrerTracker />
+          </>
         )}
         {site.features.cookieConsent && !isAdminRoute && (
           <CookieConsentCmp language={site.language} siteId={site.id} />

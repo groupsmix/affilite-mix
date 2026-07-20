@@ -139,6 +139,13 @@ E-E-A-T / trust (especially crypto/finance YMYL topics):
 - When you make a claim about fees, security, or regulation, back it with a source link.
 - Do not invent or hallucinate credentials, test results, or specific dates.
 
+GEO / AEO (answer engine optimization):
+- The first paragraph must be a 2-3 sentence direct answer / verdict (already required above) so AI engines can quote it verbatim.
+- Include quantified claims: specific numbers, percentages, prices, dates, and counts (e.g. "14 exchanges tested", "0.1% maker fee", "updated July 2026").
+- Use exact, consistent entity names for every product, brand, feature, or acronym. Do not mix abbreviations (e.g. use "Coinbase" consistently, not "CB").
+- Add an FAQ section at the end of every article (not only reviews/comparisons) with at least 3 question-form <h3> headings; this matches FAQPage schema extraction.
+- Structure <h2> headings as common questions people ask about the topic.
+
 Make the content at least 1000 words, well-structured, and genuinely useful.`;
 }
 

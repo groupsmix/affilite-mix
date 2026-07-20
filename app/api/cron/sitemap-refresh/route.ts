@@ -17,6 +17,13 @@ import {
   submitSitemap,
   type SearchConsoleSubmitResult,
 } from "@/lib/seo/search-console";
+import { listContent } from "@/lib/dal/content";
+import {
+  getIndexNowKey,
+  isValidIndexNowKey,
+  submitIndexNow,
+  type IndexNowSubmitResult,
+} from "@/lib/bing-indexnow";
 
 /**
  * POST /api/cron/sitemap-refresh — Revalidate sitemaps and content caches,
@@ -56,13 +63,21 @@ export async function POST(request: NextRequest) {
 
   const revalidated: string[] = [];
   const searchConsoleResults: SearchConsoleSubmitResult[] = [];
+  const indexNowResults: IndexNowSubmitResult[] = [];
   const accessToken = getSearchConsoleAccessToken();
   const propertyType = getSearchConsolePropertyType();
   const hasSearchConsoleToken = !!accessToken;
+  const indexNowKey = getIndexNowKey();
+  const hasIndexNowKey = !!indexNowKey && isValidIndexNowKey(indexNowKey);
 
   if (!hasSearchConsoleToken) {
     logger.info(
       "[cron/sitemap-refresh] GOOGLE_SEARCH_CONSOLE_ACCESS_TOKEN not set; skipping Search Console submission",
+    );
+  }
+  if (!hasIndexNowKey) {
+    logger.info(
+      "[cron/sitemap-refresh] BING_INDEXNOW_KEY not set or invalid; skipping IndexNow submission",
     );
   }
 
@@ -82,16 +97,47 @@ export async function POST(request: NextRequest) {
       });
       searchConsoleResults.push(result);
     }
+
+    if (hasIndexNowKey && site.domain) {
+      const content = await listContent(
+        {
+          siteId: site.id,
+          statuses: ["published"],
+          sortBy: "publish_at",
+          sortDirection: "desc",
+          limit: 25,
+        },
+        getPrivilegedSupabaseClient,
+      );
+
+      const urls = [`https://${site.domain}/`];
+      for (const c of content) {
+        urls.push(`https://${site.domain}/${c.type}/${c.slug}`);
+      }
+
+      const results = await submitIndexNow({ host: site.domain, key: indexNowKey, urls });
+      indexNowResults.push(...results);
+    }
   }
 
   const submittedCount = searchConsoleResults.filter((r) => r.ok).length;
   const failedCount = searchConsoleResults.length - submittedCount;
+  const indexNowOk = indexNowResults.filter((r) => r.ok).length;
+  const indexNowFailed = indexNowResults.length - indexNowOk;
 
   if (hasSearchConsoleToken && (submittedCount > 0 || failedCount > 0)) {
     logger.info("[cron/sitemap-refresh] Search Console submission summary", {
       submitted: submittedCount,
       failed: failedCount,
       total: searchConsoleResults.length,
+    });
+  }
+
+  if (hasIndexNowKey && indexNowResults.length > 0) {
+    logger.info("[cron/sitemap-refresh] IndexNow submission summary", {
+      ok: indexNowOk,
+      failed: indexNowFailed,
+      total: indexNowResults.length,
     });
   }
 
@@ -104,6 +150,12 @@ export async function POST(request: NextRequest) {
       submitted: submittedCount,
       failed: failedCount,
       results: searchConsoleResults,
+    },
+    indexNow: {
+      enabled: hasIndexNowKey,
+      ok: indexNowOk,
+      failed: indexNowFailed,
+      results: indexNowResults,
     },
     timestamp: new Date().toISOString(),
   });
