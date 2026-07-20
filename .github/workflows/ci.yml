@@ -197,7 +197,7 @@ jobs:
           set -euo pipefail
           VIOLATIONS=""
           for file in $(find app/api/admin -name 'route.ts' -o -name 'route.tsx'); do
-            if ! grep -qE 'requireAdmin|withAuthz|withAuthzDynamic' "$file"; then
+            if ! grep -qE 'requireAdmin|requireSuperAdmin|withAuthz|withAuthzDynamic' "$file"; then
               VIOLATIONS="$VIOLATIONS $file"
             fi
           done

@@ -25,6 +25,13 @@ export async function GET() {
         ? new Date(item.updated_at).toUTCString()
         : new Date(item.created_at).toUTCString();
 
+      const enclosure = item.featured_image
+        ? `    <enclosure url="${escapeXml(item.featured_image)}" type="image/*" />\n`
+        : "";
+      const categories = [item.type, ...(item.tags || [])]
+        .map((tag) => `    <category>${escapeXml(tag)}</category>`)
+        .join("\n");
+
       return `    <item>
       <title>${escapeXml(item.title)}</title>
       <link>${escapeXml(link)}</link>
@@ -32,8 +39,8 @@ export async function GET() {
       <description>${escapeXml(item.excerpt || "")}</description>
       <pubDate>${pubDate}</pubDate>
       ${item.author ? `<author>${escapeXml(item.author)}</author>` : ""}
-      <category>${escapeXml(item.type)}</category>
-    </item>`;
+${categories}
+${enclosure}    </item>`;
     })
     .join("\n");
 

@@ -207,6 +207,60 @@ export function checkOnPageSeo(input: OnPageSeoInput): OnPageSeoResult {
   return { passed: warnings.length === 0, warnings };
 }
 
+/* ------------------------------------------------------------------ */
+/*  E-E-A-T / trust + content-strategy validation                       */
+/* ------------------------------------------------------------------ */
+
+export interface EeatCheckResult {
+  passed: boolean;
+  warnings: string[];
+}
+
+export function checkEeatAndContentStrategy(
+  body: string,
+  contentType: string,
+  siteNiche?: string,
+): EeatCheckResult {
+  const warnings: string[] = [];
+  const lowerBody = body.toLowerCase();
+
+  // Content strategy: internal links (relative hrefs) for topical clusters
+  const internalLinks = (body.match(/href=["']\//gi) || []).length;
+  if (internalLinks < 3) {
+    warnings.push(`Only ${internalLinks} internal link(s); aim for 3-5 related page links`);
+  }
+
+  // Content strategy: X-vs-Y / comparison tables for comparison content
+  if (contentType === "comparison" && !body.includes("<table")) {
+    warnings.push("Comparison content is missing a side-by-side <table>");
+  }
+
+  // E-E-A-T: primary-source outbound citations (at least one https:// link)
+  const externalHttps = (body.match(/href=["']https:\/\//gi) || []).length;
+  if (externalHttps < 1) {
+    warnings.push(
+      "No outbound HTTPS citations; add primary-source links (fee schedules, official docs)",
+    );
+  }
+
+  // E-E-A-T: testing evidence / first-hand language
+  const testingPhrases =
+    /tested|hands[- ]on|we signed up|we used|we compared|live account|verified|screenshots|original photos/i;
+  if (!testingPhrases.test(body)) {
+    warnings.push("Missing testing-evidence language (e.g. 'tested', 'hands-on', 'live account')");
+  }
+
+  // YMYL-specific: crypto/finance should back claims with sources and avoid unqualified claims
+  const isYmyl = /crypto|bitcoin|exchange|trading|wallet|finance|tax/i.test(
+    `${siteNiche ?? ""} ${lowerBody}`.toLowerCase(),
+  );
+  if (isYmyl && externalHttps < 2) {
+    warnings.push("YMYL topic should cite at least 2 primary-source outbound links");
+  }
+
+  return { passed: warnings.length === 0, warnings };
+}
+
 /**
  * Known-good domain patterns for affiliate content links.
  * In production, this should be loaded from config/sites or a DB table.

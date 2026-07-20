@@ -17,6 +17,7 @@ import {
   validateGeneratedLinks,
   checkContentQuality,
   checkOnPageSeo,
+  checkEeatAndContentStrategy,
 } from "./output-validation";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
@@ -125,6 +126,25 @@ SEO/GEO requirements:
 - Structure some <h2> headings as questions that mirror likely "People Also Ask" queries.
 - For review and comparison pages, end with a FAQ section titled "Frequently Asked Questions" with at least 3 <h3> questions ending in "?" and paragraph answers.
 - For comparisons, include a side-by-side <table> comparing the products.
+
+Content strategy (topical clusters):
+- Treat this piece as part of a topical cluster: link to 3-5 related pages on the same site using keyword-rich anchor text and relative URLs (e.g. <a href="/review/product-slug">anchor</a> or <a href="/guide/related-topic">anchor</a>).
+- For "best X" round-ups, reference and link to the individual reviews of each item.
+- For comparisons, link to each product's full review and to related "X vs Y" comparisons.
+- For informational guides, link to the relevant comparison/review pages.
+
+E-E-A-T / trust (especially crypto/finance YMYL topics):
+- Cite primary sources with outbound HTTPS links: official fee schedules, docs, whitepapers, support pages, or API references.
+- Show real testing evidence: mention when/where you signed up, tested features, checked prices/fees, or captured screenshots/photos. Use phrases like "we tested", "hands-on", "live account", "verified".
+- When you make a claim about fees, security, or regulation, back it with a source link.
+- Do not invent or hallucinate credentials, test results, or specific dates.
+
+GEO / AEO (answer engine optimization):
+- The first paragraph must be a 2-3 sentence direct answer / verdict (already required above) so AI engines can quote it verbatim.
+- Include quantified claims: specific numbers, percentages, prices, dates, and counts (e.g. "14 exchanges tested", "0.1% maker fee", "updated July 2026").
+- Use exact, consistent entity names for every product, brand, feature, or acronym. Do not mix abbreviations (e.g. use "Coinbase" consistently, not "CB").
+- Add an FAQ section at the end of every article (not only reviews/comparisons) with at least 3 question-form <h3> headings; this matches FAQPage schema extraction.
+- Structure <h2> headings as common questions people ask about the topic.
 
 Make the content at least 1000 words, well-structured, and genuinely useful.`;
 }
@@ -332,7 +352,11 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
     contentType: input.contentType,
     primaryKeyword,
   });
-  const allWarnings = [...qualityCheck.warnings, ...seoCheck.warnings];
+
+  // Content strategy + E-E-A-T checks (internal links, citations, testing evidence).
+  const eeatCheck = checkEeatAndContentStrategy(sanitizedBody, input.contentType, input.niche);
+
+  const allWarnings = [...qualityCheck.warnings, ...seoCheck.warnings, ...eeatCheck.warnings];
 
   return {
     ...parsed,

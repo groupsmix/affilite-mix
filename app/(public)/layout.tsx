@@ -55,6 +55,9 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: { icon: finalFavicon },
     alternates: {
       canonical: pathname,
+      types: {
+        "application/rss+xml": `https://${site.domain}/feed.xml`,
+      },
       languages: {
         [site.language ?? "en"]: pathname,
         "x-default": pathname,
