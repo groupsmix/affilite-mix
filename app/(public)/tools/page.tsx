@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { getCurrentSite } from "@/lib/site-context";
-import { JsonLd, organizationJsonLd } from "../components/json-ld";
+import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export const revalidate = 60;
 
@@ -31,6 +31,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ToolsIndexPage() {
   const site = await getCurrentSite();
   const jsonLd = organizationJsonLd(site);
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: "Tools", path: "/tools" },
+  ]);
 
   const tools = [
     {
@@ -61,6 +65,7 @@ export default async function ToolsIndexPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
+      <JsonLd data={breadcrumbs} />
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
           Free Crypto Tax Tools

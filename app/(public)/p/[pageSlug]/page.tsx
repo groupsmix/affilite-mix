@@ -6,7 +6,7 @@ import { getPageBySlug } from "@/lib/dal/pages";
 import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { sanitizeHtmlMemoized } from "@/lib/sanitize-html";
-import { JsonLd, breadcrumbJsonLd, productJsonLd } from "../../components/json-ld";
+import { JsonLd, breadcrumbJsonLd, productJsonLd, itemListJsonLd } from "../../components/json-ld";
 import { PriceHistoryChart } from "../../components/price-history-chart";
 import { PriceAlertForm } from "../../components/price-alert-form";
 import type { ProductRow } from "@/types/database";
@@ -251,17 +251,13 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
       <JsonLd data={breadcrumbJsonLd(site, breadcrumbs)} />
       <JsonLd data={productJsonLd(site as unknown as SiteDefinition, productA)} />
       <JsonLd data={productJsonLd(site as unknown as SiteDefinition, productB)} />
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "ItemList",
-          name: `${productA.name} vs ${productB.name}`,
-          itemListElement: [
-            { "@type": "ListItem", position: 1, item: { "@type": "Product", name: productA.name } },
-            { "@type": "ListItem", position: 2, item: { "@type": "Product", name: productB.name } },
-          ],
-        }}
-      />
+      {(() => {
+        const itemList = itemListJsonLd(site, `${productA.name} vs ${productB.name}`, [
+          productA,
+          productB,
+        ]);
+        return itemList ? <JsonLd data={itemList} /> : null;
+      })()}
 
       {/* Header */}
       <h1 className="text-center text-3xl font-bold text-gray-900">

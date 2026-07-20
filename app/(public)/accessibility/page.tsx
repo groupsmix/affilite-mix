@@ -1,6 +1,7 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
+import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -18,12 +19,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AccessibilityPage() {
   const site = await getCurrentSite();
   const isArabic = site.language === "ar";
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: isArabic ? "بيان إمكانية الوصول" : "Accessibility Statement", path: "/accessibility" },
+  ]);
 
   return (
     <div
       className={`mx-auto max-w-3xl px-4 py-12 ${isArabic ? "rtl text-right" : ""}`}
       dir={isArabic ? "rtl" : "ltr"}
     >
+      <JsonLd data={breadcrumbs} />
       <h1 className="mb-6 text-3xl font-bold">
         {isArabic ? "بيان إمكانية الوصول" : "Accessibility Statement"}
       </h1>

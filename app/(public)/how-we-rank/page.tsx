@@ -2,6 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { isCryptoTaxAu, CryptoTaxAUHowWeRank } from "../components/site-static-content";
+import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -21,9 +22,14 @@ export default async function HowWeRankPage() {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
   const isCrypto = isCryptoTaxAu(site);
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: isAr ? "كيف نقيم المنتجات" : "How We Rank", path: "/how-we-rank" },
+  ]);
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12">
+      <JsonLd data={breadcrumbs} />
       <h1 className="mb-8 text-3xl font-bold" style={{ color: "var(--ink)" }}>
         {isAr ? "كيف نقيم المنتجات" : "How We Rank"}
       </h1>

@@ -2,6 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { isCryptoTaxAu, CryptoTaxAUPrivacy } from "../components/site-static-content";
+import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -21,10 +22,15 @@ export default async function PrivacyPage() {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
   const contactEmail = site.pages.contact?.email ?? site.brand.contactEmail;
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: isAr ? "سياسة الخصوصية" : "Privacy Policy", path: "/privacy" },
+  ]);
 
   if (isCryptoTaxAu(site)) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-12">
+        <JsonLd data={breadcrumbs} />
         <h1 className="mb-6 text-3xl font-bold">{site.pages.privacy.title}</h1>
         <div className="prose prose-gray max-w-none">
           <CryptoTaxAUPrivacy site={site} />
@@ -35,6 +41,7 @@ export default async function PrivacyPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
+      <JsonLd data={breadcrumbs} />
       <h1 className="mb-6 text-3xl font-bold">{isAr ? "سياسة الخصوصية" : "Privacy Policy"}</h1>
       <div className="prose prose-gray max-w-none">
         <p>
