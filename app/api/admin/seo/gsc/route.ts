@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/admin-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { getSiteRowById } from "@/lib/dal/sites";
 import {
   getSearchConsoleAccessToken,
@@ -43,8 +43,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const sb = getPrivilegedSupabaseClient();
-  const site = await getSiteRowById(siteId, () => Promise.resolve(sb));
+  const site = await getSiteRowById(siteId, () => getTenantClientForSite(siteId));
   if (!site) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }

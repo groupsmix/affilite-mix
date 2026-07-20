@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/admin-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { captureException } from "@/lib/sentry";
 
 /**
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing site_id" }, { status: 400 });
   }
 
-  const sb = getPrivilegedSupabaseClient();
+  const sb = await getTenantClientForSite(siteId);
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
 
