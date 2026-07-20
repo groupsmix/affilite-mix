@@ -7,6 +7,7 @@
  * domains to prevent phishing (A115-F2).
  */
 import "server-only";
+import { autoSlug } from "@/lib/auto-slug";
 
 /* ------------------------------------------------------------------ */
 /*  Output Format Validation (A115-F3)                                 */
@@ -90,8 +91,121 @@ export function checkContentQuality(body: string, expectedKeywords?: string[]): 
 }
 
 /* ------------------------------------------------------------------ */
-/*  A115-F2: Post-Generation Link Validation                           */
+/*  On-page SEO validation for AI-generated content                    */
 /* ------------------------------------------------------------------ */
+
+export interface OnPageSeoInput {
+  title: string;
+  metaTitle: string;
+  metaDescription: string;
+  body: string;
+  slug: string;
+  contentType: string;
+  primaryKeyword?: string;
+}
+
+export interface OnPageSeoResult {
+  passed: boolean;
+  warnings: string[];
+}
+
+function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getHeadingText(body: string, tag: string): string[] {
+  const texts: string[] = [];
+  const regex = new RegExp(`<${tag}\\b[^>]*>([^]*?)</${tag}>`, "gi");
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(body)) !== null) {
+    texts.push(stripHtmlTags(match[1]!));
+  }
+  return texts;
+}
+
+export function checkOnPageSeo(input: OnPageSeoInput): OnPageSeoResult {
+  const warnings: string[] = [];
+  const currentYear = new Date().getFullYear().toString();
+  const rawKeyword = (input.primaryKeyword || "").trim();
+  const lowerKeyword = rawKeyword.toLowerCase();
+  const keywordSlugFragment = rawKeyword ? autoSlug(rawKeyword).toLowerCase() : "";
+
+  // Title / meta title length
+  if (input.metaTitle.length > 60) {
+    warnings.push(`Meta title length ${input.metaTitle.length} exceeds 60 chars`);
+  }
+  if (input.title.length > 100) {
+    warnings.push(`Title/H1 length ${input.title.length} exceeds 100 chars`);
+  }
+
+  // Meta description length
+  if (input.metaDescription.length > 155) {
+    warnings.push(`Meta description length ${input.metaDescription.length} exceeds 155 chars`);
+  }
+
+  // Primary keyword placement
+  if (lowerKeyword) {
+    if (!input.metaTitle.toLowerCase().includes(lowerKeyword)) {
+      warnings.push("Primary keyword missing from meta title");
+    }
+    if (!input.title.toLowerCase().includes(lowerKeyword)) {
+      warnings.push("Primary keyword missing from title/H1");
+    }
+    if (keywordSlugFragment && !input.slug.toLowerCase().includes(keywordSlugFragment)) {
+      warnings.push("Primary keyword missing from URL slug");
+    }
+
+    const plainBody = stripHtmlTags(input.body);
+    const first100Words = plainBody.split(/\s+/).slice(0, 100).join(" ").toLowerCase();
+    if (!first100Words.includes(lowerKeyword)) {
+      warnings.push("Primary keyword missing in first 100 words");
+    }
+
+    const h2Texts = getHeadingText(input.body, "h2");
+    const h2Joined = h2Texts.join(" ").toLowerCase();
+    if (!h2Joined.includes(lowerKeyword)) {
+      warnings.push("Primary keyword missing from H2 headings");
+    }
+
+    // Click reason signal in meta description: look for digits or reason phrases
+    const hasClickReason =
+      /\d/.test(input.metaDescription) ||
+      /tested|reviewed|compared|checked|updated|guide/i.test(input.metaDescription);
+    if (!hasClickReason) {
+      warnings.push("Meta description should include a click reason (e.g. 'tested 14 exchanges')");
+    }
+  }
+
+  // Body should not contain h1 (page template already provides h1)
+  const h1Count = (input.body.match(/<h1\b/gi) || []).length;
+  if (h1Count > 0) {
+    warnings.push(`Body contains ${h1Count} <h1> tag(s); use <h2> instead`);
+  }
+
+  // FAQ section for review/comparison content
+  if (input.contentType === "review" || input.contentType === "comparison") {
+    const questionHeadings = (input.body.match(/<h[2-6]\b[^>]*>[^]*?\?[^]*?<\/h[2-6]>/gi) || [])
+      .length;
+    if (questionHeadings < 3) {
+      warnings.push(`FAQ section has fewer than 3 question headings (${questionHeadings})`);
+    }
+  }
+
+  // Best-X pages should include the current year
+  const lowerTitle = input.title.toLowerCase();
+  if (
+    /\bbest\b/.test(lowerTitle) &&
+    !input.title.includes(currentYear) &&
+    !input.metaTitle.includes(currentYear)
+  ) {
+    warnings.push(`Best-X title/meta title may be missing the current year (${currentYear})`);
+  }
+
+  return { passed: warnings.length === 0, warnings };
+}
 
 /**
  * Known-good domain patterns for affiliate content links.

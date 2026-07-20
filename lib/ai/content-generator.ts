@@ -11,10 +11,12 @@ import {
 } from "./content-moderation";
 import { sanitizePrompt } from "./prompt-sanitization";
 import { sanitizeHtml } from "@/lib/sanitize-html";
+import { autoSlug } from "@/lib/auto-slug";
 import {
   validateOutputFormat,
   validateGeneratedLinks,
   checkContentQuality,
+  checkOnPageSeo,
 } from "./output-validation";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
@@ -48,33 +50,48 @@ export interface GeneratedContent {
 }
 
 const SYSTEM_PROMPTS: Record<AIContentType, string> = {
-  article: `You are an expert content writer for affiliate marketing websites.
+  article: `You are an expert SEO content writer for affiliate marketing websites.
 Write engaging, SEO-optimized articles that provide genuine value to readers.
 Always include practical insights and actionable advice.
 Format the output as HTML with proper headings (h2, h3), paragraphs, and lists.
-Do NOT include the title as an h1 — it will be added separately.`,
+Do NOT include the title as an h1 — it will be added separately.
+Open the body with a concise 2-3 sentence direct answer to the main question.
+Use only h2 and h3 headings; structure them as questions where they match likely "People Also Ask" queries.
+If the topic is a "best X" round-up, include the current year in the title and meta title.`,
 
   review: `You are an expert product reviewer for affiliate marketing websites.
 Write honest, detailed reviews that help readers make informed purchase decisions.
 Include pros and cons, key features, pricing information, and a verdict.
 Format the output as HTML with proper headings (h2, h3), paragraphs, and lists.
-Do NOT include the title as an h1 — it will be added separately.`,
+Do NOT include the title as an h1 — it will be added separately.
+Open the body with a concise 2-3 sentence direct answer / verdict.
+Use only h2 and h3 headings; structure them as questions where they match likely "People Also Ask" queries.
+End with an FAQ section titled "Frequently Asked Questions" with at least 3 question-form h3 headings and paragraph answers.`,
 
   comparison: `You are an expert product comparison writer for affiliate marketing websites.
 Write detailed side-by-side comparisons that help readers choose between products.
 Include feature comparisons, pricing, pros/cons for each, and a clear recommendation.
 Format the output as HTML with proper headings (h2, h3), paragraphs, comparison tables, and lists.
-Do NOT include the title as an h1 — it will be added separately.`,
+Do NOT include the title as an h1 — it will be added separately.
+Open the body with a concise 2-3 sentence direct answer / recommendation.
+Use only h2 and h3 headings; structure them as questions where they match likely "People Also Ask" queries.
+Include a side-by-side comparison <table>.
+End with an FAQ section titled "Frequently Asked Questions" with at least 3 question-form h3 headings and paragraph answers.`,
 
   guide: `You are an expert guide writer for affiliate marketing websites.
 Write comprehensive, step-by-step guides that provide genuine value.
 Include practical tips, common mistakes to avoid, and recommendations.
 Format the output as HTML with proper headings (h2, h3), paragraphs, numbered steps, and lists.
-Do NOT include the title as an h1 — it will be added separately.`,
+Do NOT include the title as an h1 — it will be added separately.
+Open the body with a concise 2-3 sentence direct answer / summary.
+Use only h2 and h3 headings; structure them as questions where they match likely "People Also Ask" queries.`,
 };
 
 function buildPrompt(input: GenerateContentInput): string {
   const lang = input.language === "ar" ? "Arabic" : "English";
+  const primaryKeyword =
+    input.keywords?.[0]?.trim() || input.topic.split(" ").slice(0, 3).join(" ").trim();
+  const currentYear = new Date().getFullYear();
   const keywordStr = input.keywords?.length
     ? `\nTarget keywords: ${input.keywords.join(", ")}`
     : "";
@@ -88,14 +105,26 @@ function buildPrompt(input: GenerateContentInput): string {
     : "";
 
   return `Write a ${input.contentType} about "${input.topic}" for ${input.siteName} (${input.niche}).
-Language: ${lang}${keywordStr}${productsStr}
+Language: ${lang}
+Primary keyword (most important): "${primaryKeyword}"${keywordStr}${productsStr}
+Current year reference: ${currentYear}
 
 Requirements:
-1. Write a compelling title (output it on the FIRST line, prefixed with "TITLE: ")
-2. Write a 1-2 sentence excerpt (output it on the SECOND line, prefixed with "EXCERPT: ")
-3. Write an SEO meta title under 60 chars (output it on the THIRD line, prefixed with "META_TITLE: ")
-4. Write an SEO meta description under 155 chars (output it on the FOURTH line, prefixed with "META_DESC: ")
-5. Then output the full article body as HTML (starting from the FIFTH line)
+1. Write a compelling title/H1 (output it on the FIRST line, prefixed with "TITLE: "). Include the primary keyword naturally.
+2. Write a 1-2 sentence excerpt (output it on the SECOND line, prefixed with "EXCERPT: ").
+3. Write an SEO meta title under 60 chars (output it on the THIRD line, prefixed with "META_TITLE: "). Include the primary keyword.
+4. Write an SEO meta description under 155 chars (output it on the FOURTH line, prefixed with "META_DESC: "). Include the primary keyword and a click reason (e.g. "tested 14 exchanges...", "prices checked weekly", etc.).
+5. Then output the full article body as HTML (starting from the FIFTH line).
+
+SEO/GEO requirements:
+- If the topic is a "best X" round-up, include "${currentYear}" in the TITLE and META_TITLE (e.g. "Best X in ${currentYear}").
+- The URL slug is derived from the title, so make sure the primary keyword appears in the title.
+- The first paragraph of the body must be a 2-3 sentence direct answer / verdict.
+- Include the primary keyword in the first 100 words of the body and in at least one <h2> heading.
+- Use only <h2> and <h3> headings in the body; do NOT use <h1>.
+- Structure some <h2> headings as questions that mirror likely "People Also Ask" queries.
+- For review and comparison pages, end with a FAQ section titled "Frequently Asked Questions" with at least 3 <h3> questions ending in "?" and paragraph answers.
+- For comparisons, include a side-by-side <table> comparing the products.
 
 Make the content at least 1000 words, well-structured, and genuinely useful.`;
 }
@@ -103,6 +132,7 @@ Make the content at least 1000 words, well-structured, and genuinely useful.`;
 function parseResponse(
   raw: string,
   contentType: AIContentType,
+  primaryKeyword?: string,
 ): Omit<GeneratedContent, "provider" | "model"> {
   const lines = raw.split("\n");
   let title = "";
@@ -136,12 +166,13 @@ function parseResponse(
     title = `${contentType.charAt(0).toUpperCase() + contentType.slice(1)}: Generated Content`;
   }
 
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 80);
+  // Ensure the slug is URL-safe and includes the primary keyword if the title
+  // does not already contain it.
+  const lowerTitle = title.toLowerCase();
+  const lowerKeyword = (primaryKeyword || "").toLowerCase();
+  const slugBase =
+    lowerKeyword && !lowerTitle.includes(lowerKeyword) ? `${title} ${primaryKeyword}` : title;
+  const slug = autoSlug(slugBase).slice(0, 80).replace(/-+$/, "");
 
   return {
     title,
@@ -238,7 +269,9 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
     );
   }
 
-  const parsed = parseResponse(text, input.contentType);
+  const primaryKeyword =
+    input.keywords?.[0]?.trim() || input.topic.split(" ").slice(0, 3).join(" ").trim();
+  const parsed = parseResponse(text, input.contentType, primaryKeyword);
 
   // A108: Screen model output for prohibited content, leaked secrets, and
   // regulatory claims (A115-F1).
@@ -288,6 +321,19 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
   // Non-blocking — warnings are surfaced to the admin review queue, not a hard rejection.
   const qualityCheck = checkContentQuality(sanitizedBody, input.keywords);
 
+  // On-page SEO checks (title length, meta desc length, keyword placement,
+  // FAQ presence, H1 usage, current year in best-X titles).
+  const seoCheck = checkOnPageSeo({
+    title: parsed.title,
+    metaTitle: parsed.metaTitle,
+    metaDescription: parsed.metaDescription,
+    body: sanitizedBody,
+    slug: parsed.slug,
+    contentType: input.contentType,
+    primaryKeyword,
+  });
+  const allWarnings = [...qualityCheck.warnings, ...seoCheck.warnings];
+
   return {
     ...parsed,
     body: watermarkedBody,
@@ -295,7 +341,7 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
     model,
     // A115-F1: Include regulatory warnings so admin UI can surface them.
     ...(outputCheck.regulatoryWarnings && { regulatoryWarnings: outputCheck.regulatoryWarnings }),
-    // S5-A105-02: Include quality warnings so admin UI can surface them.
-    ...(qualityCheck.warnings.length > 0 && { qualityWarnings: qualityCheck.warnings }),
+    // S5-A105-02: Include quality + SEO warnings so admin UI can surface them.
+    ...(allWarnings.length > 0 && { qualityWarnings: allWarnings }),
   };
 }
