@@ -1,5 +1,5 @@
 import type { SiteDefinition } from "@/config/site-definition";
-import type { ContentRow, ProductRow } from "@/types/database";
+import type { AuthorRow, ContentRow, ProductRow } from "@/types/database";
 import { parseDocument, DomUtils } from "htmlparser2";
 import type { Element, Text, ChildNode } from "domhandler";
 import { headers } from "next/headers";
@@ -74,8 +74,35 @@ export function breadcrumbJsonLd(site: SiteDefinition, items: { name: string; pa
   };
 }
 
+/** Person/Author schema — supports E-E-A-T signals (photo, credentials, URL). */
+export function personJsonLd(site: SiteDefinition, author: AuthorRow): Record<string, unknown> {
+  const data: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: author.name,
+    url: `https://${site.domain}/author/${author.slug}`,
+    description: author.bio || undefined,
+    jobTitle: author.credentials || undefined,
+    knowsAbout: author.expertise.length > 0 ? author.expertise : undefined,
+  };
+
+  if (author.photo_url) {
+    data.image = author.photo_url;
+  }
+
+  if (Object.keys(author.social_links).length > 0) {
+    data.sameAs = Object.values(author.social_links).filter(Boolean);
+  }
+
+  return data;
+}
+
 /** Article schema for content pages */
-export function articleJsonLd(site: SiteDefinition, content: ContentRow) {
+export function articleJsonLd(
+  site: SiteDefinition,
+  content: ContentRow,
+  author?: AuthorRow | null,
+) {
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -83,9 +110,11 @@ export function articleJsonLd(site: SiteDefinition, content: ContentRow) {
     description: content.excerpt || content.title,
     datePublished: content.created_at,
     dateModified: content.updated_at || content.created_at,
-    author: content.author
-      ? { "@type": "Person", name: content.author }
-      : { "@type": "Organization", name: site.name },
+    author: author
+      ? personJsonLd(site, author)
+      : content.author
+        ? { "@type": "Person", name: content.author }
+        : { "@type": "Organization", name: site.name },
     publisher: {
       "@type": "Organization",
       name: site.name,
@@ -106,7 +135,12 @@ export function articleJsonLd(site: SiteDefinition, content: ContentRow) {
 }
 
 /** Review schema for review-type content */
-export function reviewJsonLd(site: SiteDefinition, content: ContentRow, product?: ProductRow) {
+export function reviewJsonLd(
+  site: SiteDefinition,
+  content: ContentRow,
+  product?: ProductRow,
+  author?: AuthorRow | null,
+) {
   const base: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Review",
@@ -114,9 +148,11 @@ export function reviewJsonLd(site: SiteDefinition, content: ContentRow, product?
     description: content.excerpt || content.title,
     datePublished: content.created_at,
     dateModified: content.updated_at || content.created_at,
-    author: content.author
-      ? { "@type": "Person", name: content.author }
-      : { "@type": "Organization", name: site.name },
+    author: author
+      ? personJsonLd(site, author)
+      : content.author
+        ? { "@type": "Person", name: content.author }
+        : { "@type": "Organization", name: site.name },
     publisher: {
       "@type": "Organization",
       name: site.name,
