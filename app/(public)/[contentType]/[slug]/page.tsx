@@ -26,6 +26,9 @@ const ReadingProgress = dynamic(() =>
   import("../../components/reading-progress").then((m) => m.ReadingProgress),
 );
 const VerdictBox = dynamic(() => import("../../components/verdict-box").then((m) => m.VerdictBox));
+const TopPickBanner = dynamic(() =>
+  import("../../components/top-pick-banner").then((m) => m.TopPickBanner),
+);
 import { ProsCons } from "../../components/pros-cons";
 import {
   JsonLd,
@@ -235,6 +238,12 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   const comparisonWinner = rankedComparison[0];
   const comparisonRunnerUp = rankedComparison[1];
 
+  // For listicles/best-X round-ups, pick the highest-scored linked product as
+  // the sticky "Our #1 Pick" CTA; if no scores exist, use the first linked item.
+  const topPickProduct = [...linkedProducts.map((lp) => lp.product)].sort(
+    (a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity),
+  )[0];
+
   const contentSchema = isReview
     ? reviewJsonLd(site, content, heroProduct)
     : articleJsonLd(site, content);
@@ -370,6 +379,18 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
             runnerUpProduct={comparisonRunnerUp ?? null}
             totalCompared={comparisonProducts.length}
             productLabelPlural={site.productLabelPlural}
+            lastVerified={lastVerifiedLabel}
+          />
+        )}
+
+        {/* Sticky "Our #1 Pick" for listicles / best-X round-ups:
+          appears when an article has multiple linked products and is not a
+          dedicated review or comparison page. */}
+        {!isReview && !isComparison && linkedProducts.length > 0 && topPickProduct && (
+          <TopPickBanner
+            product={topPickProduct}
+            language={site.language}
+            totalCompared={linkedProducts.length}
             lastVerified={lastVerifiedLabel}
           />
         )}
