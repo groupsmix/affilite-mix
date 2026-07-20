@@ -2,9 +2,12 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getContentBySlug, getRelatedContent } from "@/lib/dal/content";
 import { getLinkedProducts, getContentLinkedToProducts } from "@/lib/dal/content-products";
 import { getCategoryById } from "@/lib/dal/categories";
+import { getAuthorById } from "@/lib/dal/authors";
 import { injectProductLinks, buildRelatedLinks } from "@/lib/internal-links";
+import { autoSlug } from "@/lib/auto-slug";
 import { getAdminSession } from "@/lib/auth";
 import { validatePreviewToken } from "@/lib/preview-token";
+import Image from "next/image";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
@@ -14,6 +17,7 @@ import { AdImage } from "../../components/ads/ad-image";
 import { Breadcrumbs } from "../../components/breadcrumbs";
 import { cn } from "@/lib/utils";
 import { ReportContentLink } from "../../components/report-content-link";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 
 const ComparisonTable = dynamic(() =>
@@ -172,11 +176,12 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
     redirect(`/${content.type}/${content.slug}`);
   }
 
-  // Load linked products, related content, and the category hub.
-  const [linkedProducts, relatedContent, hubCategory] = await Promise.all([
+  // Load linked products, related content, the category hub, and the author.
+  const [linkedProducts, relatedContent, hubCategory, author] = await Promise.all([
     getLinkedProducts(site.id, content.id),
     getRelatedContent(site.id, content.category_id, content.id, 4),
     content.category_id ? getCategoryById(site.id, content.category_id) : Promise.resolve(null),
+    content.author_id ? getAuthorById(site.id, content.author_id) : Promise.resolve(null),
   ]);
 
   // CA-306: automated contextual internal links. Find published content that
@@ -237,8 +242,8 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   const comparisonRunnerUp = rankedComparison[1];
 
   const contentSchema = isReview
-    ? reviewJsonLd(site, content, heroProduct)
-    : articleJsonLd(site, content);
+    ? reviewJsonLd(site, content, heroProduct, author)
+    : articleJsonLd(site, content, author);
 
   // Build FAQ JSON-LD if content has FAQ-like structure
   const faqSchema = faqJsonLd(content.body);
@@ -305,6 +310,44 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           <div className="mb-2 text-sm text-gray-500">{contentTypeLabel}</div>
           <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">{content.title}</h1>
           {content.excerpt && <p className="text-lg text-gray-600">{content.excerpt}</p>}
+
+          {/* Author byline + methodology / disclosure */}
+          {(content.author || author) && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+              {author?.photo_url && (
+                <Image
+                  src={author.photo_url}
+                  alt={author.name}
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover"
+                />
+              )}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-600">
+                <span>
+                  By{" "}
+                  {author ? (
+                    <Link
+                      href={`/author/${author.slug}`}
+                      className="font-medium text-gray-900 hover:underline"
+                    >
+                      {author.name}
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-gray-900">{content.author}</span>
+                  )}
+                </span>
+                {author?.credentials && <span className="text-gray-500">{author.credentials}</span>}
+                <Link
+                  href="/how-we-rank"
+                  className="text-gray-500 hover:text-gray-900 hover:underline"
+                >
+                  How we test
+                </Link>
+              </div>
+            </div>
+          )}
+
           {(content.publish_at ?? content.created_at) && (
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
               <span>

@@ -27,6 +27,8 @@ export interface ListContentOptions {
   /** Multi-select status filter (applied via Supabase `.in(...)`). */
   statuses?: ContentRow["status"][];
   categoryId?: string;
+  /** Filter by structured author_id (takes precedence over legacy text `author`). */
+  authorId?: string;
   /** Free-text search against `title` (ILIKE). */
   q?: string;
   /** Sort column; defaults to `created_at` descending for backward-compat. */
@@ -47,11 +49,11 @@ export type CountContentOptions = Omit<
 
 // Columns needed for list views (excludes heavy body/body_previous)
 const LIST_COLUMNS =
-  "id, site_id, title, slug, excerpt, featured_image, type, status, review_state, category_id, tags, author, publish_at, meta_title, meta_description, og_image, created_at, updated_at" as const;
+  "id, site_id, title, slug, excerpt, featured_image, type, status, review_state, category_id, tags, author, author_id, publish_at, meta_title, meta_description, og_image, created_at, updated_at" as const;
 
 // A23-01: Full explicit column list for detail views (includes body).
 const DETAIL_COLUMNS =
-  "id, site_id, title, slug, body, excerpt, featured_image, type, status, review_state, category_id, tags, author, publish_at, meta_title, meta_description, og_image, body_previous, ai_generated, created_at, updated_at" as const;
+  "id, site_id, title, slug, body, excerpt, featured_image, type, status, review_state, category_id, tags, author, author_id, publish_at, meta_title, meta_description, og_image, body_previous, ai_generated, created_at, updated_at" as const;
 
 /** List content for a site with optional filters */
 export async function listContent(
@@ -79,6 +81,7 @@ export async function listContent(
     query = query.eq("status", opts.status);
   }
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
+  if (opts.authorId) query = query.eq("author_id", opts.authorId);
   if (opts.q && opts.q.trim().length > 0) {
     query = query.ilike("title", `%${escapeLike(opts.q.trim())}%`);
   }
@@ -259,6 +262,7 @@ export async function countContent(
     query = query.eq("status", opts.status);
   }
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
+  if (opts.authorId) query = query.eq("author_id", opts.authorId);
   if (opts.q && opts.q.trim().length > 0) {
     query = query.ilike("title", `%${escapeLike(opts.q.trim())}%`);
   }

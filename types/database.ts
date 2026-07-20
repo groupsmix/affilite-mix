@@ -132,6 +132,21 @@ export interface ProductRow {
   updated_at: string;
 }
 
+export interface AuthorRow {
+  id: string;
+  site_id: string;
+  name: string;
+  slug: string;
+  bio: string;
+  photo_url: string;
+  credentials: string;
+  expertise: string[];
+  social_links: Record<string, string>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ContentRow {
   id: string;
   site_id: string;
@@ -145,6 +160,7 @@ export interface ContentRow {
   category_id: string | null;
   tags: string[];
   author: string | null;
+  author_id?: string | null;
   publish_at: string | null;
   meta_title: string | null;
   meta_description: string | null;
