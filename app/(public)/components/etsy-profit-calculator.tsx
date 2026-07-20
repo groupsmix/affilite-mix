@@ -28,7 +28,7 @@ export function EtsyProfitCalculator({ siteLanguage = "en" }: EtsyProfitCalculat
   const [monthlyOverhead, setMonthlyOverhead] = useState<string>("0");
   const [monthlySales, setMonthlySales] = useState<string>("50");
   const [showEmailGate, setShowEmailGate] = useState<boolean>(false);
-  const { accepted: hasConsent } = useCookieConsent();
+  useCookieConsent();
 
   useEffect(() => {
     if (
