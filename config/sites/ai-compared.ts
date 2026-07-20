@@ -2,21 +2,15 @@ import { defineSite } from "../define-site";
 
 export const aiComparedSite = defineSite({
   id: "ai-compared",
-  name: "AI Compared",
+  name: "CompareAI",
   domain: "compareai.site",
   aliases: ["ai.localhost"],
-  niche: "AI Tools & Software Reviews",
+  niche: "AI-Powered Etsy Growth Tools & Workflows",
   description:
-    "In-depth reviews and comparisons of AI tools, platforms, and software — find the best AI for your workflow.",
+    "Honest reviews, side-by-side comparisons, and practical AI workflows for Etsy print-on-demand and digital-product sellers.",
 
-  // Trust-first palette (replaces the old purple #2E1065 / #8B5CF6 "AI hype"
-  // scheme). Cool ink brand color + Trust Cobalt as the signal. Blue reads as
-  // stable, secure, and impartial — the right tone for an independent review
-  // authority. Verified-green winner accents live in the compare homepage.
-  //   primary    = ink canvas for dark sections (cool charcoal, not pure black)
-  //   accent     = Trust Cobalt (buttons, links, active states) — WCAG AA on white text
-  //   accentText = deep cobalt, AA-safe as link text on white (7.4:1)
-  //   accentLight= brighter cobalt for large/decorative use on dark surfaces
+  // Trust-first palette (replaces the old purple "AI hype" scheme).
+  // Cool ink canvas for dark sections + Trust Cobalt for actions.
   colors: {
     primary: "#0B1120",
     accent: "#2D6BF0",
@@ -24,8 +18,11 @@ export const aiComparedSite = defineSite({
     accentLight: "#3B82F6",
   },
   fonts: "modern",
-  homepage: "compare",
+  homepage: "etsy",
   layout: "compare",
+
+  productLabel: "Tool",
+  productLabelPlural: "Tools",
 
   features: [
     "blog",
@@ -43,18 +40,19 @@ export const aiComparedSite = defineSite({
 
   nav: [
     { title: "Home", href: "/" },
-    { title: "Reviews", href: "/review" },
+    { title: "Tools", href: "/tools" },
     { title: "Comparisons", href: "/comparison" },
     { title: "Guides", href: "/guide" },
-    { title: "Deals", href: "/deals" },
+    { title: "Reviews", href: "/review" },
   ],
 
   footerNav: {
     quickLinks: [
       { title: "Home", href: "/" },
-      { title: "Reviews", href: "/review" },
+      { title: "Tools", href: "/tools" },
       { title: "Comparisons", href: "/comparison" },
       { title: "Guides", href: "/guide" },
+      { title: "Reviews", href: "/review" },
     ],
     legal: [
       { title: "About", href: "/about" },
@@ -67,8 +65,8 @@ export const aiComparedSite = defineSite({
 
   pages: {
     about: {
-      title: "About AI Compared",
-      description: "Honest AI tool reviews and comparisons you can trust",
+      title: "About CompareAI",
+      description: "How we test and review AI tools for Etsy sellers",
     },
     privacy: {
       title: "Privacy Policy",
@@ -80,7 +78,7 @@ export const aiComparedSite = defineSite({
     },
     contact: {
       title: "Contact Us",
-      description: "Get in touch with the AI Compared team",
+      description: "Get in touch with the CompareAI team",
       email: "contact@compareai.site",
     },
     affiliateDisclosurePage: {
@@ -88,4 +86,12 @@ export const aiComparedSite = defineSite({
       description: "How we earn revenue and maintain editorial independence",
     },
   },
+
+  sitemapExtraPages: [
+    { path: "/tools", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/tools/etsy-profit-calculator", priority: 0.9, changeFrequency: "monthly" },
+    { path: "/guide", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/comparison", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/review", priority: 0.7, changeFrequency: "weekly" },
+  ],
 });

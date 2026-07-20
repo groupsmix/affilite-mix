@@ -9,8 +9,18 @@ import { shimmerPlaceholder } from "@/lib/image-placeholder";
  * Fire-and-forget click tracking, then navigate to the affiliate URL directly.
  * Decouples tracking from navigation so tracking failures don't block the user.
  */
-function fireTrackingBeacon(slug: string, sourceType: string) {
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=${sourceType}`;
+function fireTrackingBeacon(
+  slug: string,
+  sourceType: string,
+  placement?: string,
+  campaign?: string,
+) {
+  const params = new URLSearchParams();
+  params.set("p", slug);
+  params.set("t", sourceType);
+  if (placement) params.set("pl", placement);
+  if (campaign) params.set("c", campaign);
+  const trackUrl = `/api/track/click?${params.toString()}`;
   try {
     if (navigator.sendBeacon) {
       navigator.sendBeacon(trackUrl);
@@ -27,6 +37,8 @@ interface ProductCardCtaProps {
   href: string;
   slug: string;
   sourceType?: string;
+  placement?: string;
+  campaign?: string;
   label: ReactNode;
   className: string;
   style?: React.CSSProperties;
@@ -36,6 +48,8 @@ export function ProductCardCta({
   href,
   slug,
   sourceType = "content",
+  placement,
+  campaign,
   label,
   className,
   style,
@@ -46,10 +60,52 @@ export function ProductCardCta({
     e.preventDefault();
 
     if (consentAccepted) {
-      fireTrackingBeacon(slug, sourceType);
+      fireTrackingBeacon(slug, sourceType, placement, campaign);
     }
 
-    window.open(href, "_blank", "noopener,noreferrer");
+    // Send a GA4 event regardless of consent so the site can attribute clicks to placements/campaigns.
+    try {
+      if (
+        typeof window !== "undefined" &&
+        "gtag" in window &&
+        typeof (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag === "function"
+      ) {
+        (window as unknown as { gtag: (...args: unknown[]) => void }).gtag(
+          "event",
+          "affiliate_click",
+          {
+            event_category: "affiliate",
+            event_label: slug,
+            placement: placement ?? sourceType,
+            campaign: campaign ?? "",
+          },
+        );
+      }
+    } catch {
+      // fail-open: analytics best-effort
+    }
+
+    // Append UTM parameters for affiliate attribution where the URL allows it.
+    let destinationUrl = href;
+    try {
+      const url = new URL(href, window.location.href);
+      if (!url.searchParams.has("utm_source")) {
+        url.searchParams.set("utm_source", window.location.host);
+      }
+      if (!url.searchParams.has("utm_medium")) {
+        url.searchParams.set("utm_medium", "affiliate");
+      }
+      if (campaign && !url.searchParams.has("utm_campaign")) {
+        url.searchParams.set("utm_campaign", campaign);
+      } else if (!url.searchParams.has("utm_campaign") && sourceType !== "content") {
+        url.searchParams.set("utm_campaign", sourceType);
+      }
+      destinationUrl = url.toString();
+    } catch {
+      // If href is not a valid absolute/relative URL, fall back to opening it as-is.
+    }
+
+    window.open(destinationUrl, "_blank", "noopener,noreferrer");
   }
 
   return (

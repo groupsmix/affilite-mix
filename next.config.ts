@@ -82,6 +82,8 @@ const nextConfig: NextConfig = {
     { source: "/reviews/:slug", destination: "/review/:slug", permanent: true },
     { source: "/comparisons", destination: "/comparison", permanent: true },
     { source: "/comparisons/:slug", destination: "/comparison/:slug", permanent: true },
+    { source: "/vs", destination: "/comparison", permanent: true },
+    { source: "/vs/:slug", destination: "/comparison/:slug", permanent: true },
     { source: "/guides", destination: "/guide", permanent: true },
     { source: "/guides/:slug", destination: "/guide/:slug", permanent: true },
   ],

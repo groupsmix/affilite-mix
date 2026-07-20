@@ -107,7 +107,8 @@ export interface SiteDefinition {
     | "top10"
     | "compare"
     | "showcase"
-    | "taxfinder";
+    | "taxfinder"
+    | "etsy";
 
   /**
    * Chrome variant — controls the header and footer design for this site.
