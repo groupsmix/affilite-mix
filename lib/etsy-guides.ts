@@ -264,6 +264,47 @@ const guides: Record<string, EtsyGuide> = {
       <p>Yes, as long as you disclose AI use in the listing and the final product meets Etsy's "designed by you" requirement.</p>
     `,
   },
+  "everbee-pricing-and-break-even": {
+    slug: "everbee-pricing-and-break-even",
+    title: "EverBee Pricing & Break-Even Analysis (2026)",
+    metaTitle: "EverBee Pricing & Break-Even Analysis for Etsy Sellers (2026)",
+    metaDescription:
+      "Compare EverBee Hobby, Growth and Business plans, see official pricing, and calculate how many sales you need to break even on the subscription.",
+    datePublished: "2026-07-18",
+    dateModified: "2026-07-18",
+    primaryKeyword: "everbee pricing",
+    excerpt:
+      "Compare EverBee Hobby, Growth and Business plans, see official pricing, and calculate how many sales you need to break even.",
+    tags: ["EverBee", "EverBee pricing", "Etsy tools"],
+    relatedSlugs: [
+      "is-everbee-worth-it-for-new-shop",
+      "everbee-vs-alura",
+      "tools/etsy-profit-calculator",
+    ],
+    bodyHtml: `
+      <h2>EverBee pricing at a glance</h2>
+      <p>EverBee offers three plans for Etsy research and analytics. Prices below are from the official EverBee pricing page and are shown as monthly/annual billing.</p>
+      <ul>
+        <li><strong>Hobby:</strong> $0 forever — limited analytics, 10 keyword lookups, tag analyzer.</li>
+        <li><strong>Growth:</strong> $29.99/mo or $19.99/mo billed annually ($239/yr) — unlimited keywords, trends, favorites and priority support.</li>
+        <li><strong>Business:</strong> $99/mo or $69/mo billed annually ($828/yr) — unlimited everything and advanced filters.</li>
+      </ul>
+      <h2>Which plan should you choose?</h2>
+      <p>Start with Hobby while you are testing ideas and learning how to read the data. Move to Growth when you are listing regularly and need unlimited keyword research. Business is for high-volume sellers or teams managing multiple shops.</p>
+      <h2>Break-even math for EverBee Growth</h2>
+      <p>At the annual Growth price of $19.99/mo, you need one extra sale per month worth more than $20 in profit to pay for the tool. For a $22 POD t-shirt with $8 production cost and ~15% Etsy fees, your profit per unit is about $10.70, so you need roughly 2 sales per month to break even.</p>
+      <p>Use the <a href="/tools/etsy-profit-calculator">Etsy profit calculator</a> to plug in your exact price, cost and fee numbers.</p>
+      <h2>When is EverBee not worth it?</h2>
+      <p>If you are not listing new products regularly, or if you already get enough demand signals from free Etsy search, a paid plan may not pay for itself. The Hobby plan is enough for occasional research.</p>
+      <h2>FAQ</h2>
+      <h3>Does EverBee charge per shop?</h3>
+      <p>Growth supports multiple store connections; Business adds unlimited stores. Check the current pricing page for the exact limit on your plan.</p>
+      <h3>Can I cancel EverBee anytime?</h3>
+      <p>Monthly plans can be cancelled before the next billing cycle. Annual plans are billed upfront.</p>
+      <h3>Is the EverBee Hobby plan really free?</h3>
+      <p>Yes. The Hobby plan is free and does not require a credit card. It is designed to let sellers try the core features before upgrading.</p>
+    `,
+  },
   "complete-pod-workflow": {
     slug: "complete-pod-workflow",
     title: "A Complete Print-on-Demand Workflow for Etsy",

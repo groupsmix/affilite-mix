@@ -25,18 +25,21 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const UPCOMING = [
+const COMPARISONS = [
   {
+    slug: "everbee-vs-alura",
     title: "EverBee vs Alura",
     subtitle: "Product research and SEO — which fits your shop stage?",
-    status: "In testing",
+    status: "Live",
   },
   {
+    slug: "kittl-vs-canva-for-etsy-pod",
     title: "Kittl vs Canva for Etsy POD",
     subtitle: "Design, mockups, and commercial-use licensing compared.",
-    status: "Planned",
+    status: "Live",
   },
   {
+    slug: "printful-vs-printify",
     title: "Printful vs Printify (AI-assisted workflow)",
     subtitle: "POD fulfilment, pricing, and mockup quality for Etsy.",
     status: "Planned",
@@ -66,30 +69,44 @@ export default async function ComparisonHubPage() {
       </header>
 
       <div className="space-y-6">
-        {UPCOMING.map((item) => (
-          <article key={item.title} className="rounded-2xl border border-gray-200 bg-white p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">{item.title}</h2>
-                <p className="mt-1 text-sm text-gray-600">{item.subtitle}</p>
+        {COMPARISONS.map((item) => {
+          const isLive = item.status === "Live";
+          const Title = (
+            <h2
+              className={`text-xl font-semibold ${isLive ? "text-gray-900 hover:underline" : "text-gray-900"}`}
+            >
+              {item.title}
+            </h2>
+          );
+          return (
+            <article key={item.slug} className="rounded-2xl border border-gray-200 bg-white p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  {isLive ? <Link href={`/comparison/${item.slug}`}>{Title}</Link> : Title}
+                  <p className="mt-1 text-sm text-gray-600">{item.subtitle}</p>
+                </div>
+                <span
+                  className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-medium ${
+                    isLive ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {item.status}
+                </span>
               </div>
-              <span className="inline-flex w-fit items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                {item.status}
-              </span>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
 
       <section className="mt-12 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 sm:p-8">
         <h2 className="text-lg font-semibold text-gray-900">
-          Want the first comparison as soon as it is live?
+          Model your profit before you subscribe
         </h2>
         <p className="mt-2 text-sm text-gray-600">
-          Drop your email and we will send the full comparison plus the exact workflow we used to
-          test both tools.
+          Every comparison links back to real numbers. Use the calculator to see how many sales you
+          need to break even on any tool.
         </p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-4">
           <Link
             href="/tools/etsy-profit-calculator"
             className="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-white"
@@ -97,9 +114,6 @@ export default async function ComparisonHubPage() {
           >
             Try the free profit calculator
           </Link>
-          <span className="inline-flex items-center justify-center text-sm text-gray-500">
-            — while testing is in progress
-          </span>
         </div>
       </section>
     </main>

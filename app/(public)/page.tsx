@@ -62,8 +62,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const isCryptoTaxAu =
     site.name === "Crypto Tax AU" ||
     site.domain === "cryptoranked.xyz" ||
-    site.id === "crypto-tools" ||
-    site.id === "863772b4-00ad-4912-9813-3c1372ce7c28";
+    (site.slug ?? site.id) === "crypto-tools";
   const ogTitle = `${site.name} — ${site.brand.niche}`;
   const ogImageSrc = isCryptoTaxAu ? "/images/hero-crypto-tax-au.png" : site.brand.logo;
   const ogImage = ogImageSrc

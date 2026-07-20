@@ -17,6 +17,8 @@ export type LayoutVariant = "standard" | "compare" | "magazine" | "minimal" | "d
 
 export interface SiteDefinition {
   id: string;
+  /** Static config slug. Persists even when `id` is replaced by the DB UUID. */
+  slug?: string;
   name: string;
   domain: string;
   aliases?: string[];

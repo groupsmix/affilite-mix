@@ -91,7 +91,11 @@ export const aiComparedSite = defineSite({
     { path: "/tools", priority: 0.9, changeFrequency: "weekly" },
     { path: "/tools/etsy-profit-calculator", priority: 0.9, changeFrequency: "monthly" },
     { path: "/guide", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/guide/everbee-pricing-and-break-even", priority: 0.8, changeFrequency: "monthly" },
     { path: "/comparison", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/comparison/everbee-vs-alura", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/comparison/kittl-vs-canva-for-etsy-pod", priority: 0.8, changeFrequency: "monthly" },
     { path: "/review", priority: 0.7, changeFrequency: "weekly" },
+    { path: "/review/is-everbee-worth-it-for-new-shop", priority: 0.8, changeFrequency: "monthly" },
   ],
 });

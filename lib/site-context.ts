@@ -18,6 +18,7 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
 
   return {
     id: row.id,
+    slug: row.slug,
     name: row.name,
     domain: row.domain,
     language: row.language,
@@ -188,11 +189,11 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     // Try to get DB UUID, but don't fail if DB is not available
     try {
       const dbSiteId = await resolveDbSiteId(siteSlug);
-      return { ...site, id: dbSiteId };
+      return { ...site, id: dbSiteId, slug: site.slug ?? siteSlug };
     } catch {
       // fail-open: best-effort [criticality:non-critical]
       // DB not available or site not in DB yet - use static config
-      return site;
+      return { ...site, slug: site.slug ?? siteSlug };
     }
   }
 

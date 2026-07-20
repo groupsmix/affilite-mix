@@ -63,7 +63,7 @@ export async function GET() {
     }
   }
 
-  if (site.id === "crypto-tools") {
+  if ((site.slug ?? site.id) === "crypto-tools") {
     lines.push("## Tools");
     lines.push(`- ${baseUrl}/tools: Crypto Tax Tools`);
     lines.push(`- ${baseUrl}/tools/crypto-tax-comparison: Crypto Tax Software Comparison`);

@@ -75,7 +75,7 @@ function flattenFeatureFlags(flags: FeatureFlags): Record<string, boolean> {
  */
 export function toSiteRow(site: SiteDefinition): DerivedSiteRow {
   return {
-    slug: site.id,
+    slug: site.slug ?? site.id,
     name: site.name,
     domain: site.domain,
     language: site.language,

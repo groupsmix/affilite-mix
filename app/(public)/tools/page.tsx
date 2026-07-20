@@ -10,7 +10,7 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  const isEtsy = site.id === "ai-compared";
+  const isEtsy = (site.slug ?? site.id) === "ai-compared";
   const title = isEtsy ? "Free Etsy Seller Tools" : "Free Crypto Tax Tools for Australians";
   const description = isEtsy
     ? "Free tools for Etsy sellers: profit and break-even calculator, workflow checklists, and AI tool comparisons."
@@ -166,7 +166,7 @@ function EtsyToolsIndex({ site }: { site: SiteDefinition }) {
 
 export default async function ToolsIndexPage() {
   const site = await getCurrentSite();
-  if (site.id === "ai-compared") {
+  if ((site.slug ?? site.id) === "ai-compared") {
     return <EtsyToolsIndex site={site} />;
   }
   return <CryptoToolsIndex site={site} />;
