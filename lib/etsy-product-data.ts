@@ -378,8 +378,8 @@ export interface EtsyComparison {
 }
 
 export const etsyComparisons: Record<string, EtsyComparison> = {
-  "everbee-vs-alura": {
-    slug: "everbee-vs-alura",
+  "alura-vs-everbee": {
+    slug: "alura-vs-everbee",
     title: "EverBee vs Alura (2026): Which Etsy Tool Wins?",
     metaTitle: "EverBee vs Alura (2026): Best Etsy Research & SEO Tool",
     metaDescription:
@@ -411,8 +411,8 @@ export const etsyComparisons: Record<string, EtsyComparison> = {
     datePublished: "2026-07-18",
     dateModified: "2026-07-18",
   },
-  "kittl-vs-canva-for-etsy-pod": {
-    slug: "kittl-vs-canva-for-etsy-pod",
+  "canva-for-etsy-pod-vs-kittl": {
+    slug: "canva-for-etsy-pod-vs-kittl",
     title: "Kittl vs Canva for Etsy POD (2026): Design Tool Showdown",
     metaTitle: "Kittl vs Canva for Etsy POD (2026): Best Design Tool",
     metaDescription:
