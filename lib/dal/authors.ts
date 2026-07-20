@@ -1,4 +1,3 @@
-import { getTenantClient } from "@/lib/supabase-server";
 import type { AuthorRow, ContentRow } from "@/types/database";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { assertRow, assertRows, rowOrNull } from "./type-guards";
