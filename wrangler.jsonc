@@ -9,6 +9,10 @@
   // A206/A209: Disable the *.workers.dev preview URL so all traffic must
   // transit the zone-level WAF, Bot Fight Mode, and TLS settings.
   "workers_dev": false,
+  // www alias for the WristNerd watch-tools site. Wrangler auto-provisions
+  // the custom domain + DNS record on deploy so the subdomain reaches the
+  // same worker as the apex domain.
+  "routes": [{ "pattern": "www.wristnerd.xyz", "custom_domain": true }],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
@@ -177,22 +181,27 @@
     ],
   },
   // ═════════════════════════════════════════════════════════════════
-  // DOMAIN ROUTING - Infrastructure-as-Code (Terraform)
-  // ═════════════════════════════════════════════════════════════════
+  // DOMAIN ROUTING - Infrastructure-as-Code (Terraform) + deploy-time aliases
+  // ═══════════════════════════════════════════════════════════════════════════
   //
-  // E2-05: Domain routing is now managed via Terraform instead of wrangler.jsonc.
-  // See terraform/cloudflare/worker-domains.tf for the custom domain definitions.
+  // E2-05: Most custom domains are managed via Terraform. See
+  // terraform/cloudflare/worker-domains.tf and terraform/cloudflare/dns.tf for
+  // the declarative definitions.
   //
   // ADD/REMOVE DOMAINS:
-  // 1. Edit terraform/cloudflare/worker-domains.tf
-  // 2. Run `terraform apply` in terraform/cloudflare/
+  // 1. For most domains: edit terraform/cloudflare/worker-domains.tf, run
+  //    `terraform apply` in terraform/cloudflare/
+  // 2. For deploy-time aliases that must be auto-provisioned by `wrangler deploy`
+  //    (e.g. `www.wristnerd.xyz`): add a route with `custom_domain: true` below
+  //    and let the CI deploy step create the DNS record.
   // 3. Update the domain in your Supabase sites table
   //
   // DOMAINS MANAGED:
-  // - wristnerd.xyz (apex)
-  // - arabictools.wristnerd.xyz (subdomain)
-  // - crypto.wristnerd.xyz (subdomain)
-  // - cryptoranked.xyz (standalone)
+  // - wristnerd.xyz (apex) — Terraform
+  // - www.wristnerd.xyz (subdomain alias) — wrangler route / custom_domain
+  // - arabictools.wristnerd.xyz (subdomain) — Terraform
+  // - crypto.wristnerd.xyz (subdomain) — Terraform
+  // - cryptoranked.xyz (standalone) — Terraform
   //
   // EXCLUDED:
   // - compareai.site: externally-managed DNS records (see externally-managed-domains.tf)
