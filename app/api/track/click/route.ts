@@ -360,7 +360,29 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     if (rawContentSlug && !SLUG_RE.test(rawContentSlug)) {
       return apiError(400, "Invalid content slug");
     }
-    const contentSlug = rawContentSlug;
+
+    // placement and campaign let us attribute clicks to a specific CTA and campaign.
+    // They are stored alongside the content slug in a pipe-delimited form so the
+    // existing affiliate_clicks table does not need new columns.
+    const rawPlacement = (searchParams.get("pl") ?? "")
+      .normalize("NFC")
+      .replace(/[\x00\x1F\|]/g, "")
+      .slice(0, 64);
+    const rawCampaign = (searchParams.get("c") ?? "")
+      .normalize("NFC")
+      .replace(/[\x00\x1F\|]/g, "")
+      .slice(0, 64);
+    if (
+      (rawPlacement && !SLUG_RE.test(rawPlacement)) ||
+      (rawCampaign && !SLUG_RE.test(rawCampaign))
+    ) {
+      return apiError(400, "Invalid placement or campaign parameter");
+    }
+
+    const contentSlugParts = [rawContentSlug];
+    if (rawPlacement) contentSlugParts.push(`pl:${rawPlacement}`);
+    if (rawCampaign) contentSlugParts.push(`c:${rawCampaign}`);
+    const contentSlug = contentSlugParts.join("|").slice(0, 160);
 
     // A162: Store only the /24 prefix — full IP is never written to DB.
     const ipPrefix = getIpPrefix(ip) ?? "";

@@ -60,6 +60,32 @@ export function webSiteJsonLd(site: SiteDefinition) {
   };
 }
 
+interface SoftwareApplicationInput {
+  name: string;
+  description: string;
+  url: string;
+  applicationCategory?: string;
+  operatingSystem?: string;
+}
+
+/** SoftwareApplication schema for free tools / calculators */
+export function softwareApplicationJsonLd(input: SoftwareApplicationInput) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: input.name,
+    description: input.description,
+    url: input.url,
+    applicationCategory: input.applicationCategory ?? "SoftwareApplication",
+    operatingSystem: input.operatingSystem ?? "Any",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+  };
+}
+
 /** BreadcrumbList schema */
 export function breadcrumbJsonLd(site: SiteDefinition, items: { name: string; path: string }[]) {
   return {

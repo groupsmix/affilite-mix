@@ -34,7 +34,8 @@ type HomepagePreset =
   | "top10"
   | "compare"
   | "showcase"
-  | "taxfinder";
+  | "taxfinder"
+  | "etsy";
 type ProductCardStylePreset = "standard" | "compact" | "detailed";
 
 /* ------------------------------------------------------------------ */
