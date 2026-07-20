@@ -27,13 +27,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const COMPARISONS = [
   {
-    slug: "everbee-vs-alura",
+    slug: "alura-vs-everbee",
     title: "EverBee vs Alura",
     subtitle: "Product research and SEO — which fits your shop stage?",
     status: "Live",
   },
   {
-    slug: "kittl-vs-canva-for-etsy-pod",
+    slug: "canva-for-etsy-pod-vs-kittl",
     title: "Kittl vs Canva for Etsy POD",
     subtitle: "Design, mockups, and commercial-use licensing compared.",
     status: "Live",

@@ -278,7 +278,7 @@ const guides: Record<string, EtsyGuide> = {
     tags: ["EverBee", "EverBee pricing", "Etsy tools"],
     relatedSlugs: [
       "is-everbee-worth-it-for-new-shop",
-      "everbee-vs-alura",
+      "alura-vs-everbee",
       "tools/etsy-profit-calculator",
     ],
     bodyHtml: `
