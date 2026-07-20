@@ -18,6 +18,7 @@
     { "pattern": "arabictools.wristnerd.xyz", "custom_domain": true },
     { "pattern": "crypto.wristnerd.xyz", "custom_domain": true },
     { "pattern": "cryptoranked.xyz", "custom_domain": true },
+    { "pattern": "compareai.site", "custom_domain": true },
   ],
   "assets": {
     "directory": ".open-next/assets",
@@ -209,9 +210,7 @@
   // - arabictools.wristnerd.xyz (subdomain)
   // - crypto.wristnerd.xyz (subdomain)
   // - cryptoranked.xyz (standalone)
-  //
-  // EXCLUDED:
-  // - compareai.site: externally-managed DNS records (see externally-managed-domains.tf)
+  // - compareai.site (standalone, Etsy AI/POD tenant)
   //
   // The middleware resolves any domain → site_id via DB lookup.
   //
