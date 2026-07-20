@@ -3,6 +3,10 @@ interface TrackingOptions {
   campaign?: string;
 }
 
+function buildQueryParam(key: string, value: string): string {
+  return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
 /**
  * Shared utility for building consent-aware tracking URLs.
  *
@@ -14,6 +18,10 @@ interface TrackingOptions {
  *
  * Optional `placement` and `campaign` are forwarded to the tracking endpoint
  * as `pl` and `c` query parameters for per-placement and per-campaign reporting.
+ *
+ * We use `encodeURIComponent` directly instead of `URLSearchParams` because
+ * `URLSearchParams.toString()` encodes spaces as `+`, which breaks tests that
+ * verify `%20` encoding and explicit ampersand handling.
  */
 export function getTrackingUrl(
   slug: string,
@@ -23,12 +31,10 @@ export function getTrackingUrl(
   options?: TrackingOptions,
 ): string {
   if (hasConsent) {
-    const params = new URLSearchParams();
-    params.set("p", slug);
-    params.set("t", trackingType);
-    if (options?.placement) params.set("pl", options.placement);
-    if (options?.campaign) params.set("c", options.campaign);
-    return `/api/track/click?${params.toString()}`;
+    const params = [buildQueryParam("p", slug), buildQueryParam("t", trackingType)];
+    if (options?.placement) params.push(buildQueryParam("pl", options.placement));
+    if (options?.campaign) params.push(buildQueryParam("c", options.campaign));
+    return `/api/track/click?${params.join("&")}`;
   }
   return affiliateUrl;
 }
