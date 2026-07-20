@@ -9,10 +9,12 @@ jobs:
       - name: List Cloudflare zones
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           echo "Account: $CF_ACCOUNT"
           curl -sS -H "Authorization: Bearer $CF_TOKEN" \
-            "https://api.cloudflare.com/client/v4/zones?account.id=${CF_ACCOUNT}&per_page=50" | \
+            "https://api.cloudflare.com/client/v4/zones?account.id=${CF_ACCOUNT}&per_page=50" | tee /tmp/zones.json | \
             jq -r '.result[] | "\(.name) -> \(.id)"' || true
+          echo "--- raw success / errors ---"
+          cat /tmp/zones.json
