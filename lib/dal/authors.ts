@@ -9,24 +9,6 @@ const TABLE = "authors";
 const AUTHOR_COLUMNS =
   "id, site_id, name, slug, bio, photo_url, credentials, expertise, social_links, is_active, created_at, updated_at" as const;
 
-/** List active authors for a site */
-export async function listAuthorsForSite(
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<AuthorRow[]> {
-  if (shouldSkipDbCall()) return [];
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(AUTHOR_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("is_active", true)
-    .order("name", { ascending: true });
-
-  if (error) throw error;
-  return assertRows<AuthorRow>(data);
-}
-
 /** Get a single author by slug */
 export async function getAuthorBySlug(
   siteId: string,
