@@ -95,6 +95,11 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "cointracking.info",
   "coinpanda.io",
   "cryptotaxau.com",
+  // Etsy AI/POD niche tools (CompareAI tenant)
+  "everbee.io",
+  "alura.io",
+  "kittl.com",
+  "canva.com",
 ];
 
 /**

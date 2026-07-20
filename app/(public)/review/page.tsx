@@ -12,11 +12,11 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(`https://${site.domain}`),
     title: `Etsy Tool Reviews | ${site.name}`,
     description:
-      "Hands-on reviews of AI-powered Etsy research, SEO, design, and POD tools. No paid placement; we test before we write.",
+      "Data-first reviews and buying guides for AI-powered Etsy research, SEO, design, and POD tools. Hands-on testing notes are added after we complete real shop workflows.",
     alternates: { canonical: url },
     openGraph: {
       title: `Etsy Tool Reviews | ${site.name}`,
-      description: "Hands-on reviews of AI-powered Etsy tools.",
+      description: "Data-first reviews and buying guides for Etsy tools.",
       url,
       siteName: site.name,
       locale: site.locale,
@@ -25,10 +25,25 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const UPCOMING = [
-  { name: "EverBee", focus: "Etsy product research and analytics" },
-  { name: "Alura", focus: "Etsy SEO, keyword, and automation suite" },
-  { name: "Kittl", focus: "AI design and POD mockups" },
+const REVIEWS = [
+  {
+    name: "EverBee",
+    focus: "Etsy product research and analytics — is it worth it for a new shop?",
+    href: "/review/is-everbee-worth-it-for-new-shop",
+    status: "Buying guide live",
+  },
+  {
+    name: "Alura",
+    focus: "Etsy SEO, keyword, and automation suite",
+    href: null,
+    status: "Awaiting hands-on testing",
+  },
+  {
+    name: "Kittl",
+    focus: "AI design and POD mockups",
+    href: null,
+    status: "Awaiting hands-on testing",
+  },
 ];
 
 export default async function ReviewHubPage() {
@@ -38,31 +53,56 @@ export default async function ReviewHubPage() {
     { name: "Reviews", path: "/review" },
   ]);
 
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: REVIEWS.filter((r) => r.href).map((r, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: `https://${site.domain}${r.href}`,
+      name: r.name,
+    })),
+  };
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
       <JsonLd data={organizationJsonLd(site)} />
       <JsonLd data={breadcrumbs} />
+      <JsonLd data={itemListJsonLd} />
 
       <header className="mb-10 text-center sm:text-left">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
           Etsy tool reviews
         </h1>
         <p className="mt-4 text-lg text-gray-600">
-          We only publish reviews after testing a tool on a real shop workflow. Each review shows
-          what it did, what it did not do, and the exact use case where it earns its price.
+          Data-first buying guides and hands-on reviews. Each page shows what a tool does, who it
+          fits, the break-even math, and the exact use case where it earns its price.
         </p>
       </header>
 
       <div className="space-y-6">
-        {UPCOMING.map((item) => (
-          <article key={item.name} className="rounded-2xl border border-gray-200 bg-white p-6">
-            <h2 className="text-xl font-semibold text-gray-900">{item.name}</h2>
-            <p className="mt-1 text-sm text-gray-600">{item.focus}</p>
-            <span className="mt-3 inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-              Awaiting hands-on testing
-            </span>
-          </article>
-        ))}
+        {REVIEWS.map((item) => {
+          const Card = (
+            <article className="rounded-2xl border border-gray-200 bg-white p-6">
+              <h2 className="text-xl font-semibold text-gray-900">{item.name}</h2>
+              <p className="mt-1 text-sm text-gray-600">{item.focus}</p>
+              <span
+                className={`mt-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium ${
+                  item.href ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                {item.status}
+              </span>
+            </article>
+          );
+          return item.href ? (
+            <Link key={item.name} href={item.href} className="group block">
+              {Card}
+            </Link>
+          ) : (
+            <div key={item.name}>{Card}</div>
+          );
+        })}
       </div>
 
       <section className="mt-12 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">

@@ -301,6 +301,60 @@ const guides: Record<string, EtsyGuide> = {
       <p>Most successful POD sellers aim for at least $5-$8 profit per unit after production, Etsy fees, and advertising. Use the calculator to model your numbers.</p>
     `,
   },
+  "everbee-pricing-and-break-even": {
+    slug: "everbee-pricing-and-break-even",
+    title: "EverBee Pricing and Break-Even Calculator (2026)",
+    metaTitle: "EverBee Pricing and Break-Even Calculator (2026)",
+    metaDescription:
+      "EverBee free and paid plan pricing, break-even math, and a calculator to see how many extra sales you need to cover the subscription.",
+    datePublished: "2026-07-20",
+    dateModified: "2026-07-20",
+    primaryKeyword: "everbee pricing",
+    excerpt:
+      "EverBee free and paid plan pricing, break-even math, and a calculator to see how many extra sales you need to cover the subscription.",
+    tags: ["EverBee", "Etsy research tools", "break even calculator"],
+    relatedSlugs: [
+      "is-everbee-worth-it-for-new-shop",
+      "best-etsy-product-research-workflow-for-pod",
+      "tools/etsy-profit-calculator",
+    ],
+    bodyHtml: `
+      <h2>EverBee plans at a glance</h2>
+      <ul>
+        <li><strong>Hobby (Free):</strong> limited keyword results, product analytics views, favorites. No credit card required.</li>
+        <li><strong>Growth:</strong> $19.99/mo (billed at $239/year). Unlimited keyword research, tag analyzer, trends data, and favorites.</li>
+        <li><strong>Business:</strong> $69/mo (billed at $828/year). Adds unlimited store connections, all-time trends, and priority support.</li>
+      </ul>
+      <p>Source: <a href="https://everbee.io/pricing-optimize-test/" target="_blank" rel="noopener noreferrer">EverBee pricing page</a> and <a href="https://help.everbee.io/en/article/32-what-plans-does-everbee-offers" target="_blank" rel="noopener noreferrer">EverBee help docs</a>.</p>
+
+      <h2>Break-even math for the Growth plan</h2>
+      <p>At $19.99/month, the number of extra sales you need to break even depends on your profit per sale:</p>
+      <ul>
+        <li>$5 profit per sale → 4 extra sales per month</li>
+        <li>$10 profit per sale → 2 extra sales per month</li>
+        <li>$20 profit per sale → 1 extra sale per month</li>
+      </ul>
+      <p>This only counts sales you would not have made without the tool. If EverBee helps you find one winning product, the subscription usually pays for itself.</p>
+
+      <h2>Use the calculator</h2>
+      <p>Open the <a href="/tools/etsy-profit-calculator">free Etsy profit calculator</a>, set your monthly overhead to the EverBee subscription, and see how many sales you need to cover it.</p>
+
+      <h2>When to upgrade</h2>
+      <ul>
+        <li>You have 10+ active listings and need unlimited keyword research.</li>
+        <li>You are choosing between niches and want sales estimates and trend data.</li>
+        <li>You have multiple Etsy shops and need to connect them all.</li>
+      </ul>
+
+      <h2>FAQ</h2>
+      <h3>Does EverBee have a free trial?</h3>
+      <p>The Hobby plan is a forever-free tier with limited features. No time-limited trial or credit card is required.</p>
+      <h3>Can I cancel anytime?</h3>
+      <p>Check EverBee's current terms at checkout. Most monthly tools can be cancelled, but annual plans usually bill upfront.</p>
+      <h3>Will EverBee make me sales?</h3>
+      <p>No tool guarantees sales. EverBee gives you data to make better decisions; your design, listing, price, and reviews still drive results.</p>
+    `,
+  },
 };
 
 export function getAllEtsyGuideSlugs(): string[] {
