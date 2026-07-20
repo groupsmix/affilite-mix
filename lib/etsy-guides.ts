@@ -6,21 +6,11 @@
  * checklist, an original calculation or calculator link, and an FAQ section.
  */
 
-export interface EtsyGuide {
-  slug: string;
-  title: string;
-  metaTitle: string;
-  metaDescription: string;
-  datePublished: string;
-  dateModified: string;
-  bodyHtml: string;
-  primaryKeyword: string;
-  excerpt: string;
-  tags: string[];
-  relatedSlugs: string[];
-}
+import type { Guide } from "./site-guides";
 
-const guides: Record<string, EtsyGuide> = {
+export type EtsyGuide = Guide;
+
+const guides: Record<string, Guide> = {
   "best-etsy-product-research-workflow-for-pod": {
     slug: "best-etsy-product-research-workflow-for-pod",
     title: "Best Etsy Product Research Workflow for Print-on-Demand (2026)",
