@@ -358,10 +358,6 @@ export function getEtsyTool(slug: string): EtsyTool | undefined {
   return etsyTools[slug];
 }
 
-export function getAllEtsyToolSlugs(): string[] {
-  return Object.keys(etsyTools);
-}
-
 export interface EtsyComparison {
   slug: string;
   title: string;
