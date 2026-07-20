@@ -39,32 +39,40 @@ export function CompareHomepage({
   const locale = isAr ? "ar-SA" : "en-US";
   const arrow = isAr ? "←" : "→";
   const firstContentType = site.contentTypes[0]?.value ?? "article";
+  const productLabel = isAr ? "منتج" : site.productLabel.toLowerCase();
+  const productLabelPlural = isAr ? "منتجات" : site.productLabelPlural.toLowerCase();
 
   const t = {
-    eyebrow: isAr ? "مراجعات مستقلة لأدوات الذكاء الاصطناعي" : "Independent AI reviews",
-    headline: isAr ? "اعثر على الأداة المناسبة لمهمتك." : "Find the right AI for the job.",
+    eyebrow: isAr
+      ? "مراجعات مستقلة لأدوات الذكاء الاصطناعي"
+      : `Independent ${productLabelPlural} reviews`,
+    headline: isAr ? "اعثر على الأداة المناسبة لمهمتك." : `Find the right ${productLabel} for you.`,
     sub: isAr
       ? "نختبر الأدوات يدويًا ونرتّبها حسب ما يهمّك فعلًا: الجودة والسرعة والسعر والخصوصية. مستقلّون، نعتمد الأدلّة، ولا ترتيب مدفوع."
-      : "We test the tools hands-on and rank them by what matters for your use case — quality, speed, price, privacy. Independent, evidence-based, no pay-for-rank.",
+      : `We test the ${productLabelPlural} hands-on and rank them by what matters for your use case — quality, price, durability, and value. Independent, evidence-based, no pay-for-rank.`,
     browse: isAr ? "تصفّح المراجعات" : "Browse reviews",
-    compare: isAr ? "قارن بين الأدوات" : "Compare tools",
-    searchPlaceholder: isAr ? "ابحث عن أداة أو قارن بين اثنتين…" : "Search a tool, or compare two…",
-    chipTested: isAr ? "أداة مختبَرة" : "tools tested",
+    compare: isAr ? "قارن بين الأدوات" : `Compare ${productLabelPlural}`,
+    searchPlaceholder: isAr
+      ? "ابحث عن أداة أو قارن بين اثنتين…"
+      : `Search a ${productLabel}, or compare two…`,
+    chipTested: isAr ? "أداة مختبَرة" : `${productLabelPlural} tested`,
     chipReviews: isAr ? "مراجعة معمّقة" : "in-depth reviews",
     chipUpdated: isAr ? "تحديث أسبوعي" : "Updated weekly",
     chipNoPay: isAr ? "لا ترتيب مدفوع" : "No pay-for-rank",
-    useHeading: isAr ? "ما الذي تحتاج الذكاء الاصطناعي من أجله؟" : "What do you need AI for?",
+    useHeading: isAr
+      ? "ما الذي تحتاج الذكاء الاصطناعي من أجله؟"
+      : `What do you need a ${productLabel} for?`,
     useSub: isAr
       ? "اختر فئة لعرض الأدوات الأعلى تقييمًا حاليًا."
-      : "Pick a category to see the current top-rated tools.",
+      : `Pick a category to see the current top-rated ${productLabelPlural}.`,
     picksHeading: isAr ? "الأعلى تقييمًا الآن" : "Top-rated right now",
     picksSub: isAr
       ? "أعلى أدواتنا تقييمًا، مختبَرة داخليًا."
-      : "Our highest-scoring tools, tested in-house.",
+      : `Our highest-scoring ${productLabelPlural}, tested in-house.`,
     topPick: isAr ? "الاختيار الأول" : "Top pick",
     tryLabel: isAr ? "جرّبها" : "Try it",
     live: isAr ? "مباشر" : "Live",
-    statTested: isAr ? "أداة مختبَرة" : "Tools tested",
+    statTested: isAr ? "أداة مختبَرة" : site.productLabelPlural,
     statReviews: isAr ? "مراجعة" : "Reviews",
     statCategories: isAr ? "فئة" : "Categories",
     statCadence: isAr ? "تحديث الأسعار" : "Price refresh",
@@ -72,13 +80,13 @@ export function CompareHomepage({
     methodHeading: isAr ? "كيف نُرتّب" : "How we rank",
     methodSub: isAr
       ? "نفس المعايير لكل أداة، معلَنة بالكامل."
-      : "The same rubric for every tool, fully in the open.",
+      : `The same rubric for every ${productLabel}, fully in the open.`,
     recentHeading: isAr ? "أحدث المراجعات والأدلّة" : "Latest reviews & guides",
     viewAll: isAr ? `عرض الكل ${arrow}` : `View all ${arrow}`,
     discHeading: isAr ? "كيف نكسب المال" : "How we make money",
     discBody: isAr
       ? "نكسب عمولة إحالة عند التسجيل عبر بعض الروابط. هذا لا يغيّر أي تقييم أو ترتيب — منهجيتنا ثابتة ومعلَنة."
-      : "We earn an affiliate commission when you sign up through some links. That never changes a score or a ranking — our methodology is fixed and public.",
+      : `We earn an affiliate commission when you purchase through some links. That never changes a score or a ranking — our methodology is fixed and public.`,
     discLink: isAr ? `اقرأ إفصاحنا الكامل ${arrow}` : `Read our full disclosure ${arrow}`,
     empty: isAr ? "لا يوجد محتوى بعد" : "No content yet",
   };
@@ -91,10 +99,13 @@ export function CompareHomepage({
         { title: "محدّث دائمًا", body: "نعيد الاختبار مع كل تحديث ونحدّث الأسعار أسبوعيًا." },
       ]
     : [
-        { title: "Hands-on testing", body: "We use every tool on real tasks before scoring it." },
+        {
+          title: "Hands-on testing",
+          body: `We handle every ${productLabel} on real tasks before scoring it.`,
+        },
         {
           title: "Transparent scoring",
-          body: "Every score breaks down into quality, speed, price, and support.",
+          body: `Every score breaks down into quality, price, durability, and real-world usability.`,
         },
         {
           title: "Independent",
@@ -102,7 +113,7 @@ export function CompareHomepage({
         },
         {
           title: "Always current",
-          body: "We re-test as tools ship updates and refresh prices weekly.",
+          body: `We re-test as ${productLabelPlural} ship updates and refresh prices weekly.`,
         },
       ];
 
@@ -241,7 +252,7 @@ export function CompareHomepage({
                     <span className="block font-semibold text-gray-900">{cat.name}</span>
                     {cat.product_count > 0 && (
                       <span className="mt-0.5 block font-mono text-xs tabular-nums text-gray-500">
-                        {cat.product_count} {isAr ? "أداة" : "tools"}
+                        {cat.product_count} {isAr ? "أداة" : productLabelPlural}
                       </span>
                     )}
                   </span>

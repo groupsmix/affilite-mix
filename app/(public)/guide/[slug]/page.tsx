@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
-import { getEtsyGuide, getAllEtsyGuideSlugs, getAllEtsyGuides } from "@/lib/etsy-guides";
+import { getSiteGuide, getAllSiteGuides } from "@/lib/site-guides";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd, faqJsonLd } from "../../components/json-ld";
 import { NewsletterSignup } from "../../components/newsletter-signup";
 import Link from "next/link";
 
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-  return getAllEtsyGuideSlugs().map((slug) => ({ slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -20,7 +16,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
-  const guide = getEtsyGuide(slug);
+  const guide = getSiteGuide(site.slug ?? site.id, slug);
   if (!guide) {
     return { title: "Not Found" };
   }
@@ -46,7 +42,7 @@ export async function generateMetadata({
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const site = await getCurrentSite();
-  const guide = getEtsyGuide(slug);
+  const guide = getSiteGuide(site.slug ?? site.id, slug);
   if (!guide) notFound();
 
   const orgJsonLd = organizationJsonLd(site);
@@ -71,7 +67,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
   const faqJson = faqJsonLd(guide.bodyHtml);
 
-  const allGuides = getAllEtsyGuides();
+  const allGuides = getAllSiteGuides(site.slug ?? site.id);
   const relatedGuides = allGuides
     .filter((g) => g.slug !== guide.slug && guide.relatedSlugs.includes(g.slug))
     .slice(0, 3);
@@ -127,11 +123,11 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
         <section className="mt-12 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
           <h2 className="text-xl font-semibold text-gray-900">
-            Get the Etsy AI Workflow Checklist
+            Get the latest {site.productLabelPlural.toLowerCase()} guides
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            A printable checklist covering research, design, listing, and disclosure — plus the
-            first tools to test.
+            A weekly roundup of new {site.productLabelPlural.toLowerCase()} buying guides, deals,
+            and comparison updates.
           </p>
           <div className="mt-4 max-w-xl">
             <NewsletterSignup siteLanguage={site.language} />
