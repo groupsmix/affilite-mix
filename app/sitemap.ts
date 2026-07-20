@@ -200,7 +200,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Crypto Tax AU lead-magnet tools: comparison matrix, CGT calculator and
   // programmatic exchange-to-software sync guides.
-  if (site.id === "crypto-tools") {
+  if ((site.slug ?? site.id) === "crypto-tools") {
     staticEntries.push(
       {
         url: `${baseUrl}/tools`,

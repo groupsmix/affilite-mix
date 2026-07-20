@@ -25,10 +25,20 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const UPCOMING = [
-  { name: "EverBee", focus: "Etsy product research and analytics" },
-  { name: "Alura", focus: "Etsy SEO, keyword, and automation suite" },
-  { name: "Kittl", focus: "AI design and POD mockups" },
+const REVIEWS = [
+  {
+    slug: "is-everbee-worth-it-for-new-shop",
+    name: "EverBee",
+    focus: "Etsy product research and analytics",
+    status: "Live",
+  },
+  {
+    slug: "alura-review",
+    name: "Alura",
+    focus: "Etsy SEO, keyword, and automation suite",
+    status: "Planned",
+  },
+  { slug: "kittl-review", name: "Kittl", focus: "AI design and POD mockups", status: "Planned" },
 ];
 
 export default async function ReviewHubPage() {
@@ -48,21 +58,39 @@ export default async function ReviewHubPage() {
           Etsy tool reviews
         </h1>
         <p className="mt-4 text-lg text-gray-600">
-          We only publish reviews after testing a tool on a real shop workflow. Each review shows
-          what it did, what it did not do, and the exact use case where it earns its price.
+          Buying guides use verified official pricing and feature data. Hands-on reviews are marked
+          clearly once we have tested the tool in a real Etsy workflow.
         </p>
       </header>
 
       <div className="space-y-6">
-        {UPCOMING.map((item) => (
-          <article key={item.name} className="rounded-2xl border border-gray-200 bg-white p-6">
-            <h2 className="text-xl font-semibold text-gray-900">{item.name}</h2>
-            <p className="mt-1 text-sm text-gray-600">{item.focus}</p>
-            <span className="mt-3 inline-flex w-fit rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-              Awaiting hands-on testing
-            </span>
-          </article>
-        ))}
+        {REVIEWS.map((item) => {
+          const isLive = item.status === "Live";
+          const Title = (
+            <h2 className={`text-xl font-semibold ${isLive ? "text-gray-900" : "text-gray-900"}`}>
+              {item.name}
+            </h2>
+          );
+          return (
+            <article key={item.slug} className="rounded-2xl border border-gray-200 bg-white p-6">
+              {isLive ? (
+                <Link href={`/review/${item.slug}`} className="hover:underline">
+                  {Title}
+                </Link>
+              ) : (
+                Title
+              )}
+              <p className="mt-1 text-sm text-gray-600">{item.focus}</p>
+              <span
+                className={`mt-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium ${
+                  isLive ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                {isLive ? "Live — buying guide" : "Awaiting hands-on testing"}
+              </span>
+            </article>
+          );
+        })}
       </div>
 
       <section className="mt-12 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">

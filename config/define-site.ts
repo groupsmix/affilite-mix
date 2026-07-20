@@ -290,6 +290,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
 
   return {
     id: input.id,
+    slug: input.id,
     name: input.name,
     domain: input.domain,
     aliases: input.aliases,

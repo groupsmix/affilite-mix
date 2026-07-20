@@ -6,8 +6,7 @@ export function isCryptoTaxAu(site: SiteDefinition): boolean {
   return (
     site.name === "Crypto Tax AU" ||
     site.domain === "cryptoranked.xyz" ||
-    site.id === "crypto-tools" ||
-    site.id === "863772b4-00ad-4912-9813-3c1372ce7c28"
+    (site.slug ?? site.id) === "crypto-tools"
   );
 }
 
