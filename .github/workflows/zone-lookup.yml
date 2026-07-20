@@ -6,15 +6,12 @@ jobs:
   lookup:
     runs-on: ubuntu-latest
     steps:
-      - name: List Cloudflare zones
+      - name: List compareai.site DNS records
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          echo "Account: $CF_ACCOUNT"
+          ZONE_ID="92dbb3eab89263162e7485cdd655092d"
           curl -sS -H "Authorization: Bearer $CF_TOKEN" \
-            "https://api.cloudflare.com/client/v4/zones?account.id=${CF_ACCOUNT}&per_page=50" | tee /tmp/zones.json | \
-            jq -r '.result[] | "\(.name) -> \(.id)"' || true
-          echo "--- raw success / errors ---"
-          cat /tmp/zones.json
+            "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" | \
+            jq -r '.result[] | "\(.type) \(.name) -> \(.content)"' || true
