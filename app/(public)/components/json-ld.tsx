@@ -217,16 +217,30 @@ export function faqJsonLd(html: string): Record<string, unknown> | null {
 
 /** Product schema */
 export function productJsonLd(site: SiteDefinition, product: ProductRow) {
+  const productUrl = `https://${site.domain}/r/${product.slug}`;
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": productUrl,
     name: product.name,
     description: product.description || product.name,
-    url: `https://${site.domain}`,
+    url: productUrl,
   };
 
   if (product.image_url) {
     data.image = product.image_url;
+  }
+
+  // AggregateRating helps rich snippets show star ratings in SERPs.
+  // reviewCount defaults to 1 when only the editorial review is available.
+  if (product.score !== null) {
+    data.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: product.score,
+      bestRating: 10,
+      worstRating: 0,
+      reviewCount: 1,
+    };
   }
 
   if (product.price_amount || product.price) {
@@ -265,4 +279,28 @@ export function productJsonLd(site: SiteDefinition, product: ProductRow) {
   }
 
   return data;
+}
+
+/** ItemList schema for ranked "best X" listicles and comparison pages */
+export function itemListJsonLd(
+  site: SiteDefinition,
+  name: string,
+  products: ProductRow[],
+): Record<string, unknown> | null {
+  if (products.length === 0) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name,
+    itemListElement: products.map((product, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Product",
+        "@id": `https://${site.domain}/r/${product.slug}`,
+        name: product.name,
+      },
+    })),
+  };
 }

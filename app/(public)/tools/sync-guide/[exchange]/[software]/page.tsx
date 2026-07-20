@@ -11,7 +11,7 @@ import {
   type SyncSoftwareKey,
 } from "@/lib/crypto-tax-au-tools";
 import { ProductCard } from "../../../../components/product-card";
-import { JsonLd, organizationJsonLd } from "../../../../components/json-ld";
+import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../../../../components/json-ld";
 
 export const revalidate = 60;
 
@@ -67,9 +67,19 @@ export default async function SyncGuidePage({ params }: Props) {
   const ctaProduct = await getProductBySlug(site.id, guide.ctaProductSlug, getTenantClient);
 
   const jsonLd = organizationJsonLd(site);
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: "Tools", path: "/tools" },
+    { name: "Sync Guides", path: "/tools/sync-guide/coinspot/koinly" },
+    {
+      name: `${guide.exchangeName} to ${guide.softwareName}`,
+      path: `/tools/sync-guide/${exchange}/${software}`,
+    },
+  ]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+      <JsonLd data={breadcrumbs} />
       <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
         How to Sync {guide.exchangeName} to {guide.softwareName} for ATO Crypto Tax
       </h1>

@@ -7,6 +7,7 @@ import { isStaticConfigSite } from "@/lib/site-config-authority";
 import { PATHNAME_HEADER } from "@/lib/request-path";
 import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
+import { JsonLd, organizationJsonLd } from "./components/json-ld";
 import { AdSlot } from "./components/ads/ad-slot";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig } from "./components/theme-provider";
@@ -157,6 +158,7 @@ export default async function PublicLayout({ children }: { children: React.React
         </a>
         <SiteHeader site={site} dbNavItems={dbNavItems} presentation={presentation} />
         <AdSlot placementType="header" className="pt-4" />
+        <JsonLd data={organizationJsonLd(site)} />
         <main id="main-content" className="flex-1">
           {children}
         </main>

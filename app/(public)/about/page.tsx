@@ -2,6 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { isCryptoTaxAu, CryptoTaxAUAbout } from "../components/site-static-content";
+import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -21,10 +22,15 @@ export default async function AboutPage() {
   const site = await getCurrentSite();
   const isArabic = site.language === "ar";
   const isCrypto = isCryptoTaxAu(site);
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: isArabic ? "من نحن" : "About Us", path: "/about" },
+  ]);
 
   if (isCrypto) {
     return (
       <div className="container mx-auto max-w-4xl px-4 py-12">
+        <JsonLd data={breadcrumbs} />
         <h1 className="mb-8 text-3xl font-bold" style={{ color: "var(--ink)" }}>
           {site.pages.about.title}
         </h1>
@@ -85,6 +91,7 @@ export default async function AboutPage() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12">
+      <JsonLd data={breadcrumbs} />
       <h1 className="mb-8 text-3xl font-bold" style={{ color: "var(--ink)" }}>
         {isArabic ? "من نحن" : "About Us"}
       </h1>

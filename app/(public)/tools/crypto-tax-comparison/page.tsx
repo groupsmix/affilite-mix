@@ -4,7 +4,12 @@ import { listProducts } from "@/lib/dal/products";
 import { getTenantClient } from "@/lib/supabase-server";
 import { CryptoTaxComparisonMatrix } from "../../components/crypto-tax-comparison-matrix";
 import { CRYPTO_TAX_PRODUCT_FEATURES } from "@/lib/crypto-tax-au-tools";
-import { JsonLd, organizationJsonLd } from "../../components/json-ld";
+import {
+  JsonLd,
+  organizationJsonLd,
+  breadcrumbJsonLd,
+  itemListJsonLd,
+} from "../../components/json-ld";
 
 export const revalidate = 60;
 
@@ -43,9 +48,17 @@ export default async function CryptoTaxComparisonPage() {
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
   const jsonLd = organizationJsonLd(site);
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: "Tools", path: "/tools" },
+    { name: "Crypto Tax Software Comparison", path: "/tools/crypto-tax-comparison" },
+  ]);
+  const itemList = itemListJsonLd(site, "Crypto Tax Software Comparison", products);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:py-12">
+      <JsonLd data={breadcrumbs} />
+      {itemList && <JsonLd data={itemList} />}
       <div className="mb-8 text-center sm:mb-12">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
           Crypto Tax Software Comparison

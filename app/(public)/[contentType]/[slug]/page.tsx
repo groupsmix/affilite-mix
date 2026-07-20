@@ -34,6 +34,7 @@ import {
   breadcrumbJsonLd,
   productJsonLd,
   faqJsonLd,
+  itemListJsonLd,
 } from "../../components/json-ld";
 import { notFound, redirect } from "next/navigation";
 import { unstable_noStore } from "next/cache";
@@ -242,6 +243,15 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   // Build FAQ JSON-LD if content has FAQ-like structure
   const faqSchema = faqJsonLd(content.body);
 
+  // Build ItemList JSON-LD for comparison/listicle content so "best X"
+  // pages can appear as ranked lists in SERPs.
+  const listProducts = isComparison
+    ? rankedComparison
+    : [...linkedProducts.map((lp) => lp.product)].sort(
+        (a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity),
+      );
+  const itemListSchema = itemListJsonLd(site, content.title, listProducts);
+
   const locale = site.language === "ar" ? "ar-SA" : "en-US";
 
   // Freshness signal for the verdict box. Until ai_tools.last_verified_at exists
@@ -267,6 +277,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         <JsonLd data={breadcrumbs} />
         <JsonLd data={contentSchema} />
         {faqSchema && <JsonLd data={faqSchema} />}
+        {itemListSchema && <JsonLd data={itemListSchema} />}
         {linkedProducts.map((lp) => (
           <JsonLd key={lp.product_id} data={productJsonLd(site, lp.product)} />
         ))}

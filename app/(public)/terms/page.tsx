@@ -2,6 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { isCryptoTaxAu, CryptoTaxAUTerms } from "../components/site-static-content";
+import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -20,10 +21,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function TermsPage() {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: isAr ? "الشروط والأحكام" : "Terms of Service", path: "/terms" },
+  ]);
 
   if (isCryptoTaxAu(site)) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-12">
+        <JsonLd data={breadcrumbs} />
         <h1 className="mb-6 text-3xl font-bold">{site.pages.terms.title}</h1>
         <div className="prose prose-gray max-w-none">
           <CryptoTaxAUTerms site={site} />
@@ -34,6 +40,7 @@ export default async function TermsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
+      <JsonLd data={breadcrumbs} />
       <h1 className="mb-6 text-3xl font-bold">{isAr ? "الشروط والأحكام" : "Terms of Service"}</h1>
       <div className="prose prose-gray max-w-none">
         <p>

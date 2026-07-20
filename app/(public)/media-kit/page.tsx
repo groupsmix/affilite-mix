@@ -1,6 +1,7 @@
 import { requireSiteFeature } from "@/lib/site-features";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
+import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await requireSiteFeature("mediaKit");
@@ -18,6 +19,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function MediaKitPage() {
   const site = await requireSiteFeature("mediaKit");
   const isAr = site.language === "ar";
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: isAr ? "حقيبة الإعلام" : "Media Kit", path: "/media-kit" },
+  ]);
 
   const stats = [
     {
@@ -84,6 +89,7 @@ export default async function MediaKitPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12" dir={isAr ? "rtl" : "ltr"}>
+      <JsonLd data={breadcrumbs} />
       {/* Hero */}
       <div className="mb-12 text-center">
         <h1 className="text-4xl font-bold text-gray-900">{isAr ? "حقيبة الإعلام" : "Media Kit"}</h1>

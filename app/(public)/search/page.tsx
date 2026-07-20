@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { ContentCard } from "../components/content-card";
 import { ProductCard } from "../components/product-card";
 import { Breadcrumbs } from "../components/breadcrumbs";
+import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { SearchInput } from "./search-input";
 import type { Metadata } from "next";
 
@@ -68,8 +69,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const hasResults = contentResults.length > 0 || productResults.length > 0;
 
+  const searchBreadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: site.language === "ar" ? "بحث" : "Search", path: "/search" },
+  ]);
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <JsonLd data={searchBreadcrumbs} />
       <Breadcrumbs
         items={[
           { label: site.name, href: "/" },
