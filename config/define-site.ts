@@ -35,7 +35,8 @@ type HomepagePreset =
   | "compare"
   | "showcase"
   | "taxfinder"
-  | "etsy";
+  | "etsy"
+  | "dial";
 type ProductCardStylePreset = "standard" | "compact" | "detailed";
 
 /* ------------------------------------------------------------------ */
@@ -167,6 +168,10 @@ export interface SiteInput {
    * navy header with CTA button and dark branded footer.
    */
   layout?: LayoutVariant;
+  /** Header layout variant override. Defaults to `layout`. */
+  headerVariant?: LayoutVariant;
+  /** Footer layout variant override. Defaults to `layout`. */
+  footerVariant?: LayoutVariant;
   /** Product card display style. Defaults to "standard" */
   productCardStyle?: ProductCardStylePreset;
   /** Feature list (shorthand). Defaults to common features. */
@@ -299,6 +304,8 @@ export function defineSite(input: SiteInput): SiteDefinition {
     locale,
     homepageTemplate: homepage,
     layoutVariant: input.layout ?? "standard",
+    headerVariant: input.headerVariant,
+    footerVariant: input.footerVariant,
     productCardStyle,
     headerConfig: input.headerConfig,
     footerConfig: input.footerConfig,

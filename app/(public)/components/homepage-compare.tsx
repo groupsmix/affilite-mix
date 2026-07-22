@@ -3,6 +3,7 @@ import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
@@ -90,6 +91,10 @@ export function CompareHomepage({
     discLink: isAr ? `اقرأ إفصاحنا الكامل ${arrow}` : `Read our full disclosure ${arrow}`,
     empty: isAr ? "لا يوجد محتوى بعد" : "No content yet",
   };
+
+  const visibleFeaturedProducts = featuredProducts.filter((p) =>
+    hasUsableAffiliateUrl(p.affiliate_url),
+  );
 
   const method = isAr
     ? [
@@ -270,7 +275,7 @@ export function CompareHomepage({
         )}
 
         {/* ── Top picks: verdict cards. #1 gets the verified-green signal ── */}
-        {featuredProducts.length > 0 && (
+        {visibleFeaturedProducts.length > 0 && (
           <section className="border-t border-gray-100 py-14">
             <div className="flex items-end justify-between gap-4">
               <div>
@@ -284,7 +289,7 @@ export function CompareHomepage({
               </div>
             </div>
             <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredProducts.map((product, i) => (
+              {visibleFeaturedProducts.map((product, i) => (
                 <div key={product.id} className="relative">
                   {/* Rank badge — mono telemetry */}
                   <span className="absolute -top-2 left-3 z-10 rounded-md bg-gray-900 px-2 py-0.5 font-mono text-xs font-semibold tabular-nums text-white shadow-sm">
@@ -453,7 +458,7 @@ export function CompareHomepage({
         </section>
 
         {/* Empty state */}
-        {recentContent.length === 0 && featuredProducts.length === 0 && (
+        {recentContent.length === 0 && visibleFeaturedProducts.length === 0 && (
           <div className="py-20 text-center text-gray-500">
             <p className="text-lg">{t.empty}</p>
           </div>

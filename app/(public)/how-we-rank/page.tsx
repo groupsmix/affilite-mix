@@ -1,7 +1,12 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
-import { isCryptoTaxAu, CryptoTaxAUHowWeRank } from "../components/site-static-content";
+import {
+  isCryptoTaxAu,
+  CryptoTaxAUHowWeRank,
+  isWatchTools,
+  WristNerdHowWeRank,
+} from "../components/site-static-content";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,6 +42,8 @@ export default async function HowWeRankPage() {
       <div className="prose prose-lg max-w-none" style={{ color: "var(--ink-70)" }}>
         {isCrypto ? (
           <CryptoTaxAUHowWeRank site={site} />
+        ) : isWatchTools(site) ? (
+          <WristNerdHowWeRank site={site} />
         ) : (
           <>
             <p className="text-lg leading-relaxed">

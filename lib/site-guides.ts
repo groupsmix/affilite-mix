@@ -53,11 +53,3 @@ export function getSiteGuide(siteSlug: string, slug: string): Guide | undefined 
 export function getAllSiteGuides(siteSlug: string): Guide[] {
   return moduleForSite(siteSlug)?.getAll() ?? [];
 }
-
-export function getAllSiteGuideSlugs(siteSlug: string): string[] {
-  return moduleForSite(siteSlug)?.getSlugs() ?? [];
-}
-
-export function getAllGuideSlugs(): string[] {
-  return Object.values(GUIDE_MODULES).flatMap((m) => m.getSlugs());
-}

@@ -10,13 +10,30 @@ export const watchToolsSite = defineSite({
     "Honest watch reviews and buying guides — from the best watches under $500 to vintage Seiko and Casio, leather straps, and minimalist picks for women.",
   tagline: "Find the right watch without the hype.",
 
-  // A68-F1: Darkened accent from #C9A96E (2.6:1 contrast on white) to #8B6914
-  // which passes WCAG 2.2 AA 4.5:1 requirement for normal text. The original
-  // gold is retained as accentLight for decorative/large-text contexts only.
-  colors: { primary: "#1B2A4A", accent: "#8B6914", accentText: "#6B4F0F", accentLight: "#C9A96E" },
+  // Warm, editorial watch palette: espresso ink for dark sections and gold
+  // accents. Distinct from the crypto/AI navy used by other tenants.
+  colors: { primary: "#2C241B", accent: "#8B6914", accentText: "#6B4F0F", accentLight: "#C9A96E" },
   fonts: "classic",
-  homepage: "compare",
-  layout: "compare",
+  homepage: "dial",
+  layout: "standard",
+  headerVariant: "standard",
+  footerVariant: "compare",
+
+  headerConfig: {
+    showCta: true,
+    ctaLabel: "See top picks",
+    ctaHref: "/#top-picks",
+    showSearch: false,
+    navAlignment: "center",
+  },
+  headerTokens: {
+    appearance: "dark",
+    background: "rgba(22,20,18,0.85)",
+    foreground: "#F5F3EE",
+    accent: "#C9A96E",
+    border: "rgba(245,243,238,0.1)",
+    fontFamily: "Playfair Display",
+  },
 
   productLabel: "Watch",
   productLabelPlural: "Watches",
@@ -24,6 +41,7 @@ export const watchToolsSite = defineSite({
 
   features: [
     "blog",
+    "brandSpotlights",
     "comparisons",
     "cookieConsent",
     "deals",
