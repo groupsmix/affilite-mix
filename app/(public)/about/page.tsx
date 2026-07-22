@@ -1,7 +1,12 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
-import { isCryptoTaxAu, CryptoTaxAUAbout } from "../components/site-static-content";
+import {
+  isCryptoTaxAu,
+  CryptoTaxAUAbout,
+  isWatchTools,
+  WristNerdAbout,
+} from "../components/site-static-content";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -39,6 +44,23 @@ export default async function AboutPage() {
           style={{ color: "var(--ink-70)" }}
         >
           <CryptoTaxAUAbout site={site} />
+        </div>
+      </div>
+    );
+  }
+
+  if (isWatchTools(site)) {
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-12">
+        <JsonLd data={breadcrumbs} />
+        <h1 className="mb-8 text-3xl font-bold" style={{ color: "var(--ink)" }}>
+          {site.pages.about.title}
+        </h1>
+        <div
+          className={`prose prose-lg max-w-none ${isArabic ? "rtl" : ""}`}
+          style={{ color: "var(--ink-70)" }}
+        >
+          <WristNerdAbout site={site} />
         </div>
       </div>
     );

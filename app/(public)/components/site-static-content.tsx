@@ -403,6 +403,114 @@ export function CryptoTaxAUAffiliateDisclosure({ site }: { site: SiteDefinition 
   );
 }
 
+export function isWatchTools(site: SiteDefinition): boolean {
+  return site.id === "watch-tools" || site.domain === "wristnerd.xyz";
+}
+
+export function WristNerdAbout({ site }: { site: SiteDefinition }) {
+  const contactEmail = site.pages.contact?.email ?? site.brand.contactEmail;
+  return (
+    <>
+      <p className="text-lg leading-relaxed">
+        {site.name} is an independent watch buying guide. We help everyday buyers find the right
+        timepiece — from the best watches under $500 to vintage Seiko and Casio, leather straps, and
+        minimalist women&apos;s watches — without the hype or sales pressure.
+      </p>
+
+      <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
+        What we do
+      </h2>
+      <ul className="mb-6 list-disc space-y-2 pl-6">
+        <li>Hands-on reviews and side-by-side watch comparisons.</li>
+        <li>Buying guides built around real use cases and budgets.</li>
+        <li>Official specs, current prices, and practical pros and cons.</li>
+        <li>Clear affiliate disclosure on every page that contains links.</li>
+      </ul>
+
+      <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
+        Editorial independence
+      </h2>
+      <p className="mb-6 leading-relaxed">
+        We earn a commission when you buy through some links, but that never changes our rankings.
+        We recommend the watch we believe is best for the use case, not the one that pays the most.
+      </p>
+
+      <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
+        Contact us
+      </h2>
+      <p className="mb-6 leading-relaxed">
+        Questions, corrections or partnership enquiries? Email us at{" "}
+        <a
+          href={`mailto:${contactEmail}`}
+          className="font-medium hover:underline"
+          style={{ color: "var(--oltigo-green)" }}
+        >
+          {contactEmail}
+        </a>
+        .
+      </p>
+    </>
+  );
+}
+
+export function WristNerdHowWeRank({ site }: { site: SiteDefinition }) {
+  return (
+    <>
+      <p className="text-lg leading-relaxed">
+        {site.name} evaluates watches on what actually matters to a buyer: how it wears, how it
+        keeps time, what it costs, and whether it fits your use case. We do not accept payment for
+        placement and we do not rank by commission.
+      </p>
+
+      <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
+        How we test
+      </h2>
+      <ul className="mb-6 list-disc space-y-2 pl-6">
+        <li>
+          <strong>Hands-on wear:</strong> we handle and wear the watch where possible, checking
+          comfort, weight, clasp quality, and legibility.
+        </li>
+        <li>
+          <strong>Movement and accuracy:</strong> we check manufacturer movement specs, reported
+          accuracy, power reserve, and real-world owner feedback.
+        </li>
+        <li>
+          <strong>Build quality:</strong> case finish, crystal type, water resistance, bracelet or
+          strap quality, and finishing at the price point.
+        </li>
+        <li>
+          <strong>Value for money:</strong> how the specs and quality compare to alternatives at the
+          same price.
+        </li>
+      </ul>
+
+      <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
+        How we score
+      </h2>
+      <p className="mb-6 leading-relaxed">
+        Each watch is scored on quality, price, durability, and real-world usability. The same
+        criteria are used across every guide so scores are comparable within a category.
+      </p>
+
+      <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
+        Affiliate relationships do not change ratings
+      </h2>
+      <p className="mb-6 leading-relaxed">
+        {site.affiliateDisclosure} Rankings are based on our testing and research, not on which
+        retailer or brand pays a commission.
+      </p>
+
+      <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
+        Updates
+      </h2>
+      <p className="mb-6 leading-relaxed">
+        We refresh prices, availability, and specs at least monthly. Each guide shows a
+        last-verified date so you know when the information was last checked.
+      </p>
+    </>
+  );
+}
+
 export function CryptoTaxAUHowWeRank({ site }: { site: SiteDefinition }) {
   const contactEmail = site.pages.contact?.email ?? site.brand.contactEmail;
 

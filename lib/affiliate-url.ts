@@ -22,7 +22,7 @@ const PLACEHOLDER_HOSTS = new Set([
 ]);
 
 const PLACEHOLDER_PATH_SEGMENT_RE =
-  /(^|\/)(example|placeholder|sample|todo|tbd|fixme|your-affiliate|test-link|dummy-link)(?:[/?#]|$)/i;
+  /(^|\/)(example\d*|placeholder|sample|todo|tbd|fixme|your-affiliate|test-link|dummy-link)(?:[/?#]|$)/i;
 
 /** Detect URLs that are clearly placeholders or deliberately non-routable. */
 export function isPlaceholderAffiliateUrl(url: string | null | undefined): boolean {

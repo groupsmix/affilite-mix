@@ -86,12 +86,21 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             {guide.title}
           </h1>
           <p className="mt-4 text-lg text-gray-600">{guide.metaDescription}</p>
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4 text-sm text-gray-600">
+            <span className="font-medium text-gray-900">{site.name} editorial team</span>
+            <span aria-hidden="true">•</span>
+            <Link href="/how-we-rank" className="hover:text-gray-900 hover:underline">
+              How we test
+            </Link>
+            <span aria-hidden="true">•</span>
             <span>
-              Published: <time dateTime={guide.datePublished}>{guide.datePublished}</time>
-            </span>
-            <span>
-              Updated: <time dateTime={guide.dateModified}>{guide.dateModified}</time>
+              Last verified:{" "}
+              <time dateTime={guide.dateModified}>
+                {new Date(guide.dateModified).toLocaleDateString(
+                  site.language === "ar" ? "ar-SA" : "en-US",
+                  { year: "numeric", month: "short", day: "numeric" },
+                )}
+              </time>
             </span>
           </div>
         </header>

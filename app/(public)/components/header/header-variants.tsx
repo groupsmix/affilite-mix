@@ -86,7 +86,9 @@ export function StandardHeader(props: HeaderVariantProps) {
 }
 
 export function CompareHeader(props: HeaderVariantProps) {
-  return <BarHeader props={props} ctaFallbackLabel="Compare AI" topAccentStripe />;
+  const ctaFallback =
+    props.site.language === "ar" ? "قارن" : `Compare ${props.site.productLabelPlural}`;
+  return <BarHeader props={props} ctaFallbackLabel={ctaFallback} topAccentStripe />;
 }
 
 export function DirectoryHeader(props: HeaderVariantProps) {
