@@ -23,6 +23,7 @@ import { CompareHomepage } from "./components/homepage-compare";
 import { ShowcaseHomepage } from "./components/homepage-showcase";
 import { TaxFinderHomepage } from "./components/homepage-taxfinder";
 import { EtsyHomepage } from "./components/homepage-etsy";
+import { DialHomepage } from "./components/homepage-dial";
 
 /**
  * PROD-INCIDENT-2026-06-11 follow-up: surface failures in the homepage's
@@ -164,6 +165,10 @@ export default async function HomePage() {
 
   if (template === "etsy") {
     return <EtsyHomepage {...homepageProps} />;
+  }
+
+  if (template === "dial") {
+    return <DialHomepage {...homepageProps} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";

@@ -14,20 +14,24 @@ export const watchToolsSite = defineSite({
   // accents. Distinct from the crypto/AI navy used by other tenants.
   colors: { primary: "#2C241B", accent: "#8B6914", accentText: "#6B4F0F", accentLight: "#C9A96E" },
   fonts: "classic",
-  homepage: "compare",
+  homepage: "dial",
   layout: "standard",
+  headerVariant: "standard",
+  footerVariant: "compare",
 
   headerConfig: {
     showCta: true,
-    ctaLabel: "Compare watches",
-    ctaHref: "/comparison",
+    ctaLabel: "See top picks",
+    ctaHref: "/#top-picks",
+    showSearch: false,
+    navAlignment: "center",
   },
   headerTokens: {
-    appearance: "light",
-    background: "#FDFBF7",
-    foreground: "#2C241B",
-    accent: "#8B6914",
-    border: "#E8E2D6",
+    appearance: "dark",
+    background: "rgba(22,20,18,0.85)",
+    foreground: "#F5F3EE",
+    accent: "#C9A96E",
+    border: "rgba(245,243,238,0.1)",
     fontFamily: "Playfair Display",
   },
 

@@ -71,6 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
+  const headerList = await headers();
   // ACCEPTED-RISK (A68/A106): style-src 'unsafe-inline' is kept because CSP
   // nonces only protect <style> elements, not style *attributes* used by
   // ThemeProvider CSS-var injection, cookie consent, and React hydration.
@@ -135,6 +136,10 @@ export default async function PublicLayout({ children }: { children: React.React
   // DB-authoritative. A missing/malformed record falls back to safe defaults.
   const presentation = resolvePresentation(site, dbPresentation);
 
+  const isDial = site.homepageTemplate === "dial";
+  const pathname = headerList.get(PATHNAME_HEADER) ?? "/";
+  const isDialHomepage = isDial && pathname === "/";
+
   const themeConfig: Partial<SiteThemeConfig> = {
     primaryColor: site.theme.primaryColor,
     secondaryColor: site.theme.accentColor,
@@ -148,30 +153,35 @@ export default async function PublicLayout({ children }: { children: React.React
     // already accounts for any DB value) is what ThemeProvider renders as
     // data-layout, matching what SiteHeader/SiteFooter receive below.
     layoutVariant: presentation.headerVariant,
+    mode: isDial ? "dial" : "light",
   };
 
   return (
     <ThemeProvider theme={themeConfig}>
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-background focus:p-4 focus:text-foreground focus:shadow-md"
         >
           {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
         </a>
-        <SiteHeader site={site} dbNavItems={dbNavItems} presentation={presentation} />
-        <AdSlot placementType="header" className="pt-4" />
+        {!isDialHomepage && (
+          <SiteHeader site={site} dbNavItems={dbNavItems} presentation={presentation} />
+        )}
+        {!isDialHomepage && <AdSlot placementType="header" className="pt-4" />}
         <JsonLd data={organizationJsonLd(site)} />
         <main id="main-content" className="flex-1">
           {children}
         </main>
-        <AdSlot placementType="footer" className="pb-4" />
-        <SiteFooter
-          site={site}
-          dbFooterNav={dbFooterNav}
-          footerVariant={presentation.footerVariant}
-          config={presentation.footer}
-        />
+        {!isDialHomepage && <AdSlot placementType="footer" className="pb-4" />}
+        {!isDialHomepage && (
+          <SiteFooter
+            site={site}
+            dbFooterNav={dbFooterNav}
+            footerVariant={presentation.footerVariant}
+            config={presentation.footer}
+          />
+        )}
         <Toaster
           position="bottom-right"
           richColors

@@ -406,3 +406,44 @@ h6 {
     animation: none;
   }
 }
+
+/* ─── Dial homepage template (watch editorial dark theme) ─────────── *
+ * Scoped utilities for the ported WristNerd dial design. These are kept
+ * separate from global tokens so the dark theme only applies when a site
+ * opts in via `homepage: "dial"` and the ThemeProvider mode. */
+
+[data-theme="dial"] {
+  color-scheme: dark;
+}
+
+.font-playfair {
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slow-spin {
+  animation: spin 12s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-slow-spin {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
