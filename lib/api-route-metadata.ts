@@ -323,6 +323,16 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/dial-homepage",
+    methods: ["GET", "PUT"],
+    requestSchema: "DialHomepageConfig",
+    responseSchema: "DialHomepageConfig",
+    sensitiveFields: [],
+    notes:
+      "Reads/writes raw JSON for the dial homepage config (pages.slug = 'dial-homepage', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/integrations",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "IntegrationInput",
