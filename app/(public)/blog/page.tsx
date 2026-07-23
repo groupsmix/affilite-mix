@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCurrentSite } from "@/lib/site-context";
-import { listPublishedContent, countPublishedContent } from "@/lib/dal/content";
+import { listPublishedContent } from "@/lib/dal/content";
 import { ContentCardGrid } from "../components/content-card-grid";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { notFound } from "next/navigation";
