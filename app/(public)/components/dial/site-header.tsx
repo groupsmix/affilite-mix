@@ -90,6 +90,13 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
   const tiers = config.priceTiers;
   const cta = useMemo(() => deriveCta(navLinks, pathname, tiers), [navLinks, pathname, tiers]);
 
+  // Automatically add a Blog link when the site supports blog content, without
+  // overriding the dashboard-driven navLinks order.
+  const hasBlog = site.contentTypes.some((ct) => ct.value === "blog");
+  const hasBlogLink = navLinks.some((l) => l.href === "/blog" || l.label.toLowerCase() === "blog");
+  const effectiveNavLinks =
+    hasBlog && !hasBlogLink ? [...navLinks, { label: "Blog", href: "/blog" }] : navLinks;
+
   return (
     <header
       className={cn(
@@ -108,7 +115,7 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
         </Link>
 
         <ul className="hidden items-center gap-6 md:flex">
-          {navLinks.map((link) => {
+          {effectiveNavLinks.map((link) => {
             const resolved = resolveDialHeaderHref(link.href, pathname, tiers);
             const routePath = resolved.split("#")[0] ?? "";
             const isActive = routePath.length > 1 && pathname.startsWith(routePath);
@@ -148,7 +155,7 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
       {mobileOpen && (
         <div className="border-b border-border/60 bg-background/95 px-4 pb-4 backdrop-blur-md md:hidden">
           <ul className="flex flex-col gap-3 pt-2">
-            {navLinks.map((link) => {
+            {effectiveNavLinks.map((link) => {
               const resolved = resolveDialHeaderHref(link.href, pathname, tiers);
               return (
                 <li key={link.href}>

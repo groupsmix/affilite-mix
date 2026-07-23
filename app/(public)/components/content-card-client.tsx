@@ -50,7 +50,7 @@ export function ContentCardImage({
       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent" />
       <div className="relative z-10">
         {type && (
-          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-100 backdrop-blur-sm">
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground backdrop-blur-sm">
             <FileText className="size-3" aria-hidden="true" />
             {type}
           </span>

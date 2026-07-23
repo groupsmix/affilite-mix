@@ -22,7 +22,7 @@ export function ContentCard({
   const href = `/${content.type}/${content.slug}`;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <ContentCardImage
         href={href}
         src={content.featured_image}
@@ -38,12 +38,12 @@ export function ContentCard({
           </h3>
         </Link>
         {content.excerpt && (
-          <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-gray-600">
+          <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
             {searchQuery ? highlightText(content.excerpt, searchQuery) : content.excerpt}
           </p>
         )}
-        <div className="mt-auto flex items-center justify-between text-xs font-medium text-gray-500">
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 uppercase tracking-wider">
+        <div className="mt-auto flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <span className="rounded-full bg-muted px-2 py-0.5 uppercase tracking-wider">
             {content.type}
           </span>
           {(content.publish_at ?? content.created_at) && (

@@ -1,8 +1,11 @@
 import { sanitizeHtmlMemoized } from "@/lib/sanitize-html";
+import { cn } from "@/lib/utils";
 
 interface HtmlRendererProps {
   html: string;
   direction?: "ltr" | "rtl";
+  className?: string;
+  invert?: boolean;
 }
 
 /**
@@ -18,13 +21,18 @@ interface HtmlRendererProps {
  * there is no tenant-leak risk — identical inputs always produce
  * identical outputs.
  */
-export function HtmlRenderer({ html, direction = "ltr" }: HtmlRendererProps) {
+export function HtmlRenderer({ html, direction = "ltr", className, invert }: HtmlRendererProps) {
   const isRtl = direction === "rtl";
 
   return (
     <div
       dir={direction}
-      className={`prose prose-lg max-w-none prose-headings:font-semibold prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-pre:overflow-x-auto ${isRtl ? "text-right" : ""}`}
+      className={cn(
+        "prose prose-lg max-w-none prose-headings:font-semibold prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-pre:overflow-x-auto",
+        invert && "prose-invert",
+        isRtl && "text-right",
+        className,
+      )}
       style={{ "--tw-prose-links": "var(--color-accent, #10B981)" } as React.CSSProperties}
       // audit-etap1 #6: sanitizer call inlined at the JSX site so the ESLint
       // rule statically verifies every `dangerouslySetInnerHTML` is wrapped.

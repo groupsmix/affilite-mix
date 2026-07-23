@@ -39,6 +39,20 @@ export const watchToolsSite = defineSite({
   productLabelPlural: "Watches",
   productCardStyle: "detailed",
 
+  contentTypes: [
+    { value: "article", label: "Article", commercial: false, layout: "standard" },
+    { value: "review", label: "Review", commercial: true, layout: "sidebar" },
+    {
+      value: "comparison",
+      label: "Comparison",
+      commercial: true,
+      layout: "sidebar",
+      minProducts: 2,
+    },
+    { value: "guide", label: "Guide", commercial: false, layout: "standard" },
+    { value: "blog", label: "Blog", commercial: false, layout: "standard" },
+  ],
+
   features: [
     "blog",
     "brandSpotlights",
@@ -58,6 +72,7 @@ export const watchToolsSite = defineSite({
     { title: "Reviews", href: "/review" },
     { title: "Comparisons", href: "/comparison" },
     { title: "Guides", href: "/guide" },
+    { title: "Blog", href: "/blog" },
     { title: "Gift Finder", href: "/gift-finder" },
   ],
 
@@ -66,6 +81,7 @@ export const watchToolsSite = defineSite({
       { title: "Best Under $300", href: "/guide/best-watches-under-300" },
       { title: "Best Under $500", href: "/guide/best-watches-under-500" },
       { title: "Best Dress Watch", href: "/guide/best-dress-watch-under-500" },
+      { title: "Blog", href: "/blog" },
       { title: "Top Picks", href: "/#top-picks" },
       { title: "How We Test", href: "/#how-we-test" },
     ],
