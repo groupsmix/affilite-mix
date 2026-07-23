@@ -15,8 +15,10 @@ interface BlogArticleProps {
 }
 
 export function BlogArticle({ content, site, relatedContent }: BlogArticleProps) {
+  // site.locale uses OpenGraph-style underscores (e.g. en_US); Intl expects BCP 47 hyphens.
+  const dateLocale = (site.locale ?? "en-US").replace(/_/g, "-");
   const updated = new Date(content.updated_at ?? content.created_at).toLocaleDateString(
-    site.locale ?? "en-US",
+    dateLocale,
     { year: "numeric", month: "long", day: "numeric" },
   );
   const published = new Date(content.publish_at ?? content.created_at).toISOString();
