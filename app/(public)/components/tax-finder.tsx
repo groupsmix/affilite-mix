@@ -181,6 +181,7 @@ export function TaxFinder({
                   href={pick.affiliateUrl}
                   slug={pick.slug}
                   sourceType={sourceType}
+                  productName={pick.name}
                   label={
                     <span className="inline-flex items-center justify-center gap-2">
                       Get started <ArrowRight className="size-4" aria-hidden="true" />
@@ -193,6 +194,7 @@ export function TaxFinder({
                     href={accountant.affiliateUrl}
                     slug={accountant.slug}
                     sourceType={sourceType}
+                    productName={accountant.name}
                     label={
                       <span className="inline-flex items-center justify-center gap-2">
                         Find an accountant

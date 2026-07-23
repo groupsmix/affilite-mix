@@ -62,18 +62,23 @@ export const watchToolsSite = defineSite({
   ],
 
   footerNav: {
-    quickLinks: [
-      { title: "Home", href: "/" },
-      { title: "Reviews", href: "/review" },
-      { title: "Comparisons", href: "/comparison" },
-      { title: "Gift Finder", href: "/gift-finder" },
+    guides: [
+      { title: "Best Under $300", href: "/guide/best-watches-under-300" },
+      { title: "Best Under $500", href: "/guide/best-watches-under-500" },
+      { title: "Best Dress Watch", href: "/guide/best-dress-watch-under-500" },
+      { title: "Top Picks", href: "/#top-picks" },
+      { title: "How We Test", href: "/#how-we-test" },
+    ],
+    about: [
+      { title: "How We Test", href: "/how-we-rank" },
+      { title: "Editorial Policy", href: "/about" },
+      { title: "Meet the Team", href: "/about" },
+      { title: "Contact", href: "/contact" },
     ],
     legal: [
-      { title: "About", href: "/about" },
       { title: "Privacy Policy", href: "/privacy" },
       { title: "Terms of Service", href: "/terms" },
       { title: "Affiliate Disclosure", href: "/affiliate-disclosure" },
-      { title: "Contact", href: "/contact" },
     ],
   },
 

@@ -95,6 +95,29 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "cointracking.info",
   "coinpanda.io",
   "cryptotaxau.com",
+  // Etsy AI/POD tool official + affiliate destinations (compareai.site)
+  "everbee.io",
+  "getalura.com",
+  "alura.io",
+  "kittl.com",
+  "canva.com",
+  "partnerstack.com",
+  "printful.com",
+  // Watch brand official + affiliate destinations (wristnerd.xyz)
+  "seikowatches.com",
+  "orientwatchusa.com",
+  "citizenwatch.com",
+  "tissotwatches.com",
+  "hamiltonwatch.com",
+  "casio.com",
+  "timex.com",
+  "skagen.com",
+  "mvmt.com",
+  "fossil.com",
+  "danielwellington.com",
+  "bartonwatchbands.com",
+  "hirschstraps.com",
+  "crownandbuckle.com",
 ];
 
 /**

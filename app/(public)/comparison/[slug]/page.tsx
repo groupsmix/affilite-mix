@@ -259,6 +259,7 @@ export default async function ComparisonPage({ params }: { params: Promise<{ slu
               slug={left.slug}
               sourceType="comparison"
               placement={comparison.slug}
+              productName={left.name}
               label={isAffiliateLinkReady(left.slug) ? `Get ${left.name}` : `Visit ${left.name}`}
               className="mt-5 inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
@@ -278,6 +279,7 @@ export default async function ComparisonPage({ params }: { params: Promise<{ slu
               slug={right.slug}
               sourceType="comparison"
               placement={comparison.slug}
+              productName={right.name}
               label={isAffiliateLinkReady(right.slug) ? `Get ${right.name}` : `Visit ${right.name}`}
               className="mt-5 inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}

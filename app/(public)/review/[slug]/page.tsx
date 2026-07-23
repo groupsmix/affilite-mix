@@ -295,6 +295,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ slug: s
             slug={tool.slug}
             sourceType="review"
             placement={review.slug}
+            productName={tool.name}
             label={isAffiliateLinkReady(tool.slug) ? `Get ${tool.name}` : `Visit ${tool.name}`}
             className="inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
             style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
