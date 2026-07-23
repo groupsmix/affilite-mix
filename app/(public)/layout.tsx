@@ -7,12 +7,16 @@ import { isStaticConfigSite } from "@/lib/site-config-authority";
 import { PATHNAME_HEADER } from "@/lib/request-path";
 import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
+import { SiteHeader as DialSiteHeader } from "./components/dial/site-header";
+import { SiteFooter as DialSiteFooter } from "./components/dial/site-footer";
 import { JsonLd, organizationJsonLd } from "./components/json-ld";
 import { AdSlot } from "./components/ads/ad-slot";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig } from "./components/theme-provider";
 import { resolvePresentation, type PresentationSource } from "@/lib/presentation/resolve";
 import { getPublishedPresentationSource } from "@/lib/dal/site-presentations";
+import { getDialHomepageConfig } from "@/lib/dial-config";
+import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
 
@@ -140,6 +144,10 @@ export default async function PublicLayout({ children }: { children: React.React
   const pathname = headerList.get(PATHNAME_HEADER) ?? "/";
   const isDialHomepage = isDial && pathname === "/";
 
+  // Load the dashboard-managed dial homepage config; the same navLinks and
+  // price tiers drive the fixed header on every dial page.
+  let dialConfig = isDial ? await getDialHomepageConfig(site.id) : undefined;
+
   const themeConfig: Partial<SiteThemeConfig> = {
     primaryColor: site.theme.primaryColor,
     secondaryColor: site.theme.accentColor,
@@ -165,16 +173,20 @@ export default async function PublicLayout({ children }: { children: React.React
         >
           {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
         </a>
-        {!isDialHomepage && (
+        {isDial ? (
+          <DialSiteHeader site={site} config={dialConfig!} />
+        ) : (
           <SiteHeader site={site} dbNavItems={dbNavItems} presentation={presentation} />
         )}
-        {!isDialHomepage && <AdSlot placementType="header" className="pt-4" />}
+        {!isDial && <AdSlot placementType="header" className="pt-4" />}
         <JsonLd data={organizationJsonLd(site)} />
-        <main id="main-content" className="flex-1">
+        <main id="main-content" className={cn("flex-1", isDial && !isDialHomepage && "pt-16")}>
           {children}
         </main>
-        {!isDialHomepage && <AdSlot placementType="footer" className="pb-4" />}
-        {!isDialHomepage && (
+        {!isDial && <AdSlot placementType="footer" className="pb-4" />}
+        {isDial ? (
+          <DialSiteFooter site={site} />
+        ) : (
           <SiteFooter
             site={site}
             dbFooterNav={dbFooterNav}

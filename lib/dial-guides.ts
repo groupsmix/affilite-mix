@@ -310,6 +310,78 @@ export const dialGuides: DialGuide[] = [
       },
     ],
   },
+  {
+    slug: "best-watches-under-200",
+    eyebrow: "Buying Guide",
+    h1: "The Best Watches Under $200 in 2026",
+    lede: "You do not need to spend a lot to get a capable, characterful watch. The best sub-$200 picks combine honest specs, real-world durability, and enough style to wear anywhere.",
+    breadcrumbLabel: "Best Watches Under $200",
+    meta: {
+      title: "Best Watches Under $200 (2026) — Tested & Ranked | The Dial Report",
+      description:
+        "The best watches under $200, hands-on tested and ranked. Field, minimalist, vintage-style and budget beater picks with pros, cons, and honest buying advice.",
+      keywords: [
+        "best watches under 200",
+        "best watch under 200",
+        "affordable watches under 200",
+        "budget watches",
+        "cheap mechanical watch",
+      ],
+    },
+    introNote:
+      "Every watch on this list costs under $200 and has been worn for at least two weeks. We focused on reliability, comfort, and whether the watch actually feels good on the wrist — not just in photos.",
+    picks: [
+      {
+        watchId: "heritage-field",
+        award: "Best Overall",
+        reason:
+          "A hand-wound mechanical field watch with excellent legibility and a leather strap that feels far more expensive than the price. It has real character without the usual budget-watch compromises.",
+      },
+      {
+        watchId: "aria-minimalist",
+        award: "Best Minimalist",
+        reason:
+          "A refined 34mm case and mesh strap that dresses up or down effortlessly. It is our top pick for understated, clean style on a tight budget and makes a great gift.",
+      },
+      {
+        watchId: "retro-digital",
+        award: "Best Budget Beater",
+        reason:
+          "Iconic, nearly indestructible, and absurdly cheap. The perfect knock-around watch, gym companion, or gateway into the hobby without worry.",
+      },
+    ],
+    buying: {
+      title: "How to choose a watch under $200",
+      lede: "At this price, focus on reliability, comfort, and style that matches how you will actually wear the watch. Here is what we look for when testing sub-$200 timepieces.",
+      sections: [
+        movementSection,
+        {
+          heading: "Crystal and case finish",
+          body: "Sapphire is rare under $200, so expect mineral glass or acrylic. Check reviews for scratch resistance and how well the case finish holds up after a few weeks of daily wear. A clean dial and decent lume matter more than brand prestige.",
+        },
+        caseSection,
+        waterSection,
+      ],
+    },
+    faqs: [
+      {
+        q: "What is the best watch under $200 overall?",
+        a: "Our top pick is the Ridgeline Heritage Field 38. It offers a mechanical movement, excellent legibility, and a quality leather strap — a rare combination under $200.",
+      },
+      {
+        q: "Can you get an automatic watch under $200?",
+        a: "Yes, but be selective. Automatics under $200 exist from brands like Seiko, Orient, and a few microbrands. Expect simpler movements and mineral crystals, but many are reliable with regular servicing.",
+      },
+      {
+        q: "Are cheap watches durable?",
+        a: "Durability depends on construction, not price. We test water resistance claims, strap hardware, and case finish. Some sub-$100 watches are surprisingly tough, while others show wear within weeks.",
+      },
+      {
+        q: "How do you test and rank these watches?",
+        a: "We buy or borrow every watch and wear each one for at least two weeks, checking accuracy, comfort, crystal durability, strap quality, and water resistance. Rankings are never influenced by affiliate commissions.",
+      },
+    ],
+  },
 ];
 
 export function getDialGuide(slug: string): DialGuide | undefined {
