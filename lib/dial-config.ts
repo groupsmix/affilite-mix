@@ -100,7 +100,7 @@ export interface DialHomepageConfig {
 
 export const DIAL_HOMEPAGE_SLUG = "dial-homepage";
 
-const defaultWatches: Watch[] = [
+export const defaultWatches: Watch[] = [
   {
     id: "navigator-automatic",
     name: "Navigator Automatic",
@@ -232,9 +232,9 @@ const defaultWatches: Watch[] = [
 
 export const defaultDialConfig: DialHomepageConfig = {
   navLinks: [
-    { label: "Under $200", href: "/guide/best-watches-under-200" },
     { label: "Under $300", href: "/guide/best-watches-under-300" },
     { label: "Under $500", href: "/guide/best-watches-under-500" },
+    { label: "Best Dress", href: "/guide/best-dress-watch-under-500" },
     { label: "Top Picks", href: "#top-picks" },
     { label: "How We Test", href: "#how-we-test" },
   ],

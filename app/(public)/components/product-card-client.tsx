@@ -8,18 +8,26 @@ import { shimmerPlaceholder } from "@/lib/image-placeholder";
 /**
  * Fire-and-forget click tracking, then navigate to the affiliate URL directly.
  * Decouples tracking from navigation so tracking failures don't block the user.
+ *
+ * When `productName` and `affiliateUrl` are provided, the beacon includes them
+ * so the endpoint can record the click even for products that are not in the
+ * database (e.g. dial-homepage watches configured from the dashboard).
  */
 function fireTrackingBeacon(
   slug: string,
   sourceType: string,
   placement?: string,
   campaign?: string,
+  affiliateUrl?: string,
+  productName?: string,
 ) {
   const params = new URLSearchParams();
   params.set("p", slug);
   params.set("t", sourceType);
   if (placement) params.set("pl", placement);
   if (campaign) params.set("c", campaign);
+  if (affiliateUrl) params.set("u", affiliateUrl);
+  if (productName) params.set("n", productName);
   const trackUrl = `/api/track/click?${params.toString()}`;
   try {
     if (navigator.sendBeacon) {
@@ -39,6 +47,7 @@ interface ProductCardCtaProps {
   sourceType?: string;
   placement?: string;
   campaign?: string;
+  productName?: string;
   label: ReactNode;
   className: string;
   style?: React.CSSProperties;
@@ -50,6 +59,7 @@ export function ProductCardCta({
   sourceType = "content",
   placement,
   campaign,
+  productName,
   label,
   className,
   style,
@@ -60,7 +70,7 @@ export function ProductCardCta({
     e.preventDefault();
 
     if (consentAccepted) {
-      fireTrackingBeacon(slug, sourceType, placement, campaign);
+      fireTrackingBeacon(slug, sourceType, placement, campaign, href, productName);
     }
 
     // Send a GA4 event regardless of consent so the site can attribute clicks to placements/campaigns.

@@ -81,6 +81,7 @@ export function ProductCard({
               href={product.affiliate_url}
               slug={product.slug}
               sourceType={sourceType}
+              productName={product.name}
               label={buttonLabel}
               className="mt-2 inline-block rounded px-3 py-1 text-xs font-medium text-white transition-colors hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #10B981)" }}
@@ -202,6 +203,7 @@ export function ProductCard({
               href={product.affiliate_url}
               slug={product.slug}
               sourceType={sourceType}
+              productName={product.name}
               label={buttonLabel}
               className="block w-full rounded-md px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #10B981)" }}
@@ -265,6 +267,7 @@ export function ProductCard({
           href={product.affiliate_url}
           slug={product.slug}
           sourceType={sourceType}
+          productName={product.name}
           label={buttonLabel}
           className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
           style={{ backgroundColor: "var(--color-accent, #16A34A)" }}

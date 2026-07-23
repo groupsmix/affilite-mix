@@ -25,9 +25,9 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
   }, []);
 
   const navLinks = config.navLinks;
-  const cta = navLinks.find((l) => l.href.startsWith("#top-picks")) ?? {
-    label: "See top picks",
-    href: "#top-picks",
+  const cta = navLinks.find((l) => l.href.includes("best-watches-under-500")) ?? {
+    label: "Best Under $500",
+    href: "/guide/best-watches-under-500",
   };
 
   return (

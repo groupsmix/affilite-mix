@@ -447,6 +447,7 @@ function ToolRow({
             href={product.affiliate_url}
             slug={product.slug}
             sourceType={sourceType}
+            productName={product.name}
             label={
               <span className="inline-flex items-center justify-center gap-2">
                 Visit site <ArrowRight className="size-4" aria-hidden="true" />

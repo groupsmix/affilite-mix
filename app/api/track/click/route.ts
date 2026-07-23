@@ -204,6 +204,8 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     const siteId = await resolveDbSiteId(siteSlug);
     const { searchParams } = request.nextUrl;
     const productSlug = (searchParams.get("p") ?? "").normalize("NFC");
+    const overrideUrl = searchParams.get("u") ?? undefined;
+    const overrideName = searchParams.get("n") ?? undefined;
 
     if (!productSlug) {
       return apiError(400, "Missing required parameter: p");
@@ -218,79 +220,90 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     let cachedData: { name: string; url: string; _hmac?: string } | null = null;
     let cacheHmacValid = false;
 
-    try {
-      const kv = getAppCacheKV();
-      if (kv) {
-        cachedData = (await kv.get(cacheKey, "json")) as {
-          name: string;
-          url: string;
-          _hmac?: string;
-        } | null;
-        if (cachedData && !cachedData._hmac) {
-          logger.error("affiliate_cache_unsigned_rejected", {
-            cacheKey,
-          });
-          cachedData = null;
-        }
-        if (cachedData?._hmac && hmacKey) {
-          const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
-          const expectedHmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
-          cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
-          if (!cacheHmacValid) {
-            logger.error("affiliate_cache_hmac_mismatch", {
+    // A dial/guide/watch configuration may supply the affiliate URL and display
+    // name directly instead of requiring a product row in the database. The URL
+    // is validated by the same destination checks below.
+    if (overrideUrl) {
+      const safeName = (overrideName ?? productSlug)
+        .normalize("NFC")
+        .replace(/[\x00\x1F]/g, "")
+        .slice(0, 512);
+      cachedData = { name: safeName, url: overrideUrl };
+    } else {
+      try {
+        const kv = getAppCacheKV();
+        if (kv) {
+          cachedData = (await kv.get(cacheKey, "json")) as {
+            name: string;
+            url: string;
+            _hmac?: string;
+          } | null;
+          if (cachedData && !cachedData._hmac) {
+            logger.error("affiliate_cache_unsigned_rejected", {
               cacheKey,
             });
             cachedData = null;
           }
-        }
-      }
-    } catch {
-      // fail-open: best-effort [criticality:non-critical]
-      // Ignore KV errors and fallback to DB
-    }
-
-    if (!cachedData) {
-      const product = await getProductBySlug(siteId, productSlug);
-      if (!product || !product.affiliate_url) {
-        return apiError(404, "Product not found or has no affiliate URL");
-      }
-      cachedData = { name: product.name, url: product.affiliate_url };
-
-      const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
-      let hmacSigned = false;
-      if (!hmacKey) {
-        // A8-002: Never cache unsigned destinations — empty HMAC key means
-        // the cached payload cannot be integrity-checked on read, allowing
-        // cache poisoning via a spoofed KV entry.
-        logger.warn("[track/click] skipping cache write: CLICK_CACHE_HMAC_KEY is empty");
-      }
-      try {
-        if (hmacKey) {
-          cachedData._hmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
-          hmacSigned = true;
-        }
-      } catch (hmacErr) {
-        logger.error("affiliate_cache_hmac_sign_failed", {
-          cacheKey,
-        });
-        captureException(hmacErr, {
-          context: "[api/track/click] HMAC signing failed",
-          extra: { cacheKey },
-        });
-      }
-
-      if (hmacSigned) {
-        try {
-          const kv = getAppCacheKV();
-          if (kv) {
-            void runAfterResponse(
-              kv.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 3600 }),
-              { context: "[api/track/click] cache product URL" },
-            );
+          if (cachedData?._hmac && hmacKey) {
+            const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
+            const expectedHmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
+            cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
+            if (!cacheHmacValid) {
+              logger.error("affiliate_cache_hmac_mismatch", {
+                cacheKey,
+              });
+              cachedData = null;
+            }
           }
-        } catch {
-          // fail-open: best-effort [criticality:non-critical]
-          // ignore cache write errors
+        }
+      } catch {
+        // fail-open: best-effort [criticality:non-critical]
+        // Ignore KV errors and fallback to DB
+      }
+
+      if (!cachedData) {
+        const product = await getProductBySlug(siteId, productSlug);
+        if (!product || !product.affiliate_url) {
+          return apiError(404, "Product not found or has no affiliate URL");
+        }
+        cachedData = { name: product.name, url: product.affiliate_url };
+
+        const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
+        let hmacSigned = false;
+        if (!hmacKey) {
+          // A8-002: Never cache unsigned destinations — empty HMAC key means
+          // the cached payload cannot be integrity-checked on read, allowing
+          // cache poisoning via a spoofed KV entry.
+          logger.warn("[track/click] skipping cache write: CLICK_CACHE_HMAC_KEY is empty");
+        }
+        try {
+          if (hmacKey) {
+            cachedData._hmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
+            hmacSigned = true;
+          }
+        } catch (hmacErr) {
+          logger.error("affiliate_cache_hmac_sign_failed", {
+            cacheKey,
+          });
+          captureException(hmacErr, {
+            context: "[api/track/click] HMAC signing failed",
+            extra: { cacheKey },
+          });
+        }
+
+        if (hmacSigned) {
+          try {
+            const kv = getAppCacheKV();
+            if (kv) {
+              void runAfterResponse(
+                kv.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 3600 }),
+                { context: "[api/track/click] cache product URL" },
+              );
+            }
+          } catch {
+            // fail-open: best-effort [criticality:non-critical]
+            // ignore cache write errors
+          }
         }
       }
     }

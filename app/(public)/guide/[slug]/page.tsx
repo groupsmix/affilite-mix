@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { getSiteGuide, getAllSiteGuides } from "@/lib/site-guides";
+import { getDialGuide } from "@/lib/dial-guides";
+import { getDialHomepageConfig } from "@/lib/dial-config";
+import { GuideArticle } from "../../components/article/guide-article";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd, faqJsonLd } from "../../components/json-ld";
 import { NewsletterSignup } from "../../components/newsletter-signup";
@@ -16,6 +19,24 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
+  const dialGuide = getDialGuide(slug);
+  if (dialGuide) {
+    const url = `https://${site.domain}/guide/${dialGuide.slug}`;
+    return {
+      metadataBase: new URL(`https://${site.domain}`),
+      title: dialGuide.meta.title,
+      description: dialGuide.meta.description,
+      alternates: { canonical: url },
+      openGraph: {
+        title: dialGuide.meta.title,
+        description: dialGuide.meta.description,
+        url,
+        siteName: site.name,
+        locale: site.locale,
+        type: "article",
+      },
+    };
+  }
   const guide = getSiteGuide(site.slug ?? site.id, slug);
   if (!guide) {
     return { title: "Not Found" };
@@ -42,6 +63,12 @@ export async function generateMetadata({
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const site = await getCurrentSite();
+  const dialGuide = getDialGuide(slug);
+  if (dialGuide) {
+    const dialConfig = await getDialHomepageConfig(site.id);
+    return <GuideArticle guide={dialGuide} siteName={site.name} watches={dialConfig.watches} />;
+  }
+
   const guide = getSiteGuide(site.slug ?? site.id, slug);
   if (!guide) notFound();
 
