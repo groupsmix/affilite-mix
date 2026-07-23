@@ -13,8 +13,15 @@
  * Requirements: 16.2 (UTC + en-US default), 16.3 (hydration-stable output).
  */
 export function formatCardDate(value: string | number | Date, locale = "en-US"): string {
-  return new Date(value).toLocaleDateString(locale, {
-    // Pin to UTC so SSR (UTC) and client (browser TZ) produce identical output.
-    timeZone: "UTC",
-  });
+  // site.locale uses OpenGraph-style underscores (e.g. en_US); Intl expects BCP 47 hyphens.
+  const normalized = locale.replace(/_/g, "-") || "en-US";
+  const date = new Date(value);
+  try {
+    return date.toLocaleDateString(normalized, {
+      // Pin to UTC so SSR (UTC) and client (browser TZ) produce identical output.
+      timeZone: "UTC",
+    });
+  } catch {
+    return date.toLocaleDateString("en-US", { timeZone: "UTC" });
+  }
 }
