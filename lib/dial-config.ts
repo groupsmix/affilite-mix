@@ -28,6 +28,8 @@ export interface DialPriceTier {
   id: WatchTier;
   label: string;
   tagline: string;
+  /** Optional guide slug to route to from the fixed header on non-homepage pages. */
+  guideSlug?: string;
   /** Computed from the watches array when the config is loaded. */
   count?: number;
 }
@@ -232,9 +234,9 @@ export const defaultWatches: Watch[] = [
 
 export const defaultDialConfig: DialHomepageConfig = {
   navLinks: [
-    { label: "Under $300", href: "/guide/best-watches-under-300" },
-    { label: "Under $500", href: "/guide/best-watches-under-500" },
-    { label: "Best Dress", href: "/guide/best-dress-watch-under-500" },
+    { label: "Under $200", href: "#tier-under-200" },
+    { label: "Under $300", href: "#tier-under-300" },
+    { label: "Under $500", href: "#tier-under-500" },
     { label: "Top Picks", href: "#top-picks" },
     { label: "How We Test", href: "#how-we-test" },
   ],
@@ -260,9 +262,24 @@ export const defaultDialConfig: DialHomepageConfig = {
     ],
   },
   priceTiers: [
-    { id: "under-200", label: "Under $200", tagline: "Best value entry points" },
-    { id: "under-300", label: "Under $300", tagline: "The everyday sweet spot" },
-    { id: "under-500", label: "Under $500", tagline: "Step-up quality picks" },
+    {
+      id: "under-200",
+      label: "Under $200",
+      tagline: "Best value entry points",
+      guideSlug: "best-watches-under-200",
+    },
+    {
+      id: "under-300",
+      label: "Under $300",
+      tagline: "The everyday sweet spot",
+      guideSlug: "best-watches-under-300",
+    },
+    {
+      id: "under-500",
+      label: "Under $500",
+      tagline: "Step-up quality picks",
+      guideSlug: "best-watches-under-500",
+    },
   ],
   topPicks: {
     title: "Top rated this month",
@@ -436,8 +453,15 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
           const id = t.id;
           const label = t.label;
           const tagline = t.tagline;
+          const guideSlug = t.guideSlug;
           return isWatchTier(id) && isString(label) && isString(tagline)
-            ? { id, label, tagline, count: watches.filter((w) => w.tier === id).length }
+            ? {
+                id,
+                label,
+                tagline,
+                guideSlug: isString(guideSlug) ? guideSlug : undefined,
+                count: watches.filter((w) => w.tier === id).length,
+              }
             : null;
         })
         .filter((t): t is DialPriceTier => t !== null)
