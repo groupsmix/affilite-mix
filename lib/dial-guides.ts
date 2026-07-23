@@ -316,10 +316,6 @@ export function getDialGuide(slug: string): DialGuide | undefined {
   return dialGuides.find((g) => g.slug === slug);
 }
 
-export function getAllDialGuideSlugs(): string[] {
-  return dialGuides.map((g) => g.slug);
-}
-
 export function getDialGuidePicks(guide: DialGuide, watches: Watch[] = defaultWatches) {
   return guide.picks
     .map((p) => {
