@@ -17,6 +17,7 @@ import {
   Files,
   FolderTree,
   Globe,
+  Home,
   Image,
   LayoutDashboard,
   Link as LinkIcon,
@@ -76,6 +77,13 @@ export const adminNavItems: AdminNavItem[] = [
     label: "Categories",
     iconKey: "categories",
     icon: FolderTree,
+    requiresActiveSite: true,
+  },
+  {
+    href: adminRoute("/homepage"),
+    label: "Homepage",
+    iconKey: "homepage",
+    icon: Home,
     requiresActiveSite: true,
   },
   {

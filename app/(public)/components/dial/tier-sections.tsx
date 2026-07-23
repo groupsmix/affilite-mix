@@ -1,19 +1,23 @@
 import Link from "next/link";
-import { priceTiers, watches } from "./lib/watches";
+import type { DialHomepageConfig } from "@/lib/dial-config";
 import { ProductCard } from "./product-card";
 import { Reveal } from "./reveal";
 
-export function TierSections() {
+interface TierSectionsProps {
+  config: DialHomepageConfig;
+}
+
+export function TierSections({ config }: TierSectionsProps) {
+  const { tierSections, priceTiers, watches } = config;
+
   return (
     <section className="bg-background py-16 md:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl font-playfair">
-            Winners by budget
+            {tierSections.title}
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            Not everyone needs the same spend ceiling. Here are the standouts sorted by price tier.
-          </p>
+          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{tierSections.subtitle}</p>
         </Reveal>
 
         <div className="mt-16 space-y-20">
@@ -28,10 +32,10 @@ export function TierSections() {
                       <p className="mt-1 text-sm text-muted-foreground">{tier.tagline}</p>
                     </div>
                     <Link
-                      href="/guide"
+                      href={tierSections.allGuidesHref}
                       className="hidden text-sm font-medium text-primary sm:inline-block hover:underline"
                     >
-                      All guides →
+                      {tierSections.allGuidesLabel}
                     </Link>
                   </div>
                 </Reveal>

@@ -1,9 +1,14 @@
 import { ArrowUpRight, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { watches } from "./lib/watches";
+import type { DialHomepageConfig } from "@/lib/dial-config";
 import { Reveal } from "./reveal";
 
-export function ComparisonTable() {
+interface ComparisonTableProps {
+  config: DialHomepageConfig;
+}
+
+export function ComparisonTable({ config }: ComparisonTableProps) {
+  const { comparisonTable, watches } = config;
   const sorted = [...watches].sort((a, b) => b.rating - a.rating);
 
   return (
@@ -11,12 +16,9 @@ export function ComparisonTable() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl font-playfair">
-            Head-to-head comparison
+            {comparisonTable.title}
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            The same specs, side by side. Sort by rating to see which watch leads the pack for your
-            budget.
-          </p>
+          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{comparisonTable.subtitle}</p>
         </Reveal>
 
         <Reveal delay={100}>
@@ -60,7 +62,7 @@ export function ComparisonTable() {
                             target="_blank"
                             rel="sponsored noopener noreferrer"
                           >
-                            Check price
+                            {comparisonTable.ctaLabel}
                             <ArrowUpRight className="h-3.5 w-3.5" />
                           </a>
                         </Button>

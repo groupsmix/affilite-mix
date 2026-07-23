@@ -1,4 +1,5 @@
 import type { SiteDefinition } from "@/config/site-definition";
+import type { DialHomepageConfig } from "@/lib/dial-config";
 import { SiteHeader } from "./dial/site-header";
 import { Hero } from "./dial/hero";
 import { TrustBar } from "./dial/trust-bar";
@@ -12,25 +13,21 @@ import { SiteFooter } from "./dial/site-footer";
 
 interface DialHomepageProps {
   site: SiteDefinition;
-  recentContent: unknown[];
-  featuredProducts: unknown[];
-  categories: unknown[];
-  productCount: number;
-  reviewCount: number;
+  config: DialHomepageConfig;
 }
 
-export function DialHomepage({ site, productCount, reviewCount }: DialHomepageProps) {
+export function DialHomepage({ site, config }: DialHomepageProps) {
   return (
     <main className="min-h-screen">
-      <SiteHeader site={site} />
-      <Hero />
-      <TrustBar productCount={productCount} reviewCount={reviewCount} />
-      <PriceTiers />
-      <TopPicks />
-      <TierSections />
-      <ComparisonTable />
-      <HowWeTest />
-      <Newsletter />
+      <SiteHeader site={site} config={config} />
+      <Hero config={config} />
+      <TrustBar config={config} />
+      <PriceTiers config={config} />
+      <TopPicks config={config} />
+      <TierSections config={config} />
+      <ComparisonTable config={config} />
+      <HowWeTest config={config} />
+      <Newsletter config={config} />
       <SiteFooter site={site} />
     </main>
   );

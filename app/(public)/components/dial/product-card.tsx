@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { ArrowUpRight, Award, Star } from "lucide-react";
-import type { Watch } from "./lib/watches";
+import type { Watch } from "@/lib/dial-config";
 import { Button } from "@/components/ui/button";
 
 interface ProductCardProps {
@@ -19,7 +19,7 @@ export function ProductCard({ watch }: ProductCardProps) {
         )}
         <Image
           src={watch.image || "/placeholder.svg"}
-          alt={`${watch.brand} ${watch.name} watch`}
+          alt={watch.imageAlt ?? `${watch.brand} ${watch.name} watch`}
           fill
           sizes="(max-width: 768px) 100vw, 360px"
           className="object-contain p-6 transition-transform duration-500 group-hover:scale-105"
