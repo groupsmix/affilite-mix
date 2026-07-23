@@ -4,6 +4,7 @@ import { getRecentContent, countPublishedContent } from "@/lib/dal/content";
 import { listFeaturedProducts, countProducts } from "@/lib/dal/products";
 import { listCategoriesWithProductCount } from "@/lib/dal/categories";
 import { getTenantClient } from "@/lib/supabase-server";
+import { getDialHomepageConfig, defaultDialConfig } from "@/lib/dial-config";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import dynamic from "next/dynamic";
@@ -99,7 +100,10 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const site = await getCurrentSite();
-  const [recentContent, featuredProducts, categories, productCount, reviewCount] =
+  const template =
+    site.homepageTemplate ?? (site.features.customHomepage ? "cinematic" : "standard");
+
+  const [recentContent, featuredProducts, categories, productCount, reviewCount, dialConfig] =
     await Promise.all([
       getRecentContent(site.id, 9).catch((err) => {
         reportHomepageFanoutError("getRecentContent", site.id, err);
@@ -121,6 +125,10 @@ export default async function HomePage() {
         reportHomepageFanoutError("countPublishedContent", site.id, err);
         return 0;
       }),
+      getDialHomepageConfig(site.id).catch((err) => {
+        reportHomepageFanoutError("getDialHomepageConfig", site.id, err);
+        return null;
+      }),
     ]);
 
   // Render homepage based on template preset
@@ -132,8 +140,6 @@ export default async function HomePage() {
     productCount,
     reviewCount,
   };
-  const template =
-    site.homepageTemplate ?? (site.features.customHomepage ? "cinematic" : "standard");
 
   if (template === "cinematic") {
     return <CinematicHomepage {...homepageProps} />;
@@ -168,7 +174,7 @@ export default async function HomePage() {
   }
 
   if (template === "dial") {
-    return <DialHomepage {...homepageProps} />;
+    return <DialHomepage site={site} config={dialConfig ?? defaultDialConfig} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";

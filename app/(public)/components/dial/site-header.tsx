@@ -4,22 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import type { SiteDefinition } from "@/config/site-definition";
+import type { DialHomepageConfig } from "@/lib/dial-config";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
-  { label: "Under $200", href: "/guide/best-watches-under-200" },
-  { label: "Under $300", href: "/guide/best-watches-under-300" },
-  { label: "Under $500", href: "/guide/best-watches-under-500" },
-  { label: "Top Picks", href: "#top-picks" },
-  { label: "How We Test", href: "#how-we-test" },
-];
-
 interface SiteHeaderProps {
   site: SiteDefinition;
+  config: DialHomepageConfig;
 }
 
-export function SiteHeader({ site }: SiteHeaderProps) {
+export function SiteHeader({ site, config }: SiteHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -29,6 +23,12 @@ export function SiteHeader({ site }: SiteHeaderProps) {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const navLinks = config.navLinks;
+  const cta = navLinks.find((l) => l.href.startsWith("#top-picks")) ?? {
+    label: "See top picks",
+    href: "#top-picks",
+  };
 
   return (
     <header
@@ -60,7 +60,7 @@ export function SiteHeader({ site }: SiteHeaderProps) {
 
         <div className="hidden md:block">
           <Button asChild>
-            <a href="#top-picks">See top picks</a>
+            <a href={cta.href}>{cta.label}</a>
           </Button>
         </div>
 
@@ -90,8 +90,8 @@ export function SiteHeader({ site }: SiteHeaderProps) {
           </ul>
           <div className="mt-4">
             <Button className="w-full" asChild>
-              <a href="#top-picks" onClick={() => setMobileOpen(false)}>
-                See top picks
+              <a href={cta.href} onClick={() => setMobileOpen(false)}>
+                {cta.label}
               </a>
             </Button>
           </div>
