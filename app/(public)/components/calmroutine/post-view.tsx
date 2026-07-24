@@ -1,14 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import {
-  calmAuthor,
-  calmCategories,
-  getCalmPost,
-  formatCalmDate,
-  type CalmPost,
-} from "@/lib/calmroutine";
+import { calmAuthor, calmCategories, formatCalmDate, type CalmPost } from "@/lib/calmroutine";
 import { CalmCategoryBadge } from "./category-badge";
 import { CalmAffiliateCallout } from "./affiliate-callout";
 import { CalmAuthorBio } from "./author-bio";
@@ -123,10 +116,4 @@ export function CalmPostView({ post }: { post: CalmPost }) {
       </p>
     </>
   );
-}
-
-export function CalmPostPage({ slug }: { slug: string }) {
-  const post = getCalmPost(slug);
-  if (!post) notFound();
-  return <CalmPostView post={post} />;
 }
