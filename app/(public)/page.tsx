@@ -25,6 +25,7 @@ import { ShowcaseHomepage } from "./components/homepage-showcase";
 import { TaxFinderHomepage } from "./components/homepage-taxfinder";
 import { EtsyHomepage } from "./components/homepage-etsy";
 import { DialHomepage } from "./components/homepage-dial";
+import { CalmHomepage } from "./components/calmroutine/homepage";
 
 /**
  * PROD-INCIDENT-2026-06-11 follow-up: surface failures in the homepage's
@@ -175,6 +176,10 @@ export default async function HomePage() {
 
   if (template === "dial") {
     return <DialHomepage site={site} config={dialConfig ?? defaultDialConfig} />;
+  }
+
+  if (template === "calmroutine") {
+    return <CalmHomepage site={site} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";

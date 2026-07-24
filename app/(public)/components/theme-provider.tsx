@@ -21,7 +21,7 @@ export interface SiteThemeConfig {
   fontBody: string;
   layoutVariant: LayoutVariant;
   /** Optional dark editorial theme used by the dial watch homepage. */
-  mode?: "light" | "dark" | "dial";
+  mode?: "light" | "dark" | "dial" | "calmroutine";
 }
 
 const defaultTheme: SiteThemeConfig = {
@@ -88,6 +88,69 @@ const DIAL_TOKENS: Record<string, string> = {
   "--color-ring": "oklch(0.65 0.12 185)",
 };
 
+/**
+ * Full token set for the calmroutine wellness site.
+ * Warm off-white background, deep teal primary, and a mid-teal accent.
+ * Avoids the AI-slop warm-cream/terracotta, acid-green-on-black, and
+ * broadsheet hairline defaults.
+ */
+const CALMROUTINE_TOKENS: Record<string, string> = {
+  "--radius": "0.75rem",
+  "--background": "#FAF9F6",
+  "--foreground": "#2C2C2A",
+  "--card": "#FFFFFF",
+  "--card-foreground": "#2C2C2A",
+  "--popover": "#FFFFFF",
+  "--popover-foreground": "#2C2C2A",
+  "--primary": "#085041",
+  "--primary-foreground": "#FAF9F6",
+  "--secondary": "#E1F5EE",
+  "--secondary-foreground": "#085041",
+  "--muted": "#F5F3EE",
+  "--muted-foreground": "#5F5E5A",
+  "--accent": "#1D9E75",
+  "--accent-foreground": "#FAF9F6",
+  "--destructive": "#B42318",
+  "--border": "rgba(0, 0, 0, 0.08)",
+  "--input": "rgba(0, 0, 0, 0.08)",
+  "--ring": "#1D9E75",
+
+  /* Legacy/convenience tokens consumed by calmroutine components */
+  "--color-primary": "#085041",
+  "--color-secondary": "#E1F5EE",
+  "--color-accent": "#1D9E75",
+  "--color-accent-text": "#085041",
+  "--color-accent-light": "#E1F5EE",
+  "--color-background": "#FAF9F6",
+  "--color-foreground": "#2C2C2A",
+  "--color-card": "#FFFFFF",
+  "--color-card-foreground": "#2C2C2A",
+  "--color-popover": "#FFFFFF",
+  "--color-popover-foreground": "#2C2C2A",
+  "--color-primary-foreground": "#FAF9F6",
+  "--color-secondary-foreground": "#085041",
+  "--color-muted": "#F5F3EE",
+  "--color-muted-foreground": "#5F5E5A",
+  "--color-accent-foreground": "#FAF9F6",
+  "--color-destructive": "#B42318",
+  "--color-border": "rgba(0, 0, 0, 0.08)",
+  "--color-input": "rgba(0, 0, 0, 0.08)",
+  "--color-ring": "#1D9E75",
+  "--color-accent-tint": "#E1F5EE",
+  "--color-accent-mid": "#1D9E75",
+  "--color-accent-dark": "#085041",
+  "--color-text-primary": "#2C2C2A",
+  "--color-text-secondary": "#5F5E5A",
+  "--color-bg": "#FAF9F6",
+  "--color-border-subtle": "rgba(0, 0, 0, 0.08)",
+  "--color-cat-routine-bg": "#E1F5EE",
+  "--color-cat-routine-text": "#085041",
+  "--color-cat-somatic-bg": "#F7ECD9",
+  "--color-cat-somatic-text": "#7A5514",
+  "--color-cat-reviews-bg": "#ECE7F5",
+  "--color-cat-reviews-text": "#4A3A72",
+};
+
 const ThemeContext = createContext<SiteThemeConfig>(defaultTheme);
 
 /* ------------------------------------------------------------------ */
@@ -111,6 +174,8 @@ export function ThemeProvider({ theme, children }: ThemeProviderProps) {
     Inter: "var(--font-inter), sans-serif",
     "IBM Plex Sans Arabic": "var(--font-ibm-plex-arabic), sans-serif",
     "Playfair Display": "var(--font-playfair), serif",
+    Fraunces: "var(--font-fraunces), Georgia, serif",
+    "Public Sans": "var(--font-public-sans), 'Work Sans', sans-serif",
   };
 
   const fontBody = fontMap[merged.fontBody] ?? `${merged.fontBody}, sans-serif`;
@@ -134,14 +199,26 @@ export function ThemeProvider({ theme, children }: ThemeProviderProps) {
           "--font-heading": fontHeading,
           "--font-body": fontBody,
         }
-      : baseVars;
+      : merged.mode === "calmroutine"
+        ? {
+            ...CALMROUTINE_TOKENS,
+            "--font-heading": fontHeading,
+            "--font-body": fontBody,
+          }
+        : baseVars;
 
   return (
     <ThemeContext.Provider value={merged}>
       <div
         style={vars as React.CSSProperties}
         data-layout={merged.layoutVariant}
-        data-theme={merged.mode === "dial" ? "dial" : undefined}
+        data-theme={
+          merged.mode === "dial"
+            ? "dial"
+            : merged.mode === "calmroutine"
+              ? "calmroutine"
+              : undefined
+        }
       >
         {children}
       </div>

@@ -128,6 +128,23 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* calmroutine theme convenience tokens */
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-heading);
+  --color-bg: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-text-secondary: var(--muted-foreground);
+  --color-border-subtle: var(--border);
+  --color-accent-tint: var(--secondary);
+  --color-accent-mid: var(--accent);
+  --color-accent-dark: var(--primary);
+  --color-cat-routine-bg: #e1f5ee;
+  --color-cat-routine-text: #085041;
+  --color-cat-somatic-bg: #f7ecd9;
+  --color-cat-somatic-text: #7a5514;
+  --color-cat-reviews-bg: #ece7f5;
+  --color-cat-reviews-text: #4a3a72;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -439,11 +456,36 @@ h6 {
   animation: spin 12s linear infinite;
 }
 
+/* ─── Calmroutine homepage template ───────────────────────────────── *
+ * The only animation on the site: a slow, CSS-only breathing pulse. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.9;
+  }
+}
+
+.breathe {
+  animation: breathe 8s ease-in-out infinite;
+}
+
+[data-theme="calmroutine"] {
+  color-scheme: light;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-slow-spin {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+  .breathe {
+    animation: none;
   }
 }

@@ -111,7 +111,8 @@ export interface SiteDefinition {
     | "showcase"
     | "taxfinder"
     | "etsy"
-    | "dial";
+    | "dial"
+    | "calmroutine";
 
   /**
    * Chrome variant — controls the header and footer design for this site.

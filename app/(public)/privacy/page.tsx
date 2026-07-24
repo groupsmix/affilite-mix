@@ -3,10 +3,21 @@ import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { isCryptoTaxAu, CryptoTaxAUPrivacy } from "../components/site-static-content";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
+import { CalmShell } from "../components/calmroutine/shell";
+import { CalmPrivacyPage } from "../components/calmroutine/privacy-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
+
+  if (site.id === "calm-routine") {
+    return staticPageMetadata({
+      site,
+      title: "Privacy Policy",
+      description: site.pages.privacy.description,
+      path: "/privacy",
+    });
+  }
 
   return staticPageMetadata({
     site,
@@ -20,6 +31,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PrivacyPage() {
   const site = await getCurrentSite();
+
+  if (site.id === "calm-routine") {
+    return (
+      <CalmShell site={site}>
+        <div className="mx-auto max-w-3xl px-6 py-10">
+          <CalmPrivacyPage />
+        </div>
+      </CalmShell>
+    );
+  }
+
   const isAr = site.language === "ar";
   const contactEmail = site.pages.contact?.email ?? site.brand.contactEmail;
   const breadcrumbs = breadcrumbJsonLd(site, [

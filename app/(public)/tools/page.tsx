@@ -5,11 +5,31 @@ import { ArrowRight } from "lucide-react";
 import { getCurrentSite } from "@/lib/site-context";
 import type { SiteDefinition } from "@/config/site-definition";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json-ld";
+import { CalmShell } from "../components/calmroutine/shell";
+import { CalmToolsPage } from "../components/calmroutine/tools-view";
 
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  if (site.id === "calm-routine") {
+    return {
+      metadataBase: new URL(`https://${site.domain}`),
+      title: "Recommended tools · calmroutine",
+      description:
+        "Sleep, calm, supplements, and somatic tools I have tested myself. Honest notes, affiliate disclosures, and a link to the review before every bigger purchase.",
+      alternates: { canonical: `https://${site.domain}/tools` },
+      openGraph: {
+        title: "Recommended tools · calmroutine",
+        description:
+          "Sleep, calm, supplements, and somatic tools I have tested myself. Honest notes, affiliate disclosures, and a link to the review before every bigger purchase.",
+        url: `https://${site.domain}/tools`,
+        siteName: site.name,
+        locale: site.locale,
+        type: "website",
+      },
+    };
+  }
   const isEtsy = (site.slug ?? site.id) === "ai-compared";
   const title = isEtsy ? "Free Etsy Seller Tools" : "Free Crypto Tax Tools for Australians";
   const description = isEtsy
@@ -166,6 +186,15 @@ function EtsyToolsIndex({ site }: { site: SiteDefinition }) {
 
 export default async function ToolsIndexPage() {
   const site = await getCurrentSite();
+  if (site.id === "calm-routine") {
+    return (
+      <CalmShell site={site}>
+        <div className="mx-auto max-w-5xl px-6 py-10">
+          <CalmToolsPage />
+        </div>
+      </CalmShell>
+    );
+  }
   if ((site.slug ?? site.id) === "ai-compared") {
     return <EtsyToolsIndex site={site} />;
   }
