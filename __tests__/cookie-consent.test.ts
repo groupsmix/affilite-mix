@@ -70,12 +70,12 @@ describe("cookie consent state transitions", () => {
 
 // ── Consent-aware tracking URLs ───────────────────────────────
 
-describe("consent-aware tracking URLs", () => {
+describe("affiliate click tracking URLs", () => {
   const slug = "best-watch-2026";
   const trackingType = "product";
   const affiliateUrl = "https://amazon.com/dp/B123456";
 
-  it("returns tracking redirect when consent is given", () => {
+  it("returns the internal tracking redirect", () => {
     const url = getTrackingUrl(slug, trackingType, affiliateUrl, true);
     expect(url).toBe(
       `/api/track/click?p=${encodeURIComponent(slug)}&t=${encodeURIComponent(trackingType)}`,
@@ -83,9 +83,12 @@ describe("consent-aware tracking URLs", () => {
     expect(url).not.toBe(affiliateUrl);
   });
 
-  it("returns direct affiliate URL when consent is NOT given", () => {
+  it("still returns the internal tracking redirect when consent is not given", () => {
     const url = getTrackingUrl(slug, trackingType, affiliateUrl, false);
-    expect(url).toBe(affiliateUrl);
+    expect(url).toBe(
+      `/api/track/click?p=${encodeURIComponent(slug)}&t=${encodeURIComponent(trackingType)}`,
+    );
+    expect(url).not.toBe(affiliateUrl);
   });
 
   it("encodes special characters in slug", () => {
