@@ -163,6 +163,7 @@ export function HeaderSearch({ label }: { label: string }) {
   return (
     <Link
       href="/search"
+      role="button"
       className="rounded-md p-2 text-[color:var(--header-fg-muted)] transition-colors hover:bg-[var(--header-hover)] hover:text-[color:var(--header-fg)]"
       aria-label={label}
     >

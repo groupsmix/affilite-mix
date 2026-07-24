@@ -46,7 +46,15 @@ export interface DialTrustStat {
 }
 
 export interface DialMethodologyStep {
-  icon: "checkCircle" | "calendar" | "ruler" | "droplets";
+  icon:
+    | "checkCircle"
+    | "calendar"
+    | "ruler"
+    | "droplets"
+    | "wallet"
+    | "hand"
+    | "gauge"
+    | "microscope";
   title: string;
   description: string;
 }
@@ -234,30 +242,30 @@ export const defaultWatches: Watch[] = [
 
 export const defaultDialConfig: DialHomepageConfig = {
   navLinks: [
-    { label: "Under $200", href: "#tier-under-200" },
-    { label: "Under $300", href: "#tier-under-300" },
-    { label: "Under $500", href: "#tier-under-500" },
-    { label: "Top Picks", href: "#top-picks" },
-    { label: "How We Test", href: "#how-we-test" },
+    { label: "Under $300", href: "/best-watches-under-300" },
+    { label: "Under $500", href: "/best-watches-under-500" },
+    { label: "Best Dress", href: "/best-dress-watch-under-500" },
+    { label: "Top Picks", href: "/#top-picks" },
+    { label: "How We Test", href: "/#how-we-test" },
   ],
   hero: {
     badge: "Independent reviews · Reader-supported",
     title: "The best watches under $500,",
     highlight: "actually tested",
     subtitle:
-      "We wear, time, and photograph every pick. No sponsored rankings, no manufacturer quotes — just honest buying guides for every budget.",
-    ctaPrimary: { label: "See top picks", href: "#top-picks" },
-    ctaSecondary: { label: "How we test watches", href: "#how-we-test" },
+      "No fluff, no paid rankings. We buy, wear, and rate affordable watches so you can spend with confidence — organized by exactly how much you want to spend.",
+    ctaPrimary: { label: "Explore top picks", href: "#top-picks" },
+    ctaSecondary: { label: "Shop by budget", href: "#tier-under-200" },
     heroImage: "/watches/hero-watch.png",
-    heroImageAlt: "Featured automatic watch on a dark editorial background",
-    trustRating: "4.8/5",
-    trustReviews: "from 12,000+ readers",
+    heroImageAlt: "Premium automatic wristwatch with a navy dial on a steel bracelet",
+    trustRating: "4.8 avg reader rating",
+    trustReviews: "120+ watches reviewed",
   },
   trustBar: {
     stats: [
-      { icon: "clock", value: "600+", label: "Hours of testing" },
-      { icon: "gem", value: "120+", label: "Watches on wrist" },
-      { icon: "users", value: "85k+", label: "Monthly readers" },
+      { icon: "clock", value: "600+ hrs", label: "Hands-on testing" },
+      { icon: "gem", value: "120+", label: "Watches reviewed" },
+      { icon: "users", value: "85k", label: "Monthly readers" },
       { icon: "banknote", value: "$0", label: "Paid placements" },
     ],
   },
@@ -282,9 +290,9 @@ export const defaultDialConfig: DialHomepageConfig = {
     },
   ],
   topPicks: {
-    title: "Top rated this month",
+    title: "Our top picks right now",
     subtitle:
-      "These are the watches we keep reaching for. Every pick below was worn for at least two weeks before scoring.",
+      "The watches we’d actually spend our own money on this season — chosen for build quality, accuracy, and value.",
   },
   tierSections: {
     title: "Winners by budget",
@@ -294,50 +302,50 @@ export const defaultDialConfig: DialHomepageConfig = {
     allGuidesLabel: "All guides →",
   },
   comparisonTable: {
-    title: "Head-to-head comparison",
+    title: "Compare every pick at a glance",
     subtitle:
-      "The same specs, side by side. Sort by rating to see which watch leads the pack for your budget.",
+      "Sorted by our overall rating. Tap any watch to check the current price with our retail partners.",
     ctaLabel: "Check price",
   },
   howWeTest: {
-    title: "How we test",
+    title: "Why you can trust these rankings",
     subtitle:
-      "Our methodology is designed to remove hype and focus on what matters: accuracy, comfort, and value.",
+      "We’re reader-supported, not brand-supported. Rankings are never for sale, and any watch can be delisted if quality slips. Here’s exactly how every pick earns its place.",
     steps: [
       {
-        icon: "checkCircle",
-        title: "We buy or borrow every watch",
+        icon: "wallet",
+        title: "We buy them ourselves",
         description:
-          "No loaner units from marketing teams. If a watch is reviewed, it spent real time on a real wrist.",
+          "No loaners, no manufacturer samples. We purchase every watch at retail so our verdicts stay honest.",
       },
       {
-        icon: "calendar",
-        title: "Two weeks minimum on wrist",
+        icon: "hand",
+        title: "Two weeks on the wrist",
         description:
-          "First impressions lie. We wear each pick for desk work, weekend errands, and nights out before scoring.",
+          "Each watch gets worn daily for at least two weeks to judge comfort, legibility, and real-world wearability.",
       },
       {
-        icon: "ruler",
-        title: "Accuracy timed against real time",
+        icon: "gauge",
+        title: "Accuracy timed",
         description:
-          "We measure deviation over 24–48 hours against an NTP reference. A pretty dial is nice; a correct one matters.",
+          "We measure daily rate deviation and water resistance claims so you know the specs actually hold up.",
       },
       {
-        icon: "droplets",
-        title: "Build quality graded in hand",
+        icon: "microscope",
+        title: "Build quality graded",
         description:
-          "Case finishing, bracelet feel, crown action, and lume are all rated. Spec sheets only tell half the story.",
+          "Case finishing, crystal type, bracelet feel, and lume are scored against watches that cost far more.",
       },
     ],
   },
   newsletter: {
     title: "Get the best watch deals, weekly",
     subtitle:
-      "One email. No spam. The best price drops, new releases, and buying guides under $500.",
+      "One email a week with fresh reviews and the best price drops we spot under $500. No spam, unsubscribe anytime.",
     buttonLabel: "Subscribe",
     placeholder: "you@example.com",
     disclaimer: "By subscribing you agree to our Privacy Policy and affiliate disclosure.",
-    successMessage: "You’re in — check your inbox for a confirmation.",
+    successMessage: "You’re in — check your inbox to confirm.",
   },
   watches: defaultWatches,
 };
@@ -605,7 +613,16 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
                 const title = s.title;
                 const description = s.description;
                 return isString(icon) &&
-                  ["checkCircle", "calendar", "ruler", "droplets"].includes(icon) &&
+                  [
+                    "checkCircle",
+                    "calendar",
+                    "ruler",
+                    "droplets",
+                    "wallet",
+                    "hand",
+                    "gauge",
+                    "microscope",
+                  ].includes(icon) &&
                   isString(title) &&
                   isString(description)
                   ? { icon: icon as DialMethodologyStep["icon"], title, description }

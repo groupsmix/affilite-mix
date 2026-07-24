@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import type { DialHomepageConfig } from "@/lib/dial-config";
 import { Reveal } from "./reveal";
 
@@ -9,42 +10,42 @@ export function PriceTiers({ config }: PriceTiersProps) {
   const { priceTiers, watches } = config;
 
   return (
-    <section className="bg-background py-16 md:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Reveal className="text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl font-playfair">
-            Shop by budget
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            Pick a price ceiling. We’ll show you the best mechanical, quartz, and smart picks that
-            earned a spot on the wrist.
-          </p>
-        </Reveal>
+    <section className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
+      <Reveal className="mx-auto max-w-2xl text-center">
+        <p className="text-sm font-medium uppercase tracking-widest text-primary">Shop by budget</p>
+        <h2 className="mt-3 text-balance font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+          Pick your price, we&apos;ll handle the rest
+        </h2>
+        <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
+          Every watch is ranked within its budget so you&apos;re always comparing like for like.
+          Start with what you want to spend.
+        </p>
+      </Reveal>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {priceTiers.map((tier, i) => {
-            const count = tier.count ?? watches.filter((w) => w.tier === tier.id).length;
-            return (
-              <Reveal key={tier.id} delay={i * 100}>
-                <a
-                  href={`#tier-${tier.id}`}
-                  className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:bg-card/80"
-                >
+      <div className="mt-12 grid gap-5 md:grid-cols-3">
+        {priceTiers.map((tier, i) => {
+          const count = tier.count ?? watches.filter((w) => w.tier === tier.id).length;
+          return (
+            <Reveal key={tier.id} delay={i * 90}>
+              <a
+                href={`#tier-${tier.id}`}
+                className="group flex h-full flex-col justify-between rounded-xl border border-border bg-card p-7 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-black/30"
+              >
+                <div>
                   <div className="flex items-baseline justify-between">
-                    <h3 className="text-xl font-semibold font-playfair">{tier.label}</h3>
+                    <span className="font-serif text-3xl font-semibold">{tier.label}</span>
                     <span className="text-sm text-muted-foreground">{count} picks</span>
                   </div>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {tier.tagline}
-                  </p>
-                  <span className="mt-auto inline-flex items-center gap-1 pt-6 text-sm font-medium text-primary transition-transform group-hover:translate-x-1">
-                    Browse {tier.label}
-                  </span>
-                </a>
-              </Reveal>
-            );
-          })}
-        </div>
+                  <p className="mt-3 text-muted-foreground">{tier.tagline}</p>
+                </div>
+                <span className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-primary">
+                  View rankings
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </a>
+            </Reveal>
+          );
+        })}
       </div>
     </section>
   );

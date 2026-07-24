@@ -19,8 +19,8 @@ export function Hero({ config }: HeroProps) {
 
       <div className="relative mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8">
         <div>
-          <div className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
-            <ShieldCheck className="h-3.5 w-3.5" />
+          <div className="animate-fade-up mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
             {hero.badge}
           </div>
 
@@ -41,14 +41,17 @@ export function Hero({ config }: HeroProps) {
             </Button>
           </div>
 
-          <div className="mt-8 flex items-center gap-1.5 text-sm">
-            <div className="flex -space-x-1.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-              ))}
+          <div className="mt-8 flex items-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="flex">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                ))}
+              </div>
+              <span>{hero.trustRating}</span>
             </div>
-            <span className="font-medium">{hero.trustRating}</span>
-            <span className="text-muted-foreground">{hero.trustReviews}</span>
+            <span className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
+            <span className="hidden sm:block">{hero.trustReviews}</span>
           </div>
         </div>
 
