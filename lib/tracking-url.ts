@@ -1,6 +1,7 @@
 interface TrackingOptions {
   placement?: string;
   campaign?: string;
+  productName?: string;
 }
 
 function buildQueryParam(key: string, value: string): string {
@@ -34,6 +35,13 @@ export function getTrackingUrl(
     const params = [buildQueryParam("p", slug), buildQueryParam("t", trackingType)];
     if (options?.placement) params.push(buildQueryParam("pl", options.placement));
     if (options?.campaign) params.push(buildQueryParam("c", options.campaign));
+    // Pass the destination directly when a display name is supplied. This lets
+    // the click endpoint record analytics for products that are not in the
+    // database (e.g. dashboard-configured watches) without requiring a DB row.
+    if (options?.productName) {
+      params.push(buildQueryParam("u", affiliateUrl));
+      params.push(buildQueryParam("n", options.productName));
+    }
     return `/api/track/click?${params.join("&")}`;
   }
   return affiliateUrl;

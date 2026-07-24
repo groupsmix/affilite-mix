@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import type { CalmProduct } from "@/lib/calmroutine";
+import { ProductCardCta } from "../product-card-client";
 
 export function CalmProductCard({ product }: { product: CalmProduct }) {
   const readFirst = Boolean(product.relatedPostSlug);
-  const href = readFirst ? `/${product.relatedPostSlug}` : product.destinationUrl;
 
   return (
     <article className="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-card">
@@ -35,20 +35,27 @@ export function CalmProductCard({ product }: { product: CalmProduct }) {
 
         {readFirst ? (
           <Link
-            href={href}
+            href={`/${product.relatedPostSlug}`}
             className="mt-4 inline-flex items-center gap-1.5 self-start rounded-lg border border-accent-mid/40 px-4 py-2 text-sm font-medium text-accent-dark transition-colors hover:bg-accent-tint"
           >
             Read the review first
             <ArrowRight className="h-4 w-4" />
           </Link>
         ) : (
-          <a
-            href={href}
+          <ProductCardCta
+            href={product.destinationUrl}
+            slug={product.id}
+            sourceType="calmroutine"
+            placement="product-card"
+            productName={product.name}
             className="mt-4 inline-flex items-center gap-1.5 self-start rounded-lg bg-accent-dark px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-mid"
-          >
-            Check current price
-            <ArrowUpRight className="h-4 w-4" />
-          </a>
+            label={
+              <>
+                Check current price
+                <ArrowUpRight className="h-4 w-4" />
+              </>
+            }
+          />
         )}
       </div>
     </article>

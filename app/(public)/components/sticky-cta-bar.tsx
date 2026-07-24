@@ -1,10 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { ProductRow } from "@/types/database";
 import { useCookieConsent } from "./cookie-consent";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
+import { getTrackingUrl } from "@/lib/tracking-url";
+
+function affiliateUrlWithUtm(
+  url: string,
+  sourceType: string,
+  campaign?: string,
+  placement?: string,
+): string {
+  try {
+    const base = typeof window !== "undefined" ? window.location.href : undefined;
+    const u = new URL(url, base);
+    if (!u.searchParams.has("utm_source")) {
+      u.searchParams.set(
+        "utm_source",
+        typeof window !== "undefined" ? window.location.host : "affiliate-site",
+      );
+    }
+    if (!u.searchParams.has("utm_medium")) {
+      u.searchParams.set("utm_medium", "affiliate");
+    }
+    if (!u.searchParams.has("utm_campaign")) {
+      const utmCampaign =
+        campaign ?? (sourceType !== "content" ? sourceType : (placement ?? "content"));
+      if (utmCampaign) u.searchParams.set("utm_campaign", utmCampaign);
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
 
 interface StickyCtaBarProps {
   product: ProductRow;
@@ -12,13 +42,10 @@ interface StickyCtaBarProps {
 
 export function StickyCtaBar({ product }: StickyCtaBarProps) {
   const [visible, setVisible] = useState(false);
-  // Defer to the consent hook as the single source of truth for consent state.
-  // Any resolution (accepted or rejected) unblocks the sticky bar from rendering.
   const { accepted: consentAccepted } = useCookieConsent();
 
   useEffect(() => {
     function handleScroll() {
-      // Show sticky bar after scrolling 400px
       setVisible(window.scrollY > 400);
     }
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -31,26 +58,10 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
 
   if (!hasUsableAffiliateUrl(product.affiliate_url)) return null;
 
-  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    e.preventDefault();
-    // Only track clicks when cookie consent has been accepted
-    if (consentAccepted) {
-      const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=sticky`;
-      try {
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon(trackUrl);
-        } else {
-          fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
-        }
-      } catch {
-        // fail-open: best-effort
-        // Tracking failure should never block navigation
-      }
-    }
-    if (hasUsableAffiliateUrl(product.affiliate_url)) {
-      window.open(product.affiliate_url, "_blank", "noopener,noreferrer");
-    }
-  }
+  const destinationWithUtm = affiliateUrlWithUtm(product.affiliate_url, "sticky");
+  const ctaUrl = getTrackingUrl(product.slug, "sticky", destinationWithUtm, consentAccepted, {
+    productName: product.name,
+  });
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all">
@@ -69,8 +80,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
           </div>
         </div>
         <a
-          href={product.affiliate_url}
-          onClick={handleClick}
+          href={ctaUrl}
           target="_blank"
           rel="noopener noreferrer nofollow"
           className="shrink-0 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
