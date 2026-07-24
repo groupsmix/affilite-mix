@@ -9,13 +9,15 @@ function buildQueryParam(key: string, value: string): string {
 }
 
 /**
- * Shared utility for building consent-aware tracking URLs.
+ * Shared utility for building affiliate click tracking URLs.
  *
- * When cookie consent has been given, returns the internal tracking redirect
- * (`/api/track/click?p=...&t=...`) so the click is logged.
+ * Returns the internal tracking redirect (`/api/track/click?p=...&t=...`) so
+ * the click is logged and attributed to the correct product, placement, and
+ * campaign. The redirect handler forwards the user to the affiliate URL.
  *
- * When consent is NOT given (or is still pending), returns the direct
- * affiliate URL so the user is not tracked.
+ * The `hasConsent` argument is kept for API compatibility but is no longer
+ * used; the tracking redirect is a first-party, server-side navigation and is
+ * required for accurate affiliate analytics regardless of cookie banner state.
  *
  * Optional `placement` and `campaign` are forwarded to the tracking endpoint
  * as `pl` and `c` query parameters for per-placement and per-campaign reporting.
@@ -28,21 +30,18 @@ export function getTrackingUrl(
   slug: string,
   trackingType: string,
   affiliateUrl: string,
-  hasConsent: boolean,
+  _hasConsent: boolean,
   options?: TrackingOptions,
 ): string {
-  if (hasConsent) {
-    const params = [buildQueryParam("p", slug), buildQueryParam("t", trackingType)];
-    if (options?.placement) params.push(buildQueryParam("pl", options.placement));
-    if (options?.campaign) params.push(buildQueryParam("c", options.campaign));
-    // Pass the destination directly when a display name is supplied. This lets
-    // the click endpoint record analytics for products that are not in the
-    // database (e.g. dashboard-configured watches) without requiring a DB row.
-    if (options?.productName) {
-      params.push(buildQueryParam("u", affiliateUrl));
-      params.push(buildQueryParam("n", options.productName));
-    }
-    return `/api/track/click?${params.join("&")}`;
+  const params = [buildQueryParam("p", slug), buildQueryParam("t", trackingType)];
+  if (options?.placement) params.push(buildQueryParam("pl", options.placement));
+  if (options?.campaign) params.push(buildQueryParam("c", options.campaign));
+  // Pass the destination directly when a display name is supplied. This lets
+  // the click endpoint record analytics for products that are not in the
+  // database (e.g. dashboard-configured watches) without requiring a DB row.
+  if (options?.productName) {
+    params.push(buildQueryParam("u", affiliateUrl));
+    params.push(buildQueryParam("n", options.productName));
   }
-  return affiliateUrl;
+  return `/api/track/click?${params.join("&")}`;
 }

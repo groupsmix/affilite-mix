@@ -41,14 +41,14 @@ describe("injectProductLinks", () => {
     expect(injectProductLinks("", [makeProduct()])).toBe("");
   });
 
-  it("links the first occurrence of a product name with direct URL by default", () => {
+  it("links the first occurrence of a product name with the tracking URL by default", () => {
     const html = "<p>Check out Test Product today.</p>";
     const result = injectProductLinks(html, [makeProduct()]);
-    expect(result).toContain('href="https://amazon.com/dp/buy"');
+    expect(result).toContain('href="/api/track/click?p=test-product&t=inline"');
     expect(result).toContain(">Test Product</a>");
   });
 
-  it("uses tracking URL when consent is given", () => {
+  it("uses tracking URL when consent is explicitly true", () => {
     const html = "<p>Check out Test Product today.</p>";
     const result = injectProductLinks(html, [makeProduct()], true);
     expect(result).toContain('href="/api/track/click?p=test-product&t=inline"');
