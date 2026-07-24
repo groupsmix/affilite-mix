@@ -7,7 +7,7 @@ import { CalmNewsletterPage } from "../components/calmroutine/newsletter-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  if (site.id !== "calm-routine") {
+  if (site.slug !== "calm-routine") {
     return { title: "Not Found" };
   }
   return staticPageMetadata({
@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function NewsletterPage() {
   const site = await getCurrentSite();
-  if (site.id !== "calm-routine") {
+  if (site.slug !== "calm-routine") {
     notFound();
   }
 

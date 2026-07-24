@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const { slug } = await params;
   const site = await getCurrentSite();
 
-  if (site.id === "calm-routine") {
+  if (site.slug === "calm-routine") {
     const cat = calmCategories[slug as CalmCategorySlug];
     if (!cat) {
       return { title: "Not Found" };
@@ -88,7 +88,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const site = await getCurrentSite();
 
-  if (site.id === "calm-routine") {
+  if (site.slug === "calm-routine") {
     if (!calmCategories[slug as CalmCategorySlug]) {
       notFound();
     }

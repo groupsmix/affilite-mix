@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
 
-  if (site.id === "calm-routine") {
+  if (site.slug === "calm-routine") {
     return staticPageMetadata({
       site,
       title: "About calmroutine",
@@ -38,7 +38,7 @@ export default async function AboutPage() {
   const site = await getCurrentSite();
   const isArabic = site.language === "ar";
 
-  if (site.id === "calm-routine") {
+  if (site.slug === "calm-routine") {
     return (
       <CalmShell site={site}>
         <div className="mx-auto max-w-3xl px-6 py-10">

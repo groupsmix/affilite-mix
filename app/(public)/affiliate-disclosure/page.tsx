@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const isAr = site.language === "ar";
 
-  if (site.id === "calm-routine" && disclosurePage) {
+  if (site.slug === "calm-routine" && disclosurePage) {
     return staticPageMetadata({
       site,
       title: disclosurePage.title,
@@ -49,7 +49,7 @@ export default async function AffiliateDisclosurePage() {
     redirect("/");
   }
 
-  if (site.id === "calm-routine") {
+  if (site.slug === "calm-routine") {
     return (
       <CalmShell site={site}>
         <div className="mx-auto max-w-3xl px-6 py-10">
