@@ -19,7 +19,7 @@
     { "pattern": "crypto.wristnerd.xyz", "custom_domain": true },
     { "pattern": "cryptoranked.xyz", "custom_domain": true },
     { "pattern": "compareai.site", "custom_domain": true },
-    { "pattern": "calmroutine.site", "custom_domain": true },
+    { "pattern": "calmroutine.site/*", "zone_name": "calmroutine.site" },
   ],
   "assets": {
     "directory": ".open-next/assets",
