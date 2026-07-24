@@ -1,6 +1,7 @@
 import type { SiteDefinition, FeatureFlags } from "../site-definition";
 import { aiComparedSite } from "./ai-compared";
 import { arabicToolsSite } from "./arabic-tools";
+import { calmRoutineSite } from "./calm-routine";
 import { cryptoToolsSite } from "./crypto-tools";
 import { watchToolsSite } from "./watch-tools";
 
@@ -12,6 +13,7 @@ export { arabicToolsSite, cryptoToolsSite };
 export const allSites: SiteDefinition[] = [
   aiComparedSite,
   arabicToolsSite,
+  calmRoutineSite,
   cryptoToolsSite,
   watchToolsSite,
 ];

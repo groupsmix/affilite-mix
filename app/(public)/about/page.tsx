@@ -8,10 +8,21 @@ import {
   WristNerdAbout,
 } from "../components/site-static-content";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
+import { CalmShell } from "../components/calmroutine/shell";
+import { CalmAboutPage } from "../components/calmroutine/about-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
+
+  if (site.id === "calm-routine") {
+    return staticPageMetadata({
+      site,
+      title: "About calmroutine",
+      description: site.pages.about.description,
+      path: "/about",
+    });
+  }
 
   return staticPageMetadata({
     site,
@@ -26,6 +37,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AboutPage() {
   const site = await getCurrentSite();
   const isArabic = site.language === "ar";
+
+  if (site.id === "calm-routine") {
+    return (
+      <CalmShell site={site}>
+        <div className="mx-auto max-w-3xl px-6 py-10">
+          <CalmAboutPage />
+        </div>
+      </CalmShell>
+    );
+  }
+
   const isCrypto = isCryptoTaxAu(site);
   const breadcrumbs = breadcrumbJsonLd(site, [
     { name: site.name, path: "/" },

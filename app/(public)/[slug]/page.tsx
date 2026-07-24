@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { getDialGuide } from "@/lib/dial-guides";
 import { getDialHomepageConfig } from "@/lib/dial-config";
+import { getCalmPost } from "@/lib/calmroutine";
 import { GuideArticle } from "../components/article/guide-article";
 import { ContentTypeListing } from "./content-type-listing";
+import { CalmShell } from "../components/calmroutine/shell";
+import { CalmPostView } from "../components/calmroutine/post-view";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +18,25 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
+
+  const calmPost = site.id === "calm-routine" ? getCalmPost(slug) : undefined;
+  if (calmPost) {
+    const url = `https://${site.domain}/${calmPost.slug}`;
+    return {
+      metadataBase: new URL(`https://${site.domain}`),
+      title: calmPost.seoTitle,
+      description: calmPost.seoDescription,
+      alternates: { canonical: url },
+      openGraph: {
+        title: calmPost.seoTitle,
+        description: calmPost.seoDescription,
+        url,
+        siteName: site.name,
+        locale: site.locale,
+        type: "article",
+      },
+    };
+  }
 
   const guide = getDialGuide(slug);
   if (guide && site.homepageTemplate === "dial") {
@@ -71,6 +93,18 @@ export default async function PublicSlugPage({
 
   // Prevent root catch-all from serving reserved paths.
   if (slug === "admin" || slug === "api" || slug === "category" || slug === "search") {
+    notFound();
+  }
+
+  if (site.id === "calm-routine") {
+    const calmPost = getCalmPost(slug);
+    if (calmPost) {
+      return (
+        <CalmShell site={site}>
+          <CalmPostView post={calmPost} />
+        </CalmShell>
+      );
+    }
     notFound();
   }
 

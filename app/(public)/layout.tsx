@@ -141,6 +141,7 @@ export default async function PublicLayout({ children }: { children: React.React
   const presentation = resolvePresentation(site, dbPresentation);
 
   const isDial = site.homepageTemplate === "dial";
+  const isCalmRoutine = site.homepageTemplate === "calmroutine";
   const pathname = headerList.get(PATHNAME_HEADER) ?? "/";
   const isDialHomepage = isDial && pathname === "/";
 
@@ -161,8 +162,16 @@ export default async function PublicLayout({ children }: { children: React.React
     // already accounts for any DB value) is what ThemeProvider renders as
     // data-layout, matching what SiteHeader/SiteFooter receive below.
     layoutVariant: presentation.headerVariant,
-    mode: isDial ? "dial" : "light",
+    mode: isCalmRoutine ? "calmroutine" : isDial ? "dial" : "light",
   };
+
+  if (isCalmRoutine) {
+    return (
+      <ThemeProvider theme={themeConfig}>
+        <>{children}</>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={themeConfig}>

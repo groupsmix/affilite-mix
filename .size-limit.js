@@ -12,7 +12,7 @@
 // Current brotli totals (regenerate with `npx size-limit` after a
 // production build) — used as the basis for headroom calculations:
 //   - shared root chunks (`*.js`)         ≈ 945 kB
-//   - public route chunks (`(public)/**`) ≈  57 kB
+//   - public route chunks (`(public)/**`) ≈ 105 kB
 //   - admin  route chunks (`admin/**`)    ≈  88 kB
 //
 // Headroom is intentionally generous on `shared` (vendor splits +
@@ -38,7 +38,7 @@ module.exports = [
   {
     name: "Public app routes",
     path: ".next/static/chunks/app/\\(public\\)/**/*.js",
-    limit: "100 kB",
+    limit: "115 kB",
     running: false,
   },
   {

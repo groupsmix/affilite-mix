@@ -36,7 +36,8 @@ type HomepagePreset =
   | "showcase"
   | "taxfinder"
   | "etsy"
-  | "dial";
+  | "dial"
+  | "calmroutine";
 type ProductCardStylePreset = "standard" | "compact" | "detailed";
 
 /* ------------------------------------------------------------------ */

@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Geist, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
+import {
+  Inter,
+  Geist,
+  IBM_Plex_Sans_Arabic,
+  Playfair_Display,
+  Fraunces,
+  Public_Sans,
+} from "next/font/google";
 import { headers } from "next/headers";
 import { getCurrentSite } from "@/lib/site-context";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
@@ -122,11 +129,29 @@ const playfairDisplay = Playfair_Display({
   preload: false,
 });
 
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-fraunces",
+  preload: false,
+});
+
+const publicSans = Public_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-public-sans",
+  preload: false,
+});
+
 const fontVarMap: Record<string, string> = {
   Inter: inter.variable,
   Geist: geist.variable,
   "IBM Plex Sans Arabic": ibmPlexArabic.variable,
   "Playfair Display": playfairDisplay.variable,
+  Fraunces: fraunces.variable,
+  "Public Sans": publicSans.variable,
 };
 
 const fontFamilyMap: Record<string, string> = {
@@ -134,6 +159,8 @@ const fontFamilyMap: Record<string, string> = {
   Geist: geist.style.fontFamily,
   "IBM Plex Sans Arabic": ibmPlexArabic.style.fontFamily,
   "Playfair Display": playfairDisplay.style.fontFamily,
+  Fraunces: fraunces.style.fontFamily,
+  "Public Sans": publicSans.style.fontFamily,
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

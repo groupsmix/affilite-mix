@@ -6,6 +6,8 @@ import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { isCryptoTaxAu, CryptoTaxAUAffiliateDisclosure } from "../components/site-static-content";
+import { CalmShell } from "../components/calmroutine/shell";
+import { CalmAffiliateDisclosurePage } from "../components/calmroutine/affiliate-disclosure-view";
 
 export const revalidate = 3600;
 
@@ -18,6 +20,15 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const isAr = site.language === "ar";
+
+  if (site.id === "calm-routine" && disclosurePage) {
+    return staticPageMetadata({
+      site,
+      title: disclosurePage.title,
+      description: disclosurePage.description,
+      path: "/affiliate-disclosure",
+    });
+  }
 
   return staticPageMetadata({
     site,
@@ -36,6 +47,16 @@ export default async function AffiliateDisclosurePage() {
   // Ads-only sites don't have affiliate disclosures
   if (!disclosurePage || site.monetizationType === "ads") {
     redirect("/");
+  }
+
+  if (site.id === "calm-routine") {
+    return (
+      <CalmShell site={site}>
+        <div className="mx-auto max-w-3xl px-6 py-10">
+          <CalmAffiliateDisclosurePage />
+        </div>
+      </CalmShell>
+    );
   }
 
   const isAr = site.language === "ar";

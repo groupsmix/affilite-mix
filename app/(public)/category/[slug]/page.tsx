@@ -10,6 +10,9 @@ import { Breadcrumbs } from "../../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../../components/json-ld";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { CalmShell } from "../../components/calmroutine/shell";
+import { CalmCategoryPage as CalmCategoryView } from "../../components/calmroutine/category-view";
+import { calmCategories, type CalmCategorySlug } from "@/lib/calmroutine";
 
 /** Revalidate category pages every 60 seconds (ISR) */
 export const revalidate = 60;
@@ -24,6 +27,30 @@ interface CategoryPageProps {
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
+
+  if (site.id === "calm-routine") {
+    const cat = calmCategories[slug as CalmCategorySlug];
+    if (!cat) {
+      return { title: "Not Found" };
+    }
+    const url = `https://${site.domain}/category/${cat.slug}`;
+    const description = `Browse ${cat.name} on ${site.name}`;
+    return {
+      title: cat.name,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title: cat.name,
+        description,
+        url,
+        siteName: site.name,
+        locale: site.locale,
+        type: "website",
+      },
+      twitter: { card: "summary", title: cat.name, description },
+    };
+  }
+
   const category = await getCategoryBySlug(site.id, slug);
 
   if (!category) {
@@ -60,6 +87,20 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const { page: pageParam } = await searchParams;
   const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const site = await getCurrentSite();
+
+  if (site.id === "calm-routine") {
+    if (!calmCategories[slug as CalmCategorySlug]) {
+      notFound();
+    }
+    return (
+      <CalmShell site={site}>
+        <div className="mx-auto max-w-5xl px-6 py-10">
+          <CalmCategoryView category={slug as CalmCategorySlug} />
+        </div>
+      </CalmShell>
+    );
+  }
+
   const category = await getCategoryBySlug(site.id, slug);
 
   if (!category) {

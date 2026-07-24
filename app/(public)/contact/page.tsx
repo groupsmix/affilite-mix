@@ -5,6 +5,8 @@ import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { redirect } from "next/navigation";
 import { isCryptoTaxAu, CryptoTaxAUContact } from "../components/site-static-content";
+import { CalmShell } from "../components/calmroutine/shell";
+import { CalmContactPage } from "../components/calmroutine/contact-view";
 
 export const revalidate = 3600;
 
@@ -17,6 +19,15 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const isAr = site.language === "ar";
+
+  if (site.id === "calm-routine" && contactPage) {
+    return staticPageMetadata({
+      site,
+      title: contactPage.title,
+      description: contactPage.description,
+      path: "/contact",
+    });
+  }
 
   return staticPageMetadata({
     site,
@@ -34,6 +45,16 @@ export default async function ContactPage() {
 
   if (!contactPage) {
     redirect("/");
+  }
+
+  if (site.id === "calm-routine") {
+    return (
+      <CalmShell site={site}>
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <CalmContactPage />
+        </div>
+      </CalmShell>
+    );
   }
 
   const isAr = site.language === "ar";
