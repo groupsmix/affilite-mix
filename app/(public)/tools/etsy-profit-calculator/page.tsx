@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { EtsyProfitCalculator } from "../../components/etsy-profit-calculator";
 import {
@@ -11,6 +12,9 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  if (site.slug !== "ai-compared") {
+    return { title: "Not Found" };
+  }
   const title = "Free Etsy Profit & Break-Even Calculator (2026)";
   const description =
     "Estimate Etsy fees, profit per sale, monthly profit, and break-even units. Built for print-on-demand and digital-product sellers using official Etsy fee data.";
@@ -54,6 +58,9 @@ const faqHtml = calculatorFaq
 
 export default async function EtsyProfitCalculatorPage() {
   const site = await getCurrentSite();
+  if (site.slug !== "ai-compared") {
+    notFound();
+  }
 
   const orgJsonLd = organizationJsonLd(site);
   const appJsonLd = softwareApplicationJsonLd({

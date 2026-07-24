@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentSite } from "@/lib/site-context";
 import { getAllSiteGuides } from "@/lib/site-guides";
@@ -6,14 +7,24 @@ import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json
 
 export const revalidate = 60;
 
+const GUIDE_DESCRIPTIONS: Record<string, string> = {
+  "watch-tools":
+    "Practical, evidence-based watch buying guides. Best watches under $500, $300, $200, dress watches, vintage Casio and Seiko, leather straps, and more.",
+  "ai-compared":
+    "Step-by-step guides for Etsy print-on-demand and digital-product sellers: research, design, listing optimization, disclosure, and AI workflows.",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  const guides = getAllSiteGuides(site.slug ?? site.id);
+  if (guides.length === 0) {
+    return { title: "Not Found" };
+  }
   const url = `https://${site.domain}/guide`;
   const title = `${site.productLabelPlural} Buying Guides | ${site.name}`;
   const description =
-    site.productLabelPlural === "Watches"
-      ? `Practical, evidence-based watch buying guides. Best watches under $500, $300, $200, dress watches, vintage Casio and Seiko, leather straps, and more.`
-      : "Step-by-step guides for Etsy print-on-demand and digital-product sellers: research, design, listing optimization, disclosure, and AI workflows.";
+    GUIDE_DESCRIPTIONS[site.slug ?? site.id] ??
+    `Practical buying guides and how-tos from ${site.name}.`;
   return {
     metadataBase: new URL(`https://${site.domain}`),
     title,
@@ -33,6 +44,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function GuideHubPage() {
   const site = await getCurrentSite();
   const guides = getAllSiteGuides(site.slug ?? site.id);
+  if (guides.length === 0) {
+    notFound();
+  }
 
   const orgJsonLd = organizationJsonLd(site);
   const breadcrumbs = breadcrumbJsonLd(site, [

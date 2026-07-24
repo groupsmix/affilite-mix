@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { listProducts } from "@/lib/dal/products";
 import { getTenantClient } from "@/lib/supabase-server";
@@ -15,6 +16,9 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  if (site.slug !== "crypto-tools" && site.domain !== "cryptoranked.xyz") {
+    return { title: "Not Found" };
+  }
   const title = "Crypto Tax Software Comparison for Australia (2026)";
   const description =
     "Compare the best crypto tax software for Australians side by side — pricing, ATO reports, exchange support, DeFi/NFT handling and customer support.";
@@ -36,6 +40,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function CryptoTaxComparisonPage() {
   const site = await getCurrentSite();
+  if (site.slug !== "crypto-tools" && site.domain !== "cryptoranked.xyz") {
+    notFound();
+  }
 
   const allProducts = await listProducts(
     { siteId: site.id, status: "active", limit: 50 },

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentSite } from "@/lib/site-context";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json-ld";
@@ -7,6 +8,9 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  if (site.slug !== "ai-compared") {
+    return { title: "Not Found" };
+  }
   const url = `https://${site.domain}/comparison`;
   return {
     metadataBase: new URL(`https://${site.domain}`),
@@ -48,6 +52,9 @@ const COMPARISONS = [
 
 export default async function ComparisonHubPage() {
   const site = await getCurrentSite();
+  if (site.slug !== "ai-compared") {
+    notFound();
+  }
   const breadcrumbs = breadcrumbJsonLd(site, [
     { name: site.name, path: "/" },
     { name: "Comparisons", path: "/comparison" },
