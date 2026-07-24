@@ -39,8 +39,12 @@ export function getTrackingUrl(
   // Pass the destination directly when a display name is supplied. This lets
   // the click endpoint record analytics for products that are not in the
   // database (e.g. dashboard-configured watches) without requiring a DB row.
+  // The destination is pre-encoded once so buildQueryParam double-escapes
+  // ampersands inside the affiliate URL. That prevents the platform's query
+  // parser from splitting the UTM parameters before the click handler decodes
+  // the value.
   if (options?.productName) {
-    params.push(buildQueryParam("u", affiliateUrl));
+    params.push(buildQueryParam("u", encodeURIComponent(affiliateUrl)));
     params.push(buildQueryParam("n", options.productName));
   }
   return `/api/track/click?${params.join("&")}`;
