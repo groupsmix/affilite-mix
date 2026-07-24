@@ -105,13 +105,13 @@ export const dialGuides: DialGuide[] = [
         watchId: "circuit-chrono",
         award: "Best Chronograph",
         reason:
-          "The meca-quartz movement gives you the crisp, mechanical-feeling pusher action of a chronograph costing four figures, wrapped in a legible panda dial.",
+          "A 100m quartz chronograph from Seiko with a legible black dial and silver sub-dials. It is the most capable chronograph we tested under $500.",
       },
       {
         watchId: "sterling-dress",
         award: "Best Dress Watch",
         reason:
-          "At 6.5mm thick it disappears under a shirt cuff. For weddings, interviews, and the office, this is the most elegant option on the list.",
+          "With a slim 7mm case it disappears under a shirt cuff. For weddings, interviews, and the office, this is the most elegant option on the list.",
       },
       {
         watchId: "heritage-field",
@@ -184,7 +184,7 @@ export const dialGuides: DialGuide[] = [
         watchId: "circuit-chrono",
         award: "Best Overall",
         reason:
-          "The Dan Henry 1964 is the most fun and capable watch under $300. Meca-quartz chronograph, panda-style legibility, and vintage motorsport character at a fraction of what that usually costs.",
+          "The Seiko SSB399P1 is the most capable watch under $300. A 100m quartz chronograph with a legible black dial and silver sub-dials, backed by Seiko reliability.",
       },
       {
         watchId: "sterling-dress",
@@ -213,7 +213,7 @@ export const dialGuides: DialGuide[] = [
     faqs: [
       {
         q: "What is the best watch under $300 overall?",
-        a: "Our top pick is the Dan Henry 1964 Gran Turismo. A meca-quartz chronograph with vintage motorsport style, it is the most fun and capable watch we tested under $300.",
+        a: "Our top pick is the Seiko SSB399P1. A 100m quartz chronograph with a legible black dial and silver sub-dials, it is the most capable watch we tested under $300.",
       },
       {
         q: "Can you get a good automatic watch under $300?",
