@@ -163,13 +163,14 @@ export function buildRelatedLinks(input: BuildRelatedLinksInput): RelatedLinkGro
  * encounter a clickable link both early and late in long-form content.
  * Skips text already inside <a> tags or HTML attributes.
  *
- * When `hasConsent` is true, links point to the tracking redirect.
- * When false (default), links point directly to the affiliate URL.
+ * Links point to the internal tracking redirect so clicks are attributed to the
+ * product and recorded in the analytics dashboard. The `hasConsent` parameter
+ * is kept for API compatibility but is no longer used.
  */
 export function injectProductLinks(
   html: string,
   products: ProductRow[],
-  hasConsent = false,
+  hasConsent = true,
 ): string {
   if (!products.length || !html) return html;
 
