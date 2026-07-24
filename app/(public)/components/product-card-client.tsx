@@ -1,43 +1,37 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
+import { getTrackingUrl } from "@/lib/tracking-url";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
 
-/**
- * Fire-and-forget click tracking, then navigate to the affiliate URL directly.
- * Decouples tracking from navigation so tracking failures don't block the user.
- *
- * When `productName` and `affiliateUrl` are provided, the beacon includes them
- * so the endpoint can record the click even for products that are not in the
- * database (e.g. dial-homepage watches configured from the dashboard).
- */
-function fireTrackingBeacon(
-  slug: string,
+function affiliateUrlWithUtm(
+  url: string,
   sourceType: string,
-  placement?: string,
   campaign?: string,
-  affiliateUrl?: string,
-  productName?: string,
-) {
-  const params = new URLSearchParams();
-  params.set("p", slug);
-  params.set("t", sourceType);
-  if (placement) params.set("pl", placement);
-  if (campaign) params.set("c", campaign);
-  if (affiliateUrl) params.set("u", affiliateUrl);
-  if (productName) params.set("n", productName);
-  const trackUrl = `/api/track/click?${params.toString()}`;
+  placement?: string,
+): string {
   try {
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(trackUrl);
-    } else {
-      fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
+    const base = typeof window !== "undefined" ? window.location.href : undefined;
+    const u = new URL(url, base);
+    if (!u.searchParams.has("utm_source")) {
+      u.searchParams.set(
+        "utm_source",
+        typeof window !== "undefined" ? window.location.host : "affiliate-site",
+      );
     }
+    if (!u.searchParams.has("utm_medium")) {
+      u.searchParams.set("utm_medium", "affiliate");
+    }
+    if (!u.searchParams.has("utm_campaign")) {
+      const utmCampaign =
+        campaign ?? (sourceType !== "content" ? sourceType : (placement ?? "content"));
+      if (utmCampaign) u.searchParams.set("utm_campaign", utmCampaign);
+    }
+    return u.toString();
   } catch {
-    // fail-open: best-effort
-    // Tracking failure should never block navigation
+    return url;
   }
 }
 
@@ -66,14 +60,22 @@ export function ProductCardCta({
 }: ProductCardCtaProps) {
   const { accepted: consentAccepted } = useCookieConsent();
 
-  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    e.preventDefault();
+  const destinationWithUtm = useMemo(
+    () => affiliateUrlWithUtm(href, sourceType, campaign, placement),
+    [href, sourceType, campaign, placement],
+  );
 
-    if (consentAccepted) {
-      fireTrackingBeacon(slug, sourceType, placement, campaign, href, productName);
-    }
+  const ctaUrl = useMemo(
+    () =>
+      getTrackingUrl(slug, sourceType, destinationWithUtm, consentAccepted, {
+        placement,
+        campaign,
+        productName,
+      }),
+    [slug, sourceType, destinationWithUtm, consentAccepted, placement, campaign, productName],
+  );
 
-    // Send a GA4 event regardless of consent so the site can attribute clicks to placements/campaigns.
+  function handleClick() {
     try {
       if (
         typeof window !== "undefined" &&
@@ -94,33 +96,11 @@ export function ProductCardCta({
     } catch {
       // fail-open: analytics best-effort
     }
-
-    // Append UTM parameters for affiliate attribution where the URL allows it.
-    let destinationUrl = href;
-    try {
-      const url = new URL(href, window.location.href);
-      if (!url.searchParams.has("utm_source")) {
-        url.searchParams.set("utm_source", window.location.host);
-      }
-      if (!url.searchParams.has("utm_medium")) {
-        url.searchParams.set("utm_medium", "affiliate");
-      }
-      if (campaign && !url.searchParams.has("utm_campaign")) {
-        url.searchParams.set("utm_campaign", campaign);
-      } else if (!url.searchParams.has("utm_campaign") && sourceType !== "content") {
-        url.searchParams.set("utm_campaign", sourceType);
-      }
-      destinationUrl = url.toString();
-    } catch {
-      // If href is not a valid absolute/relative URL, fall back to opening it as-is.
-    }
-
-    window.open(destinationUrl, "_blank", "noopener,noreferrer");
   }
 
   return (
     <a
-      href={href}
+      href={ctaUrl}
       onClick={handleClick}
       target="_blank"
       rel="noopener noreferrer nofollow"

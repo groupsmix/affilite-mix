@@ -465,7 +465,28 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       }
     }
 
-    return NextResponse.redirect(destinationUrl, 302); // nosemgrep
+    // Append standard affiliate UTM parameters to the redirect when they are
+    // not already present, so every tracked link carries attribution data.
+    let redirectUrl = destinationUrl;
+    try {
+      const url = new URL(destinationUrl);
+      if (!url.searchParams.has("utm_source")) {
+        url.searchParams.set("utm_source", request.headers.get("host") ?? "affiliate-site");
+      }
+      if (!url.searchParams.has("utm_medium")) {
+        url.searchParams.set("utm_medium", "affiliate");
+      }
+      if (!url.searchParams.has("utm_campaign")) {
+        const utmCampaign = rawCampaign || (rawContentSlug !== "content" ? rawContentSlug : "");
+        if (utmCampaign) url.searchParams.set("utm_campaign", utmCampaign);
+      }
+      redirectUrl = url.toString();
+    } catch {
+      // If the destination is not a valid absolute URL (e.g. a relative path),
+      // leave it untouched and let the redirect proceed.
+    }
+
+    return NextResponse.redirect(redirectUrl, 302); // nosemgrep
   } catch (err) {
     captureException(err, { context: "[api/track/click] failed:" });
     return apiError(500, "Internal server error");

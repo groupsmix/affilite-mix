@@ -74,12 +74,12 @@ export function CalmPostView({ post }: { post: CalmPost }) {
           <ul className="mt-3 space-y-2 text-sm">
             {post.body.map((section) => (
               <li key={section.heading}>
-                <a
+                <Link
                   href={`#${slugifyHeading(section.heading)}`}
                   className="text-text-secondary hover:text-accent-dark"
                 >
                   {section.heading}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
