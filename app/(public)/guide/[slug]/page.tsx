@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { getSiteGuide, getAllSiteGuides } from "@/lib/site-guides";
 import { getDialGuide } from "@/lib/dial-guides";
@@ -65,6 +65,9 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
   const site = await getCurrentSite();
   const dialGuide = getDialGuide(slug);
   if (dialGuide) {
+    if (site.homepageTemplate === "dial") {
+      permanentRedirect(`/${dialGuide.slug}`);
+    }
     const dialConfig = await getDialHomepageConfig(site.id);
     return <GuideArticle guide={dialGuide} siteName={site.name} watches={dialConfig.watches} />;
   }

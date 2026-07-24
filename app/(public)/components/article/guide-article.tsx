@@ -66,7 +66,7 @@ export function GuideArticle({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLdString(jsonLd) }}
       />
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-8 md:px-6 md:pt-12">
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-24 md:px-6 md:pt-28">
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground">
           <ol className="flex items-center gap-2">

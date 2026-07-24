@@ -1,4 +1,4 @@
-import { Calendar, CheckCircle, Droplets, Ruler } from "lucide-react";
+import { Wallet, Hand, Gauge, Microscope } from "lucide-react";
 import type { DialHomepageConfig, DialMethodologyStep } from "@/lib/dial-config";
 import { Reveal } from "./reveal";
 
@@ -6,43 +6,56 @@ interface HowWeTestProps {
   config: DialHomepageConfig;
 }
 
-const iconMap: Record<DialMethodologyStep["icon"], typeof CheckCircle> = {
-  checkCircle: CheckCircle,
-  calendar: Calendar,
-  ruler: Ruler,
-  droplets: Droplets,
+const iconMap: Record<DialMethodologyStep["icon"], typeof Wallet> = {
+  checkCircle: Wallet,
+  calendar: Hand,
+  ruler: Gauge,
+  droplets: Microscope,
+  wallet: Wallet,
+  hand: Hand,
+  gauge: Gauge,
+  microscope: Microscope,
 };
 
 export function HowWeTest({ config }: HowWeTestProps) {
   const { howWeTest } = config;
 
   return (
-    <section id="how-we-test" className="bg-background py-16 md:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Reveal className="text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl font-playfair">
-            {howWeTest.title}
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{howWeTest.subtitle}</p>
-        </Reveal>
+    <section id="how-we-test" className="scroll-mt-20 border-t border-border bg-secondary/20">
+      <div className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
+        <div className="grid gap-12 md:grid-cols-[1fr_1.3fr] md:gap-16">
+          <Reveal>
+            <p className="text-sm font-medium uppercase tracking-widest text-primary">
+              Our methodology
+            </p>
+            <h2 className="mt-3 text-balance font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+              {howWeTest.title}
+            </h2>
+            <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
+              {howWeTest.subtitle}
+            </p>
+          </Reveal>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {howWeTest.steps.map((step, i) => {
-            const Icon = iconMap[step.icon];
-            return (
-              <Reveal key={step.title} delay={i * 100}>
-                <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/30">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="mt-5 text-lg font-semibold font-playfair">{step.title}</h3>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {howWeTest.steps.map(({ icon, title, description }, i) => {
+              const Icon = iconMap[icon];
+              return (
+                <Reveal
+                  key={title}
+                  delay={(i % 2) * 90}
+                  className="rounded-xl border border-border bg-card p-6"
+                >
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-4 font-serif text-lg font-semibold">{title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {step.description}
+                    {description}
                   </p>
-                </div>
-              </Reveal>
-            );
-          })}
+                </Reveal>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

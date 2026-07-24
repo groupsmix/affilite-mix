@@ -1,33 +1,31 @@
-import { Clock, DollarSign, Gem, Users } from "lucide-react";
+import { Timer, PackageCheck, Users, Banknote } from "lucide-react";
 import type { DialHomepageConfig, DialTrustStat } from "@/lib/dial-config";
 
 interface TrustBarProps {
   config: DialHomepageConfig;
 }
 
-const iconMap: Record<DialTrustStat["icon"], typeof Clock> = {
-  clock: Clock,
-  gem: Gem,
+const iconMap: Record<DialTrustStat["icon"], typeof Timer> = {
+  clock: Timer,
+  gem: PackageCheck,
   users: Users,
-  banknote: DollarSign,
+  banknote: Banknote,
 };
 
 export function TrustBar({ config }: TrustBarProps) {
   const { stats } = config.trustBar;
 
   return (
-    <section className="border-y border-border bg-secondary/20">
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:grid-cols-2 lg:grid-cols-4 sm:px-6 lg:px-8">
-        {stats.map((stat) => {
-          const Icon = iconMap[stat.icon];
+    <section className="border-y border-border bg-secondary/30">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-px px-4 md:grid-cols-4 md:px-6">
+        {stats.map(({ icon, value, label }) => {
+          const Icon = iconMap[icon];
           return (
-            <div key={stat.label} className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" />
-              </div>
+            <div key={label} className="flex items-center gap-3 py-6 md:justify-center">
+              <Icon className="h-5 w-5 shrink-0 text-primary" />
               <div>
-                <p className="text-lg font-semibold font-playfair">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <div className="font-serif text-xl font-semibold leading-none">{value}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{label}</div>
               </div>
             </div>
           );

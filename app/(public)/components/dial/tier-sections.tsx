@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { DialHomepageConfig } from "@/lib/dial-config";
 import { ProductCard } from "./product-card";
 import { Reveal } from "./reveal";
@@ -8,54 +7,45 @@ interface TierSectionsProps {
 }
 
 export function TierSections({ config }: TierSectionsProps) {
-  const { tierSections, priceTiers, watches } = config;
+  const { priceTiers, watches } = config;
 
   return (
-    <section className="bg-background py-16 md:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Reveal className="text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl font-playfair">
-            {tierSections.title}
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{tierSections.subtitle}</p>
-        </Reveal>
+    <div className="mx-auto max-w-6xl px-4 md:px-6">
+      {priceTiers.map((tier) => {
+        const tierWatches = watches
+          .filter((w) => w.tier === tier.id)
+          .sort((a, b) => b.rating - a.rating);
 
-        <div className="mt-16 space-y-20">
-          {priceTiers.map((tier) => {
-            const tierWatches = watches.filter((w) => w.tier === tier.id);
-            return (
-              <div key={tier.id} id={`tier-${tier.id}`}>
-                <Reveal>
-                  <div className="mb-8 flex items-end justify-between gap-4 border-b border-border pb-4">
-                    <div>
-                      <h3 className="text-2xl font-semibold font-playfair">{tier.label}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{tier.tagline}</p>
-                    </div>
-                    <Link
-                      href={tierSections.allGuidesHref}
-                      className="hidden text-sm font-medium text-primary sm:inline-block hover:underline"
-                    >
-                      {tierSections.allGuidesLabel}
-                    </Link>
-                  </div>
-                </Reveal>
+        if (tierWatches.length === 0) return null;
 
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {tierWatches.map((watch, i) => (
-                    <Reveal key={watch.id} delay={i * 100} as="article">
-                      <ProductCard watch={watch} />
-                    </Reveal>
-                  ))}
-                </div>
-
-                {tierWatches.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No picks in this tier yet.</p>
-                )}
+        return (
+          <section
+            key={tier.id}
+            id={`tier-${tier.id}`}
+            className="scroll-mt-24 border-t border-border py-16 md:py-20"
+          >
+            <Reveal className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="font-serif text-2xl font-semibold tracking-tight md:text-3xl">
+                  Best Watches {tier.label}
+                </h2>
+                <p className="mt-2 text-muted-foreground">{tier.tagline}</p>
               </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
+              <span className="rounded-full border border-border px-3 py-1 text-sm text-muted-foreground">
+                {tierWatches.length} ranked
+              </span>
+            </Reveal>
+
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {tierWatches.map((watch, i) => (
+                <Reveal key={watch.id} delay={(i % 3) * 90} as="article">
+                  <ProductCard watch={watch} />
+                </Reveal>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
   );
 }

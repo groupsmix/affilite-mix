@@ -19,6 +19,9 @@ export const watchToolsSite = defineSite({
   headerVariant: "standard",
   footerVariant: "compare",
 
+  affiliateDisclosure:
+    "WristNerd is reader-supported. When you buy through links on our site, we may earn an affiliate commission at no additional cost to you. This never influences our rankings — we only recommend watches we would buy ourselves.",
+
   headerConfig: {
     showCta: true,
     ctaLabel: "See top picks",
@@ -78,9 +81,9 @@ export const watchToolsSite = defineSite({
 
   footerNav: {
     guides: [
-      { title: "Best Under $300", href: "/guide/best-watches-under-300" },
-      { title: "Best Under $500", href: "/guide/best-watches-under-500" },
-      { title: "Best Dress Watch", href: "/guide/best-dress-watch-under-500" },
+      { title: "Best Under $300", href: "/best-watches-under-300" },
+      { title: "Best Under $500", href: "/best-watches-under-500" },
+      { title: "Best Dress Watch", href: "/best-dress-watch-under-500" },
       { title: "Blog", href: "/blog" },
       { title: "Top Picks", href: "/#top-picks" },
       { title: "How We Test", href: "/#how-we-test" },
@@ -123,11 +126,10 @@ export const watchToolsSite = defineSite({
   },
 
   sitemapExtraPages: [
-    { path: "/guide", priority: 0.9, changeFrequency: "weekly" },
-    { path: "/guide/best-watches-under-500", priority: 0.9, changeFrequency: "monthly" },
-    { path: "/guide/best-watches-under-300", priority: 0.8, changeFrequency: "monthly" },
-    { path: "/guide/best-watches-under-200", priority: 0.8, changeFrequency: "monthly" },
-    { path: "/guide/best-dress-watches-under-500", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/best-watches-under-500", priority: 0.9, changeFrequency: "monthly" },
+    { path: "/best-watches-under-300", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/best-watches-under-200", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/best-dress-watch-under-500", priority: 0.8, changeFrequency: "monthly" },
     { path: "/guide/vintage-casio-watches", priority: 0.7, changeFrequency: "monthly" },
     { path: "/guide/vintage-seiko-watches", priority: 0.7, changeFrequency: "monthly" },
     { path: "/guide/best-leather-watch-straps", priority: 0.7, changeFrequency: "monthly" },

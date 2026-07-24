@@ -21,7 +21,7 @@ function tierGuideSlug(tier: DialPriceTier | undefined, fallbackId: string): str
 export function resolveDialHeaderHref(
   href: string,
   pathname: string,
-  tiers: DialPriceTier[],
+  _tiers: DialPriceTier[],
 ): string {
   const isHome = pathname === "/";
 
@@ -29,7 +29,7 @@ export function resolveDialHeaderHref(
   if (tierAnchor) {
     const id = tierAnchor[1] ?? "";
     if (!id) return href;
-    const tier = tiers.find((t) => t.id === id);
+    const tier = _tiers.find((t) => t.id === id);
     return isHome ? href : `/guide/${tierGuideSlug(tier, id)}`;
   }
 
@@ -39,15 +39,6 @@ export function resolveDialHeaderHref(
 
   if (href === "#how-we-test") {
     return isHome ? href : "/how-we-rank";
-  }
-
-  if (isHome && href.startsWith("/")) {
-    for (const tier of tiers) {
-      const slug = tier.guideSlug ?? `best-watches-${tier.id}`;
-      if (href.includes(slug)) return `#tier-${tier.id}`;
-    }
-    if (href.includes("top-picks")) return "#top-picks";
-    if (href.includes("how-we-test") || href.includes("how-we-rank")) return "#how-we-test";
   }
 
   return href;
@@ -60,18 +51,24 @@ function deriveCta(
 ): { label: string; href: string } {
   const link = navLinks.find(
     (l) =>
-      l.href.includes("top-picks") ||
-      l.label.toLowerCase().includes("top pick") ||
-      l.label.toLowerCase().includes("see top"),
+      l.href.includes("best-watches-under-500") ||
+      l.label.toLowerCase().includes("best under $500") ||
+      l.label.toLowerCase().includes("under $500"),
   ) ??
     navLinks.find(
-      (l) => l.href.includes("under-500") || l.label.toLowerCase().includes("under $500"),
+      (l) =>
+        l.href.includes("top-picks") ||
+        l.label.toLowerCase().includes("top pick") ||
+        l.label.toLowerCase().includes("see top"),
     ) ??
     navLinks.find((l) => l.href.startsWith("/") || l.href.startsWith("#")) ?? {
       label: "See top picks",
       href: "#top-picks",
     };
-  return { label: link.label, href: resolveDialHeaderHref(link.href, pathname, tiers) };
+  const isUnder500 =
+    link.href.includes("best-watches-under-500") || link.label.toLowerCase().includes("under $500");
+  const label = isUnder500 ? "Best Under $500" : link.label;
+  return { label, href: resolveDialHeaderHref(link.href, pathname, tiers) };
 }
 
 export function SiteHeader({ site, config }: SiteHeaderProps) {

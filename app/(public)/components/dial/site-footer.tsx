@@ -11,31 +11,38 @@ export function SiteFooter({ site }: SiteFooterProps) {
   const footerNav = site.footerNav as Record<string, { title: string; href: string }[]> | undefined;
 
   return (
-    <footer className="border-t border-border bg-secondary/20 pt-12 pb-8">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/60 bg-primary/10 text-primary">
-                <span className="h-2 w-2 rounded-full bg-primary" />
+    <footer className="border-t border-border bg-secondary/20">
+      {/* Affiliate disclosure — an essential trust signal for affiliate sites */}
+      <div id="disclosure" className="border-b border-border">
+        <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+          <p className="mx-auto max-w-3xl text-center text-xs leading-relaxed text-muted-foreground">
+            <span className="font-medium text-foreground">Affiliate disclosure:</span>{" "}
+            {site.affiliateDisclosure}
+          </p>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-4 py-14 md:px-6">
+        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+          <div>
+            <Link href="/" className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60">
+                <span className="h-2.5 w-2.5 rounded-full bg-primary" />
               </span>
-              <span className="text-lg font-semibold tracking-tight font-playfair">
-                {site.name}
-              </span>
-            </div>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+              <span className="font-serif text-lg font-semibold tracking-tight">{site.name}</span>
+            </Link>
+            <p className="mt-4 max-w-xs text-pretty text-sm leading-relaxed text-muted-foreground">
               {site.brand.description}
             </p>
-            <p className="mt-4 text-sm text-muted-foreground">{site.brand.tagline}</p>
           </div>
 
           {footerNav &&
             Object.entries(footerNav).map(([section, items]) => (
               <div key={section}>
-                <h4 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                <h3 className="text-sm font-semibold">
                   {section.replace(/([A-Z])/g, " $1").replace(/^\w/, (c) => c.toUpperCase())}
-                </h4>
-                <ul className="mt-4 space-y-2">
+                </h3>
+                <ul className="mt-4 space-y-3">
                   {items.map((item) => (
                     <li key={item.href}>
                       <Link
@@ -51,26 +58,11 @@ export function SiteFooter({ site }: SiteFooterProps) {
             ))}
         </div>
 
-        <div className="mt-12 border-t border-border pt-6 text-sm text-muted-foreground">
-          <p>{site.affiliateDisclosure}</p>
-          <p className="mt-2">{site.contentDisclosure}</p>
-        </div>
-
-        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border pt-6 sm:flex-row">
-          <span className="text-sm text-muted-foreground">
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row">
+          <p>
             &copy; {year} {site.name}. All rights reserved.
-          </span>
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <Link href="/privacy" className="hover:text-foreground">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="hover:text-foreground">
-              Terms
-            </Link>
-            <Link href="/affiliate-disclosure" className="hover:text-foreground">
-              Affiliate Disclosure
-            </Link>
-          </div>
+          </p>
+          <p>Prices and availability are accurate as of publication.</p>
         </div>
       </div>
     </footer>
