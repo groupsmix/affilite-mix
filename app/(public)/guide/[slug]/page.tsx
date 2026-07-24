@@ -19,7 +19,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
-  const dialGuide = getDialGuide(slug);
+  const dialGuide = site.homepageTemplate === "dial" ? getDialGuide(slug) : undefined;
   if (dialGuide) {
     const url = `https://${site.domain}/guide/${dialGuide.slug}`;
     return {
@@ -63,7 +63,7 @@ export async function generateMetadata({
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const site = await getCurrentSite();
-  const dialGuide = getDialGuide(slug);
+  const dialGuide = site.homepageTemplate === "dial" ? getDialGuide(slug) : undefined;
   if (dialGuide) {
     if (site.homepageTemplate === "dial") {
       permanentRedirect(`/${dialGuide.slug}`);

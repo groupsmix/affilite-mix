@@ -47,7 +47,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const comparison = getEtsyComparison(slug);
   const site = await getCurrentSite();
-  if (!comparison) {
+  if (site.slug !== "ai-compared" || !comparison) {
     return { title: "Not Found" };
   }
   const url = `https://${site.domain}/comparison/${comparison.slug}`;
@@ -72,9 +72,9 @@ export async function generateMetadata({
 export default async function ComparisonPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const comparison = getEtsyComparison(slug);
-  if (!comparison) notFound();
-
   const site = await getCurrentSite();
+  if (site.slug !== "ai-compared" || !comparison) notFound();
+
   const left = getEtsyTool(comparison.leftToolSlug);
   const right = getEtsyTool(comparison.rightToolSlug);
   if (!left || !right) notFound();

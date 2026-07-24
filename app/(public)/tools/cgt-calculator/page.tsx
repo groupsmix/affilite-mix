@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { getProductBySlug } from "@/lib/dal/products";
 import { getTenantClient } from "@/lib/supabase-server";
@@ -9,6 +10,9 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  if (site.slug !== "crypto-tools" && site.domain !== "cryptoranked.xyz") {
+    return { title: "Not Found" };
+  }
   const title = "Australian Crypto CGT Calculator (ATO 50% Discount)";
   const description =
     "Estimate your Australian crypto capital gains tax with the ATO 12-month 50% discount. Includes income bracket, Medicare levy and capital-loss offsets.";
@@ -30,6 +34,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function CgtCalculatorPage() {
   const site = await getCurrentSite();
+  if (site.slug !== "crypto-tools" && site.domain !== "cryptoranked.xyz") {
+    notFound();
+  }
   const ctaProduct = await getProductBySlug(site.id, "koinly", getTenantClient);
 
   const jsonLd = organizationJsonLd(site);

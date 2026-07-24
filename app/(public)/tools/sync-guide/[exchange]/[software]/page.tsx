@@ -31,8 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!parsed) return {};
   const { exchange, software } = parsed;
 
-  const guide = getSyncGuide(exchange, software);
   const site = await getCurrentSite();
+  if (site.slug !== "crypto-tools" && site.domain !== "cryptoranked.xyz") {
+    return { title: "Not Found" };
+  }
+  const guide = getSyncGuide(exchange, software);
   const title = `How to Sync ${guide.exchangeName} to ${guide.softwareName} for ATO Crypto Tax`;
   const description = `Step-by-step guide to import your ${guide.exchangeName} transactions into ${guide.softwareName} and generate an ATO-ready crypto tax report.`;
 
@@ -63,6 +66,9 @@ export default async function SyncGuidePage({ params }: Props) {
   const { exchange, software } = parsed;
 
   const site = await getCurrentSite();
+  if (site.slug !== "crypto-tools" && site.domain !== "cryptoranked.xyz") {
+    notFound();
+  }
   const guide = getSyncGuide(exchange, software);
   const ctaProduct = await getProductBySlug(site.id, guide.ctaProductSlug, getTenantClient);
 

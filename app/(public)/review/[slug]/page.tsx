@@ -31,7 +31,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const review = getEtsyReview(slug);
   const site = await getCurrentSite();
-  if (!review) {
+  if (site.slug !== "ai-compared" || !review) {
     return { title: "Not Found" };
   }
   const url = `https://${site.domain}/review/${review.slug}`;
@@ -56,9 +56,9 @@ export async function generateMetadata({
 export default async function ReviewPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const review = getEtsyReview(slug);
-  if (!review) notFound();
-
   const site = await getCurrentSite();
+  if (site.slug !== "ai-compared" || !review) notFound();
+
   const tool = getEtsyTool(review.toolSlug);
   if (!tool) notFound();
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { getCurrentSite } from "@/lib/site-context";
 import type { SiteDefinition } from "@/config/site-definition";
@@ -10,39 +11,38 @@ import { CalmToolsPage } from "../components/calmroutine/tools-view";
 
 export const revalidate = 60;
 
+const TOOLSET_META: Record<string, { title: string; description: string }> = {
+  "calm-routine": {
+    title: "Recommended tools · calmroutine",
+    description:
+      "Sleep, calm, supplements, and somatic tools I have tested myself. Honest notes, affiliate disclosures, and a link to the review before every bigger purchase.",
+  },
+  "ai-compared": {
+    title: "Free Etsy Seller Tools",
+    description:
+      "Free tools for Etsy sellers: profit and break-even calculator, workflow checklists, and AI tool comparisons.",
+  },
+  "crypto-tools": {
+    title: "Free Crypto Tax Tools for Australians",
+    description:
+      "Free crypto tax tools for Australian investors: software comparison matrix, ATO CGT calculator, and exchange-to-software sync guides.",
+  },
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  if (site.slug === "calm-routine") {
-    return {
-      metadataBase: new URL(`https://${site.domain}`),
-      title: "Recommended tools · calmroutine",
-      description:
-        "Sleep, calm, supplements, and somatic tools I have tested myself. Honest notes, affiliate disclosures, and a link to the review before every bigger purchase.",
-      alternates: { canonical: `https://${site.domain}/tools` },
-      openGraph: {
-        title: "Recommended tools · calmroutine",
-        description:
-          "Sleep, calm, supplements, and somatic tools I have tested myself. Honest notes, affiliate disclosures, and a link to the review before every bigger purchase.",
-        url: `https://${site.domain}/tools`,
-        siteName: site.name,
-        locale: site.locale,
-        type: "website",
-      },
-    };
+  const meta = TOOLSET_META[site.slug ?? site.id];
+  if (!meta) {
+    return { title: "Not Found" };
   }
-  const isEtsy = (site.slug ?? site.id) === "ai-compared";
-  const title = isEtsy ? "Free Etsy Seller Tools" : "Free Crypto Tax Tools for Australians";
-  const description = isEtsy
-    ? "Free tools for Etsy sellers: profit and break-even calculator, workflow checklists, and AI tool comparisons."
-    : "Free crypto tax tools for Australian investors: software comparison matrix, ATO CGT calculator, and exchange-to-software sync guides.";
   return {
     metadataBase: new URL(`https://${site.domain}`),
-    title,
-    description,
+    title: meta.title,
+    description: meta.description,
     alternates: { canonical: `https://${site.domain}/tools` },
     openGraph: {
-      title,
-      description,
+      title: meta.title,
+      description: meta.description,
       url: `https://${site.domain}/tools`,
       siteName: site.name,
       locale: site.locale,
@@ -195,8 +195,11 @@ export default async function ToolsIndexPage() {
       </CalmShell>
     );
   }
-  if ((site.slug ?? site.id) === "ai-compared") {
+  if (site.slug === "ai-compared") {
     return <EtsyToolsIndex site={site} />;
   }
-  return <CryptoToolsIndex site={site} />;
+  if (site.slug === "crypto-tools" || site.domain === "cryptoranked.xyz") {
+    return <CryptoToolsIndex site={site} />;
+  }
+  notFound();
 }
