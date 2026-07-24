@@ -19,7 +19,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const site = await getCurrentSite();
 
-  const calmPost = site.id === "calm-routine" ? getCalmPost(slug) : undefined;
+  const calmPost = site.slug === "calm-routine" ? getCalmPost(slug) : undefined;
   if (calmPost) {
     const url = `https://${site.domain}/${calmPost.slug}`;
     return {
@@ -96,7 +96,7 @@ export default async function PublicSlugPage({
     notFound();
   }
 
-  if (site.id === "calm-routine") {
+  if (site.slug === "calm-routine") {
     const calmPost = getCalmPost(slug);
     if (calmPost) {
       return (

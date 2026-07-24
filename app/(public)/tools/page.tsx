@@ -12,7 +12,7 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  if (site.id === "calm-routine") {
+  if (site.slug === "calm-routine") {
     return {
       metadataBase: new URL(`https://${site.domain}`),
       title: "Recommended tools · calmroutine",
@@ -186,7 +186,7 @@ function EtsyToolsIndex({ site }: { site: SiteDefinition }) {
 
 export default async function ToolsIndexPage() {
   const site = await getCurrentSite();
-  if (site.id === "calm-routine") {
+  if (site.slug === "calm-routine") {
     return (
       <CalmShell site={site}>
         <div className="mx-auto max-w-5xl px-6 py-10">
