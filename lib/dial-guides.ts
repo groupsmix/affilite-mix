@@ -81,7 +81,7 @@ export const dialGuides: DialGuide[] = [
     lede: "We spent months wearing and testing dozens of watches to find the six that genuinely deliver more than their price suggests — from a true dive automatic to the perfect dress watch. Here is what earned a spot, and why.",
     breadcrumbLabel: "Best Watches Under $500",
     meta: {
-      title: "Best Watches Under $500 (2026) — Tested & Ranked | The Dial Report",
+      title: "Best Watches Under $500 (2026) — Tested & Ranked | WristNerd",
       description:
         "The 6 best watches under $500, hands-on tested and ranked. Automatic divers, dress watches, chronographs and more — with pros, cons, and honest buying advice.",
       keywords: [
@@ -167,7 +167,7 @@ export const dialGuides: DialGuide[] = [
     lede: "The $300 mark is the affordable-watch sweet spot — enough for sapphire crystals, quality straps, and genuinely good design without overspending. These are the four we recommend without hesitation.",
     breadcrumbLabel: "Best Watches Under $300",
     meta: {
-      title: "Best Watches Under $300 (2026) — Tested & Ranked | The Dial Report",
+      title: "Best Watches Under $300 (2026) — Tested & Ranked | WristNerd",
       description:
         "The best watches under $300, hands-on tested and ranked. Field, dress, minimalist and budget picks with pros, cons, and honest buying advice.",
       keywords: [
@@ -236,7 +236,7 @@ export const dialGuides: DialGuide[] = [
     lede: "A great dress watch is thin, understated, and quietly elegant — the kind of piece that slips under a cuff and elevates a suit. These are the three that nail the brief without breaking $500.",
     breadcrumbLabel: "Best Dress Watch Under $500",
     meta: {
-      title: "Best Dress Watch Under $500 (2026) — Tested & Ranked | The Dial Report",
+      title: "Best Dress Watch Under $500 (2026) — Tested & Ranked | WristNerd",
       description:
         "The best dress watches under $500, hands-on tested and ranked. Thin, elegant picks for weddings, the office and formal wear — with pros, cons, and buying advice.",
       keywords: [
@@ -317,7 +317,7 @@ export const dialGuides: DialGuide[] = [
     lede: "You do not need to spend a lot to get a capable, characterful watch. The best sub-$200 picks combine honest specs, real-world durability, and enough style to wear anywhere.",
     breadcrumbLabel: "Best Watches Under $200",
     meta: {
-      title: "Best Watches Under $200 (2026) — Tested & Ranked | The Dial Report",
+      title: "Best Watches Under $200 (2026) — Tested & Ranked | WristNerd",
       description:
         "The best watches under $200, hands-on tested and ranked. Field, minimalist, vintage-style and budget beater picks with pros, cons, and honest buying advice.",
       keywords: [
