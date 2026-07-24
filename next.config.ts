@@ -70,6 +70,7 @@ const nextConfig: NextConfig = {
       // rewrites existing product image_url rows.
       { protocol: "https", hostname: "m.media-amazon.com" },
       { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
   // Redirect the common plural spellings of content-type routes to their

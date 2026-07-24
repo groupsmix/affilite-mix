@@ -10,9 +10,14 @@ export const watchToolsSite = defineSite({
     "Honest watch reviews and buying guides — from the best watches under $500 to vintage Seiko and Casio, leather straps, and minimalist picks for women.",
   tagline: "Find the right watch without the hype.",
 
-  // Warm, editorial watch palette: espresso ink for dark sections and gold
-  // accents. Distinct from the crypto/AI navy used by other tenants.
-  colors: { primary: "#2C241B", accent: "#8B6914", accentText: "#6B4F0F", accentLight: "#C9A96E" },
+  // Deep charcoal with a teal accent and soft radius — avoids the warm-cream/
+  // terracotta, acid-green-on-black, and broadsheet defaults.
+  colors: {
+    primary: "#0B0F13",
+    accent: "#2A9D8F",
+    accentText: "#2A9D8F",
+    accentLight: "rgba(42,157,143,0.12)",
+  },
   fonts: "classic",
   homepage: "dial",
   layout: "standard",
@@ -31,10 +36,10 @@ export const watchToolsSite = defineSite({
   },
   headerTokens: {
     appearance: "dark",
-    background: "rgba(22,20,18,0.85)",
-    foreground: "#F5F3EE",
-    accent: "#C9A96E",
-    border: "rgba(245,243,238,0.1)",
+    background: "rgba(11,15,19,0.85)",
+    foreground: "#F5F7FA",
+    accent: "#2A9D8F",
+    border: "rgba(245,247,250,0.1)",
     fontFamily: "Playfair Display",
   },
 

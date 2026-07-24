@@ -1,6 +1,6 @@
 import { ArrowUpRight, Star } from "lucide-react";
 import type { DialHomepageConfig } from "@/lib/dial-config";
-import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
+import { resolveDialAffiliateUrl } from "@/lib/dial-affiliate";
 import { ProductCardCta } from "../product-card-client";
 import { Reveal } from "./reveal";
 
@@ -59,24 +59,20 @@ export function ComparisonTable({ config }: ComparisonTableProps) {
                   <td className="px-5 py-4 text-muted-foreground">{w.movement}</td>
                   <td className="px-5 py-4 text-muted-foreground">{w.bestFor}</td>
                   <td className="px-5 py-4">
-                    {hasUsableAffiliateUrl(w.affiliateUrl) ? (
-                      <ProductCardCta
-                        href={w.affiliateUrl}
-                        slug={w.id}
-                        sourceType="dial"
-                        placement="comparison-table"
-                        productName={`${w.brand} ${w.name}`}
-                        className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                        label={
-                          <>
-                            {comparisonTable.ctaLabel}
-                            <ArrowUpRight className="h-3.5 w-3.5" />
-                          </>
-                        }
-                      />
-                    ) : (
-                      <span className="text-muted-foreground">Coming soon</span>
-                    )}
+                    <ProductCardCta
+                      href={resolveDialAffiliateUrl(w)}
+                      slug={w.id}
+                      sourceType="dial"
+                      placement="comparison-table"
+                      productName={`${w.brand} ${w.name}`}
+                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                      label={
+                        <>
+                          {comparisonTable.ctaLabel}
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </>
+                      }
+                    />
                   </td>
                 </tr>
               ))}

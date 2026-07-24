@@ -113,10 +113,10 @@ export const DIAL_HOMEPAGE_SLUG = "dial-homepage";
 export const defaultWatches: Watch[] = [
   {
     id: "navigator-automatic",
-    name: "Navigator Automatic",
-    brand: "Meridian",
-    image: "/watches/diver.png",
-    imageAlt: "Meridian Navigator Automatic dive watch",
+    name: "Kamasu",
+    brand: "Orient",
+    image: "https://m.media-amazon.com/images/I/61SZSflqb-L._AC_SL1500_.jpg",
+    imageAlt: "Orient Kamasu automatic dive watch with blue dial",
     price: 320,
     rating: 4.8,
     reviewCount: 2140,
@@ -124,119 +124,123 @@ export const defaultWatches: Watch[] = [
     category: "Dive",
     movement: "Automatic",
     waterResistance: "200m",
-    caseSize: "40mm",
+    caseSize: "41.8mm",
     bestFor: "Everyday all-rounder",
     editorNote:
       "The best value automatic diver we tested this year. Sapphire crystal and a 200m rating at this price is genuinely rare.",
     pros: ["Sapphire crystal", "True 200m water resistance", "Smooth automatic movement"],
     cons: ["Bracelet uses pin-and-collar links"],
-    affiliateUrl: "#",
+    affiliateUrl: "https://www.amazon.com/dp/B07QJP9TGP",
     editorsChoice: true,
   },
   {
     id: "heritage-field",
-    name: "Heritage Field 38",
-    brand: "Ridgeline",
-    image: "/watches/field.png",
-    imageAlt: "Ridgeline Heritage Field 38 watch",
-    price: 189,
+    name: "Khaki Field Mechanical",
+    brand: "Hamilton",
+    image:
+      "https://images.unsplash.com/photo-1612817159623-0399784fd0ce?auto=format&fit=crop&w=800&q=80",
+    imageAlt: "Hamilton Khaki Field Mechanical watch on a leather strap",
+    price: 495,
     rating: 4.7,
     reviewCount: 1580,
-    tier: "under-200",
+    tier: "under-500",
     category: "Field",
     movement: "Mechanical",
-    waterResistance: "100m",
+    waterResistance: "50m",
     caseSize: "38mm",
     bestFor: "Minimalist everyday wear",
     editorNote:
-      "A crisp, legible field watch that punches far above its price. The leather strap feels premium out of the box.",
-    pros: ["Excellent legibility", "Quality leather strap", "Hand-wound charm"],
+      "A faithful military reissue with an 80-hour power reserve and a clean, legible dial. The leather strap feels premium out of the box.",
+    pros: ["80-hour power reserve", "Sapphire crystal", "Hand-wound charm"],
     cons: ["No date window", "Lume is modest"],
-    affiliateUrl: "#",
+    affiliateUrl: "https://www.amazon.com/dp/B07HSPSX5M",
   },
   {
     id: "sterling-dress",
-    name: "Sterling Slim",
-    brand: "Aveline",
-    image: "/watches/dress.png",
-    imageAlt: "Aveline Sterling Slim dress watch",
-    price: 245,
+    name: "Fairfield 37mm",
+    brand: "Timex",
+    image: "https://m.media-amazon.com/images/I/61iVvul3sxL._AC_SL1500_.jpg",
+    imageAlt: "Timex Fairfield 37mm dress watch with cream dial and mesh bracelet",
+    price: 145,
     rating: 4.6,
     reviewCount: 940,
-    tier: "under-300",
+    tier: "under-200",
     category: "Dress",
     movement: "Quartz",
     waterResistance: "30m",
-    caseSize: "39mm",
+    caseSize: "37mm",
     bestFor: "Formal & office wear",
     editorNote:
-      "At just 6.5mm thick, this slips under any cuff. The dauphine hands and clean dial look far more expensive than they are.",
-    pros: ["Ultra-thin profile", "Elegant dial", "Great value for formal wear"],
-    cons: ["Low water resistance", "Quartz, not mechanical"],
-    affiliateUrl: "#",
+      "A clean quartz dress watch with a slim case and mesh bracelet. It slips under a cuff and pairs with everything.",
+    pros: ["Ultra-thin profile", "Elegant dial", "Indiglo night light"],
+    cons: ["Low water resistance", "Mineral crystal"],
+    affiliateUrl: "https://www.amazon.com/dp/B079KV9MHS",
   },
   {
     id: "retro-digital",
-    name: "Retro Digital Gold",
-    brand: "Kasato",
-    image: "/watches/vintage.png",
-    imageAlt: "Kasato Retro Digital Gold vintage style watch",
-    price: 79,
+    name: "A168WA-1",
+    brand: "Casio",
+    image:
+      "https://images.unsplash.com/photo-1624608357891-9f68eaa09c99?auto=format&fit=crop&w=800&q=80",
+    imageAlt: "Casio A168WA vintage digital watch",
+    price: 65,
     rating: 4.5,
     reviewCount: 5620,
     tier: "under-200",
     category: "Vintage / Digital",
     movement: "Quartz (Digital)",
-    waterResistance: "50m",
+    waterResistance: "30m",
     caseSize: "36mm",
     bestFor: "Retro everyday style",
     editorNote:
       "The cult classic. Indestructible, iconic, and impossibly cheap — a no-brainer starter or beater watch.",
     pros: ["Iconic design", "Nearly indestructible", "Incredible price"],
     cons: ["Small display", "Resin-era feel"],
-    affiliateUrl: "#",
+    affiliateUrl: "https://www.amazon.com/dp/B000LAKYW8",
   },
   {
     id: "circuit-chrono",
-    name: "Circuit Chronograph",
-    brand: "Meridian",
-    image: "/watches/chrono.png",
-    imageAlt: "Meridian Circuit Chronograph watch",
-    price: 420,
+    name: "1964 Gran Turismo",
+    brand: "Dan Henry",
+    image:
+      "https://images.unsplash.com/photo-1773270875843-4e4a21798c5e?auto=format&fit=crop&w=800&q=80",
+    imageAlt: "Dan Henry 1964 Gran Turismo meca-quartz chronograph",
+    price: 270,
     rating: 4.7,
     reviewCount: 760,
-    tier: "under-500",
+    tier: "under-300",
     category: "Chronograph",
     movement: "Meca-quartz",
-    waterResistance: "100m",
-    caseSize: "41mm",
+    waterResistance: "50m",
+    caseSize: "38mm",
     bestFor: "Sporty daily driver",
     editorNote:
       "Meca-quartz gives you the snappy pusher feel of a mechanical chrono without the four-figure price tag.",
-    pros: ["Snappy chronograph feel", "Panda dial legibility", "Sapphire crystal"],
-    cons: ["Slightly thick", "Loud tachymeter styling"],
-    affiliateUrl: "#",
+    pros: ["Snappy chronograph feel", "Panda dial legibility", "Value for money"],
+    cons: ["Slightly thick", "50m water resistance"],
+    affiliateUrl: "https://danhenrywatches.com/products/1964-gran-turismo-chronograph",
   },
   {
     id: "aria-minimalist",
-    name: "Aria Minimalist",
-    brand: "Aveline",
-    image: "/watches/minimalist.png",
-    imageAlt: "Aveline Aria Minimalist women's watch",
-    price: 155,
+    name: "Signatur Lille",
+    brand: "Skagen",
+    image:
+      "https://images.unsplash.com/photo-1614799269239-ad1ebd42a1c2?auto=format&fit=crop&w=800&q=80",
+    imageAlt: "Skagen Signatur Lille minimalist women's watch",
+    price: 115,
     rating: 4.6,
     reviewCount: 1320,
     tier: "under-200",
     category: "Minimalist",
     movement: "Quartz",
     waterResistance: "30m",
-    caseSize: "34mm",
+    caseSize: "30mm",
     bestFor: "Women’s everyday minimalist",
     editorNote:
-      "A refined 34mm case with a mesh strap that dresses up or down. Our top pick in the women’s minimalist category.",
+      "A refined 30mm case with a mesh strap that dresses up or down. Our top pick in the women’s minimalist category.",
     pros: ["Elegant mesh strap", "Versatile size", "Great gift option"],
     cons: ["Not water-resistant for swimming"],
-    affiliateUrl: "#",
+    affiliateUrl: "https://www.amazon.com/s?k=Skagen+Signatur+Lille",
   },
 ];
 
@@ -256,8 +260,9 @@ export const defaultDialConfig: DialHomepageConfig = {
       "No fluff, no paid rankings. We buy, wear, and rate affordable watches so you can spend with confidence — organized by exactly how much you want to spend.",
     ctaPrimary: { label: "Explore top picks", href: "#top-picks" },
     ctaSecondary: { label: "Shop by budget", href: "#tier-under-200" },
-    heroImage: "/watches/hero-watch.png",
-    heroImageAlt: "Premium automatic wristwatch with a navy dial on a steel bracelet",
+    heroImage:
+      "https://images.unsplash.com/photo-1749831754129-3a84b9fdeb87?auto=format&fit=crop&w=1200&q=80",
+    heroImageAlt: "Luxury automatic wristwatch on a dark background",
     trustRating: "4.8 avg reader rating",
     trustReviews: "120+ watches reviewed",
   },
@@ -445,13 +450,39 @@ function coerceStringArray(value: unknown): string[] | undefined {
   return isStringArray(value) ? value : undefined;
 }
 
+const OLD_SAMPLE_IMAGE_PREFIX = "/watches/";
+
+function isOldSampleImage(url: unknown): boolean {
+  return isString(url) && url.startsWith(OLD_SAMPLE_IMAGE_PREFIX);
+}
+
+function rebaseWatches(sourceWatches: Watch[], defaults: Watch[]): Watch[] {
+  const defaultsById = new Map(defaults.map((w) => [w.id, w] as const));
+  const merged = new Map<string, Watch>();
+
+  for (const watch of sourceWatches) {
+    const fallback = defaultsById.get(watch.id);
+    // If the image is still an old sample render, rebase the whole watch to
+    // the current default so design/image/affiliate updates always ship.
+    merged.set(watch.id, fallback && isOldSampleImage(watch.image) ? fallback : watch);
+  }
+
+  for (const watch of defaults) {
+    if (!merged.has(watch.id)) {
+      merged.set(watch.id, watch);
+    }
+  }
+
+  return defaults.map((watch) => merged.get(watch.id) ?? watch);
+}
+
 export function mergeWithDefault(input: unknown): DialHomepageConfig {
   const source = isObject(input) ? input : {};
   const watchesRaw = source.watches;
   const parsedWatches = Array.isArray(watchesRaw)
     ? watchesRaw.map(coerceWatch).filter((w): w is Watch => w !== null)
     : [];
-  const watches = parsedWatches.length > 0 ? parsedWatches : defaultDialConfig.watches;
+  const watches = rebaseWatches(parsedWatches, defaultDialConfig.watches);
 
   const priceTiersRaw = source.priceTiers;
   const priceTiers = Array.isArray(priceTiersRaw)
@@ -508,9 +539,10 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
                 : defaultDialConfig.hero.ctaSecondary.href,
             }
           : defaultDialConfig.hero.ctaSecondary,
-        heroImage: isString(source.hero.heroImage)
-          ? source.hero.heroImage
-          : defaultDialConfig.hero.heroImage,
+        heroImage:
+          isString(source.hero.heroImage) && !isOldSampleImage(source.hero.heroImage)
+            ? source.hero.heroImage
+            : defaultDialConfig.hero.heroImage,
         heroImageAlt: isString(source.hero.heroImageAlt)
           ? source.hero.heroImageAlt
           : defaultDialConfig.hero.heroImageAlt,
@@ -523,7 +555,7 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
       }
     : defaultDialConfig.hero;
 
-  const navLinks = Array.isArray(source.navLinks)
+  const sourceNavLinks = Array.isArray(source.navLinks)
     ? source.navLinks
         .map((l: unknown): DialNavLink | null => {
           if (!isObject(l)) return null;
@@ -532,7 +564,13 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
           return isString(label) && isString(href) ? { label, href } : null;
         })
         .filter((l): l is DialNavLink => l !== null)
-    : defaultDialConfig.navLinks;
+    : [];
+  const sourceHrefs = new Set(sourceNavLinks.map((l) => l.href));
+  const missingDefaults = defaultDialConfig.navLinks.filter((l) => !sourceHrefs.has(l.href));
+  const navLinks =
+    sourceNavLinks.length > 0
+      ? [...sourceNavLinks, ...missingDefaults]
+      : defaultDialConfig.navLinks;
 
   const trustBar = isObject(source.trustBar)
     ? {
