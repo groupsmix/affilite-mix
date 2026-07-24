@@ -12,4 +12,6 @@ export const GA4_LINKER_DOMAINS = [
   "compareai.site",
   "cryptoranked.xyz",
   "arabictools.wristnerd.xyz",
+  "calmroutine.site",
+  "www.calmroutine.site",
 ];
