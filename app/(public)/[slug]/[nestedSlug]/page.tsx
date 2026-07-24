@@ -51,7 +51,7 @@ import type { Metadata } from "next";
 export const revalidate = 60;
 
 interface ContentPageProps {
-  params: Promise<{ contentType: string; slug: string }>;
+  params: Promise<{ slug: string; nestedSlug: string }>;
   searchParams: Promise<{ preview?: string; token?: string }>;
 }
 
@@ -59,7 +59,7 @@ export async function generateMetadata({
   params,
   searchParams,
 }: ContentPageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { nestedSlug: slug } = await params;
   const { preview, token } = await searchParams;
   const site = await getCurrentSite();
 
@@ -126,7 +126,7 @@ export async function generateMetadata({
 }
 
 export default async function ContentPage({ params, searchParams }: ContentPageProps) {
-  const { contentType, slug } = await params;
+  const { slug: contentType, nestedSlug: slug } = await params;
   const { preview, token } = await searchParams;
 
   // Never serve a cached 404 for preview requests.

@@ -1,70 +1,21 @@
-import { getCurrentSite } from "@/lib/site-context";
 import { listPublishedContent, countPublishedContent } from "@/lib/dal/content";
 import { ContentCardGrid } from "../components/content-card-grid";
 import { Pagination, PaginationHead } from "../components/pagination";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
-import { notFound } from "next/navigation";
-import type { Metadata } from "next";
+import type { SiteDefinition } from "@/config/site-definition";
 
-/** Revalidate content type listing pages every 60 seconds (ISR) */
-export const revalidate = 60;
+interface ContentTypeListingProps {
+  site: SiteDefinition;
+  contentType: string;
+  page?: string;
+}
 
 const PAGE_SIZE = 12;
 
-interface ContentTypePageProps {
-  params: Promise<{ contentType: string }>;
-  searchParams: Promise<{ page?: string }>;
-}
-
-export async function generateMetadata({ params }: ContentTypePageProps): Promise<Metadata> {
-  const { contentType } = await params;
-  const site = await getCurrentSite();
+export async function ContentTypeListing({ site, contentType, page }: ContentTypeListingProps) {
   const ct = site.contentTypes.find((c) => c.value === contentType);
-
-  if (!ct) return { title: "Not Found" };
-
-  const url = `https://${site.domain}/${contentType}`;
-  const plural = ct.labelPlural ?? `${ct.label}s`;
-  const description = `Browse all ${plural.toLowerCase()} on ${site.name}`;
-
-  return {
-    title: `${plural} — ${site.name}`,
-    description,
-    alternates: { canonical: url },
-    openGraph: {
-      title: `${plural} — ${site.name}`,
-      description,
-      url,
-      siteName: site.name,
-      locale: site.locale,
-      type: "website",
-    },
-    twitter: {
-      card: "summary",
-      title: `${plural} — ${site.name}`,
-      description,
-    },
-  };
-}
-
-export default async function ContentTypePage({ params, searchParams }: ContentTypePageProps) {
-  const { contentType } = await params;
-  const { page } = await searchParams;
-  const site = await getCurrentSite();
-
-  // Prevent accessing admin or api routes through this catch-all
-  if (
-    contentType === "admin" ||
-    contentType === "api" ||
-    contentType === "category" ||
-    contentType === "search"
-  ) {
-    notFound();
-  }
-
-  const ct = site.contentTypes.find((c) => c.value === contentType);
-  if (!ct) notFound();
+  if (!ct) return null;
 
   const currentPage = Math.max(1, parseInt(page ?? "1", 10) || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;

@@ -4,6 +4,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getDialGuide } from "@/lib/dial-guides";
 import { getDialHomepageConfig } from "@/lib/dial-config";
 import { GuideArticle } from "../components/article/guide-article";
+import { ContentTypeListing } from "./content-type-listing";
 
 export const dynamic = "force-dynamic";
 
@@ -14,36 +15,75 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
+
   const guide = getDialGuide(slug);
-  if (!guide || site.homepageTemplate !== "dial") {
-    return { title: "Not Found" };
-  }
-  const url = `https://${site.domain}/${guide.slug}`;
-  return {
-    metadataBase: new URL(`https://${site.domain}`),
-    title: guide.meta.title,
-    description: guide.meta.description,
-    alternates: { canonical: url },
-    openGraph: {
+  if (guide && site.homepageTemplate === "dial") {
+    const url = `https://${site.domain}/${guide.slug}`;
+    return {
+      metadataBase: new URL(`https://${site.domain}`),
       title: guide.meta.title,
       description: guide.meta.description,
-      url,
-      siteName: site.name,
-      locale: site.locale,
-      type: "article",
-    },
-  };
+      alternates: { canonical: url },
+      openGraph: {
+        title: guide.meta.title,
+        description: guide.meta.description,
+        url,
+        siteName: site.name,
+        locale: site.locale,
+        type: "article",
+      },
+    };
+  }
+
+  const ct = site.contentTypes.find((c) => c.value === slug);
+  if (ct) {
+    const url = `https://${site.domain}/${slug}`;
+    const plural = ct.labelPlural ?? `${ct.label}s`;
+    const description = `Browse all ${plural.toLowerCase()} on ${site.name}`;
+    return {
+      title: `${plural} — ${site.name}`,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title: `${plural} — ${site.name}`,
+        description,
+        url,
+        siteName: site.name,
+        locale: site.locale,
+        type: "website",
+      },
+    };
+  }
+
+  return { title: "Not Found" };
 }
 
-export default async function DialGuideRootPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PublicSlugPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { slug } = await params;
+  const { page } = await searchParams;
   const site = await getCurrentSite();
-  const guide = getDialGuide(slug);
 
-  if (!guide || site.homepageTemplate !== "dial") {
+  // Prevent root catch-all from serving reserved paths.
+  if (slug === "admin" || slug === "api" || slug === "category" || slug === "search") {
     notFound();
   }
 
-  const dialConfig = await getDialHomepageConfig(site.id);
-  return <GuideArticle guide={guide} siteName={site.name} watches={dialConfig.watches} />;
+  const guide = getDialGuide(slug);
+  if (guide && site.homepageTemplate === "dial") {
+    const dialConfig = await getDialHomepageConfig(site.id);
+    return <GuideArticle guide={guide} siteName={site.name} watches={dialConfig.watches} />;
+  }
+
+  const ct = site.contentTypes.find((c) => c.value === slug);
+  if (ct) {
+    return <ContentTypeListing site={site} contentType={slug} page={page} />;
+  }
+
+  notFound();
 }
