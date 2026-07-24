@@ -123,7 +123,7 @@ export const dialGuides: DialGuide[] = [
         watchId: "aria-minimalist",
         award: "Best Minimalist",
         reason:
-          "A refined 34mm case and mesh strap that dresses up or down effortlessly — our top pick for anyone who wants clean, understated style.",
+          "A refined 30mm case and mesh strap that dresses up or down effortlessly — our top pick for anyone who wants clean, understated style.",
       },
       {
         watchId: "retro-digital",
@@ -140,7 +140,7 @@ export const dialGuides: DialGuide[] = [
     faqs: [
       {
         q: "What is the best watch under $500 overall?",
-        a: "Our top overall pick is the Meridian Navigator Automatic. It is the only watch in this price range that combines a true 200m dive rating, an automatic movement, and a scratch-resistant sapphire crystal — a specification that usually costs far more.",
+        a: "Our top overall pick is the Orient Kamasu. It is the only watch in this price range that combines a true 200m dive rating, an automatic movement, and a scratch-resistant sapphire crystal — a specification that usually costs far more.",
       },
       {
         q: "Are automatic watches under $500 any good?",
@@ -181,22 +181,22 @@ export const dialGuides: DialGuide[] = [
       "Everything on this list costs under $300 and has been worn and tested for at least two weeks. We only recommend watches we would happily buy with our own money.",
     picks: [
       {
-        watchId: "sterling-dress",
+        watchId: "circuit-chrono",
         award: "Best Overall",
         reason:
-          "The most versatile watch under $300 we tested. Ultra-thin, elegant, and priced so well it feels like a mistake — it works for the office, a wedding, or dinner out.",
+          "The Dan Henry 1964 is the most fun and capable watch under $300. Meca-quartz chronograph, panda-style legibility, and vintage motorsport character at a fraction of what that usually costs.",
       },
       {
-        watchId: "heritage-field",
-        award: "Best Everyday Value",
+        watchId: "sterling-dress",
+        award: "Best Dress Watch",
         reason:
-          "A crisp, legible mechanical field watch with a leather strap that feels premium out of the box. The one we reach for most on ordinary days.",
+          "The Timex Fairfield is the most versatile watch under $300 we tested. Slim, elegant, and priced so well it feels like a mistake — it works for the office, a wedding, or dinner out.",
       },
       {
         watchId: "aria-minimalist",
         award: "Best Minimalist",
         reason:
-          "A refined 34mm case and mesh strap that dresses up or down effortlessly — our top pick for understated, clean style on a budget.",
+          "A refined 30mm case and mesh strap that dresses up or down effortlessly — our top pick for understated, clean style on a budget.",
       },
       {
         watchId: "retro-digital",
@@ -213,11 +213,11 @@ export const dialGuides: DialGuide[] = [
     faqs: [
       {
         q: "What is the best watch under $300 overall?",
-        a: "Our top pick is the Aveline Sterling Slim. At just 6.5mm thick with an elegant dial, it is the most versatile watch we tested under $300 — equally at home at the office or a formal event.",
+        a: "Our top pick is the Dan Henry 1964 Gran Turismo. A meca-quartz chronograph with vintage motorsport style, it is the most fun and capable watch we tested under $300.",
       },
       {
         q: "Can you get a good automatic watch under $300?",
-        a: "Yes. Mechanical and automatic watches exist comfortably under $300, like the Ridgeline Heritage Field. You will not get an in-house movement, but you get reliable, serviceable mechanics and real character.",
+        a: "Yes. Mechanical and automatic watches exist comfortably under $300 from brands like Seiko, Orient, and a few microbrands. You will not get an in-house movement, but you get reliable, serviceable mechanics and real character.",
       },
       {
         q: "Is $300 enough for a sapphire crystal?",
@@ -254,19 +254,19 @@ export const dialGuides: DialGuide[] = [
         watchId: "sterling-dress",
         award: "Best Overall Dress Watch",
         reason:
-          "At just 6.5mm thick with dauphine hands and a clean dial, this is the definitive sub-$500 dress watch. It slips under any cuff and looks far more expensive than it is.",
+          "With a slim case, clean dial, and mesh bracelet, the Timex Fairfield is the definitive sub-$500 dress watch. It slips under any cuff and looks far more expensive than it is.",
       },
       {
         watchId: "aria-minimalist",
         award: "Best Minimalist Dress Watch",
         reason:
-          "A refined 34mm case with a mesh strap and a bare, elegant dial. For a modern, understated formal look — and a superb gift — nothing here beats it.",
+          "A refined 30mm case with a mesh strap and a bare, elegant dial. For a modern, understated formal look — and a superb gift — nothing here beats it.",
       },
       {
         watchId: "heritage-field",
         award: "Best Casual-Dress Crossover",
         reason:
-          "On its leather strap this field watch is dressy enough for smart-casual offices and dinners, while staying rugged enough for everyday wear. The most flexible pick of the three.",
+          "On its leather strap the Hamilton Khaki Field is dressy enough for smart-casual offices and dinners, while staying rugged enough for everyday wear. The most flexible pick of the three.",
       },
     ],
     buying: {
@@ -275,7 +275,7 @@ export const dialGuides: DialGuide[] = [
       sections: [
         {
           heading: "Thinness is everything",
-          body: "The defining trait of a dress watch is how well it hides under a shirt cuff. Aim for a case under about 9mm thick. The thinner it is, the dressier and more expensive it feels — our top pick is just 6.5mm.",
+          body: "The defining trait of a dress watch is how well it hides under a shirt cuff. Aim for a case under about 9mm thick. The thinner it is, the dressier and more expensive it feels — our top pick is around 7mm.",
         },
         {
           heading: "Keep the dial clean",
@@ -294,11 +294,11 @@ export const dialGuides: DialGuide[] = [
     faqs: [
       {
         q: "What is the best dress watch under $500?",
-        a: "Our top pick is the Aveline Sterling Slim. At 6.5mm thick with dauphine hands and a minimalist dial, it delivers the thin, elegant look of a much more expensive dress watch.",
+        a: "Our top pick is the Timex Fairfield 37mm. With a slim case, clean dial, and mesh bracelet, it delivers the thin, elegant look of a much more expensive dress watch.",
       },
       {
         q: "How thin should a dress watch be?",
-        a: "Ideally under about 9mm so it slips easily under a shirt cuff. The thinner the case, the dressier and more refined the watch looks. Our top pick measures just 6.5mm.",
+        a: "Ideally under about 9mm so it slips easily under a shirt cuff. The thinner the case, the dressier and more refined the watch looks. Our top pick measures around 7mm.",
       },
       {
         q: "Should a dress watch be quartz or automatic?",
@@ -332,16 +332,16 @@ export const dialGuides: DialGuide[] = [
       "Every watch on this list costs under $200 and has been worn for at least two weeks. We focused on reliability, comfort, and whether the watch actually feels good on the wrist — not just in photos.",
     picks: [
       {
-        watchId: "heritage-field",
+        watchId: "sterling-dress",
         award: "Best Overall",
         reason:
-          "A hand-wound mechanical field watch with excellent legibility and a leather strap that feels far more expensive than the price. It has real character without the usual budget-watch compromises.",
+          "A slim quartz dress watch with a clean dial and mesh bracelet that feels far more expensive than the price. It has real character without the usual budget-watch compromises.",
       },
       {
         watchId: "aria-minimalist",
         award: "Best Minimalist",
         reason:
-          "A refined 34mm case and mesh strap that dresses up or down effortlessly. It is our top pick for understated, clean style on a tight budget and makes a great gift.",
+          "A refined 30mm case and mesh strap that dresses up or down effortlessly. It is our top pick for understated, clean style on a tight budget and makes a great gift.",
       },
       {
         watchId: "retro-digital",
@@ -366,7 +366,7 @@ export const dialGuides: DialGuide[] = [
     faqs: [
       {
         q: "What is the best watch under $200 overall?",
-        a: "Our top pick is the Ridgeline Heritage Field 38. It offers a mechanical movement, excellent legibility, and a quality leather strap — a rare combination under $200.",
+        a: "Our top pick is the Timex Fairfield 37mm. It offers a slim case, clean dial, and a mesh bracelet — a rare combination of style and value under $200.",
       },
       {
         q: "Can you get an automatic watch under $200?",

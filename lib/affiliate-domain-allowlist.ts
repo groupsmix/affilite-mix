@@ -112,6 +112,7 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "casio.com",
   "timex.com",
   "skagen.com",
+  "danhenrywatches.com",
   "mvmt.com",
   "fossil.com",
   "danielwellington.com",
