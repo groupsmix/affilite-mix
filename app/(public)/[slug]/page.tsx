@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { getDialGuide } from "@/lib/dial-guides";
 import { getDialHomepageConfig } from "@/lib/dial-config";
-import { getCalmPost } from "@/lib/calmroutine";
+import { getCalmConfig, getCalmPost } from "@/lib/calm-config";
 import { GuideArticle } from "../components/article/guide-article";
 import { ContentTypeListing } from "./content-type-listing";
 import { CalmShell } from "../components/calmroutine/shell";
@@ -19,7 +19,8 @@ export async function generateMetadata({
   const { slug } = await params;
   const site = await getCurrentSite();
 
-  const calmPost = site.slug === "calm-routine" ? getCalmPost(slug) : undefined;
+  const calmConfig = site.slug === "calm-routine" ? await getCalmConfig(site.id) : undefined;
+  const calmPost = calmConfig ? getCalmPost(calmConfig, slug) : undefined;
   if (calmPost) {
     const url = `https://${site.domain}/${calmPost.slug}`;
     return {
@@ -97,11 +98,12 @@ export default async function PublicSlugPage({
   }
 
   if (site.slug === "calm-routine") {
-    const calmPost = getCalmPost(slug);
+    const calmConfig = await getCalmConfig(site.id);
+    const calmPost = getCalmPost(calmConfig, slug);
     if (calmPost) {
       return (
         <CalmShell site={site}>
-          <CalmPostView post={calmPost} />
+          <CalmPostView post={calmPost} config={calmConfig} />
         </CalmShell>
       );
     }

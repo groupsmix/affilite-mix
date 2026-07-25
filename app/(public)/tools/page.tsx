@@ -8,6 +8,7 @@ import type { SiteDefinition } from "@/config/site-definition";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { CalmShell } from "../components/calmroutine/shell";
 import { CalmToolsPage } from "../components/calmroutine/tools-view";
+import { getCalmConfig } from "@/lib/calm-config";
 
 export const revalidate = 60;
 
@@ -187,10 +188,11 @@ function EtsyToolsIndex({ site }: { site: SiteDefinition }) {
 export default async function ToolsIndexPage() {
   const site = await getCurrentSite();
   if (site.slug === "calm-routine") {
+    const calmConfig = await getCalmConfig(site.id);
     return (
       <CalmShell site={site}>
         <div className="mx-auto max-w-5xl px-6 py-10">
-          <CalmToolsPage />
+          <CalmToolsPage config={calmConfig} />
         </div>
       </CalmShell>
     );

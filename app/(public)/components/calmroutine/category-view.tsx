@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { calmCategories, getCalmPostsByCategory, type CalmCategorySlug } from "@/lib/calmroutine";
+import { type CalmCategorySlug } from "@/lib/calmroutine";
+import { getCalmPostsByCategory, type CalmSiteConfig } from "@/lib/calm-config";
 import { CalmPostCard } from "./post-card";
 
-export function CalmCategoryPage({ category }: { category: CalmCategorySlug }) {
-  const cat = calmCategories[category];
+export function CalmCategoryPage({
+  category,
+  config,
+}: {
+  category: CalmCategorySlug;
+  config: CalmSiteConfig;
+}) {
+  const cat = config.categories[category];
   if (!cat) notFound();
-  const categoryPosts = getCalmPostsByCategory(cat.slug);
+  const categoryPosts = getCalmPostsByCategory(config, cat.slug);
 
   return (
     <>
@@ -30,7 +37,7 @@ export function CalmCategoryPage({ category }: { category: CalmCategorySlug }) {
 
       <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {categoryPosts.map((post) => (
-          <CalmPostCard key={post.slug} post={post} />
+          <CalmPostCard key={post.slug} post={post} categoryBadge={config.categoryBadge} />
         ))}
       </div>
     </>

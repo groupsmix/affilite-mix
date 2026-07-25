@@ -5,6 +5,7 @@ import { listFeaturedProducts, countProducts } from "@/lib/dal/products";
 import { listCategoriesWithProductCount } from "@/lib/dal/categories";
 import { getTenantClient } from "@/lib/supabase-server";
 import { getDialHomepageConfig, defaultDialConfig } from "@/lib/dial-config";
+import { getCalmConfig, defaultCalmConfig } from "@/lib/calm-config";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import dynamic from "next/dynamic";
@@ -104,33 +105,44 @@ export default async function HomePage() {
   const template =
     site.homepageTemplate ?? (site.features.customHomepage ? "cinematic" : "standard");
 
-  const [recentContent, featuredProducts, categories, productCount, reviewCount, dialConfig] =
-    await Promise.all([
-      getRecentContent(site.id, 9).catch((err) => {
-        reportHomepageFanoutError("getRecentContent", site.id, err);
-        return [];
-      }),
-      listFeaturedProducts(site.id, 12).catch((err) => {
-        reportHomepageFanoutError("listFeaturedProducts", site.id, err);
-        return [];
-      }),
-      listCategoriesWithProductCount(site.id).catch((err) => {
-        reportHomepageFanoutError("listCategoriesWithProductCount", site.id, err);
-        return [];
-      }),
-      countProducts({ siteId: site.id, status: "active" }, getTenantClient).catch((err) => {
-        reportHomepageFanoutError("countProducts", site.id, err);
-        return 0;
-      }),
-      countPublishedContent(site.id, "review").catch((err) => {
-        reportHomepageFanoutError("countPublishedContent", site.id, err);
-        return 0;
-      }),
-      getDialHomepageConfig(site.id).catch((err) => {
-        reportHomepageFanoutError("getDialHomepageConfig", site.id, err);
-        return null;
-      }),
-    ]);
+  const [
+    recentContent,
+    featuredProducts,
+    categories,
+    productCount,
+    reviewCount,
+    dialConfig,
+    calmConfig,
+  ] = await Promise.all([
+    getRecentContent(site.id, 9).catch((err) => {
+      reportHomepageFanoutError("getRecentContent", site.id, err);
+      return [];
+    }),
+    listFeaturedProducts(site.id, 12).catch((err) => {
+      reportHomepageFanoutError("listFeaturedProducts", site.id, err);
+      return [];
+    }),
+    listCategoriesWithProductCount(site.id).catch((err) => {
+      reportHomepageFanoutError("listCategoriesWithProductCount", site.id, err);
+      return [];
+    }),
+    countProducts({ siteId: site.id, status: "active" }, getTenantClient).catch((err) => {
+      reportHomepageFanoutError("countProducts", site.id, err);
+      return 0;
+    }),
+    countPublishedContent(site.id, "review").catch((err) => {
+      reportHomepageFanoutError("countPublishedContent", site.id, err);
+      return 0;
+    }),
+    getDialHomepageConfig(site.id).catch((err) => {
+      reportHomepageFanoutError("getDialHomepageConfig", site.id, err);
+      return null;
+    }),
+    getCalmConfig(site.id).catch((err) => {
+      reportHomepageFanoutError("getCalmConfig", site.id, err);
+      return null;
+    }),
+  ]);
 
   // Render homepage based on template preset
   const homepageProps = {
@@ -179,7 +191,7 @@ export default async function HomePage() {
   }
 
   if (template === "calmroutine") {
-    return <CalmHomepage site={site} />;
+    return <CalmHomepage site={site} config={calmConfig ?? defaultCalmConfig} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";

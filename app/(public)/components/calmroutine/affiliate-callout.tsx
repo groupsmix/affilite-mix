@@ -2,10 +2,10 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { ProductCardCta } from "../product-card-client";
-import { calmProducts } from "@/lib/calmroutine";
+import { type CalmProduct } from "@/lib/calmroutine";
 
-function affiliateUrl(productName: string) {
-  const found = calmProducts.find((p) => p.name.toLowerCase() === productName.toLowerCase());
+function affiliateUrl(productName: string, products: CalmProduct[]) {
+  const found = products.find((p) => p.name.toLowerCase() === productName.toLowerCase());
   if (found) return found.destinationUrl;
   const query = encodeURIComponent(productName);
   return `https://www.amazon.com/s?k=${query}`;
@@ -24,10 +24,12 @@ export function CalmAffiliateCallout({
   label,
   product,
   note,
+  products,
 }: {
   label: string;
   product: string;
   note: string;
+  products: CalmProduct[];
 }) {
   return (
     <aside className="my-8 rounded-xl border border-accent-mid/30 bg-accent-tint/60 p-6">
@@ -35,7 +37,7 @@ export function CalmAffiliateCallout({
       <h4 className="mt-1 font-serif text-lg text-accent-dark">{product}</h4>
       <p className="mt-2 text-sm leading-relaxed text-text-secondary">{note}</p>
       <ProductCardCta
-        href={affiliateUrl(product)}
+        href={affiliateUrl(product, products)}
         slug={slugifyProductName(product)}
         sourceType="calmroutine"
         placement="article-callout"
