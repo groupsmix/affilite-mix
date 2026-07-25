@@ -354,18 +354,6 @@ export const calmProducts: CalmProduct[] = [
   },
 ];
 
-export function getCalmProductsByCategory(category: CalmProductCategory) {
-  return calmProducts.filter((p) => p.category === category);
-}
-
-export function getCalmPost(slug: string) {
-  return calmPosts.find((p) => p.slug === slug);
-}
-
-export function getCalmPostsByCategory(category: CalmCategorySlug) {
-  return calmPosts.filter((p) => p.category === category);
-}
-
 export function formatCalmDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
