@@ -291,6 +291,16 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/calm-config",
+    methods: ["GET", "PUT"],
+    requestSchema: "CalmSiteConfig",
+    responseSchema: "CalmSiteConfig",
+    sensitiveFields: [],
+    notes:
+      "Reads/writes raw JSON for the calmroutine site config (pages.slug = 'calm-site-config', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/content",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "ContentInput",
