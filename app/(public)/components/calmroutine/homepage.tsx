@@ -1,20 +1,20 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { SiteDefinition } from "@/config/site-definition";
-import { calmPosts, calmProducts } from "@/lib/calmroutine";
+import { type CalmSiteConfig } from "@/lib/calm-config";
 import { CalmShell } from "./shell";
 import { BreathingHero } from "./breathing-hero";
 import { CalmPostCard } from "./post-card";
 import { CalmProductCard } from "./product-card";
 import { CalmNewsletterStrip } from "./newsletter-strip";
 
-export function CalmHomepage({ site }: { site: SiteDefinition }) {
-  const latest = calmPosts.slice(0, 3);
-  const featuredTools = calmProducts.slice(0, 3);
+export function CalmHomepage({ site, config }: { site: SiteDefinition; config: CalmSiteConfig }) {
+  const latest = config.posts.slice(0, 3);
+  const featuredTools = config.products.slice(0, 3);
 
   return (
     <CalmShell site={site}>
-      <BreathingHero />
+      <BreathingHero author={config.author} />
 
       {/* Pillar-page callout */}
       <div className="mx-auto max-w-5xl px-6">
@@ -52,7 +52,7 @@ export function CalmHomepage({ site }: { site: SiteDefinition }) {
         </div>
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {latest.map((post) => (
-            <CalmPostCard key={post.slug} post={post} />
+            <CalmPostCard key={post.slug} post={post} categoryBadge={config.categoryBadge} />
           ))}
         </div>
       </section>

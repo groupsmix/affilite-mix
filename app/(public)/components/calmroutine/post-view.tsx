@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { calmAuthor, calmCategories, formatCalmDate, type CalmPost } from "@/lib/calmroutine";
+import { formatCalmDate, type CalmPost } from "@/lib/calmroutine";
+import { type CalmSiteConfig } from "@/lib/calm-config";
 import { CalmCategoryBadge } from "./category-badge";
 import { CalmAffiliateCallout } from "./affiliate-callout";
 import { CalmAuthorBio } from "./author-bio";
@@ -13,8 +14,8 @@ function slugifyHeading(heading: string) {
     .replace(/^-|-$/g, "");
 }
 
-export function CalmPostView({ post }: { post: CalmPost }) {
-  const category = calmCategories[post.category];
+export function CalmPostView({ post, config }: { post: CalmPost; config: CalmSiteConfig }) {
+  const category = config.categories[post.category];
   const showToc = post.body.length > 2;
 
   return (
@@ -36,20 +37,21 @@ export function CalmPostView({ post }: { post: CalmPost }) {
       </nav>
 
       <header>
-        <CalmCategoryBadge category={post.category} />
+        <CalmCategoryBadge category={post.category} badge={config.categoryBadge[post.category]} />
         <h1 className="mt-4 font-serif text-3xl leading-tight text-text-primary text-balance sm:text-4xl">
           {post.title}
         </h1>
         <div className="mt-5 flex items-center gap-3 text-sm text-text-secondary">
           <Image
-            src={calmAuthor.avatarUrl || "/placeholder.svg"}
+            src={config.author.avatarUrl || "/placeholder.svg"}
             alt=""
             width={36}
             height={36}
             className="h-9 w-9 rounded-full object-cover"
           />
           <span>
-            {calmAuthor.name} · {formatCalmDate(post.publishedAt)} · {post.readTimeMinutes} min read
+            {config.author.name} · {formatCalmDate(post.publishedAt)} · {post.readTimeMinutes} min
+            read
           </span>
         </div>
       </header>
@@ -103,12 +105,14 @@ export function CalmPostView({ post }: { post: CalmPost }) {
                 {p}
               </p>
             ))}
-            {section.affiliate && <CalmAffiliateCallout {...section.affiliate} />}
+            {section.affiliate && (
+              <CalmAffiliateCallout {...section.affiliate} products={config.products} />
+            )}
           </section>
         ))}
       </article>
 
-      <CalmAuthorBio />
+      <CalmAuthorBio author={config.author} />
 
       <p className="mt-8 rounded-lg bg-accent-tint/60 px-5 py-4 text-xs leading-relaxed text-text-secondary">
         This article is educational and offers tools that many people find helpful. It is not

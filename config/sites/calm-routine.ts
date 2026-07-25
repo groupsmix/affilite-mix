@@ -21,6 +21,8 @@ export const calmRoutineSite = defineSite({
   fonts: { heading: "Fraunces", body: "Public Sans" },
   homepage: "calmroutine",
   layout: "minimal",
+  logo: "/images/calmroutine/og.png",
+  faviconUrl: "/favicon-calmroutine.svg",
 
   productLabel: "Tool",
   productLabelPlural: "Tools",

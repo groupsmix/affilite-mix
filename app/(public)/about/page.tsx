@@ -10,6 +10,7 @@ import {
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { CalmShell } from "../components/calmroutine/shell";
 import { CalmAboutPage } from "../components/calmroutine/about-view";
+import { getCalmConfig } from "@/lib/calm-config";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -39,10 +40,11 @@ export default async function AboutPage() {
   const isArabic = site.language === "ar";
 
   if (site.slug === "calm-routine") {
+    const calmConfig = await getCalmConfig(site.id);
     return (
       <CalmShell site={site}>
         <div className="mx-auto max-w-3xl px-6 py-10">
-          <CalmAboutPage />
+          <CalmAboutPage author={calmConfig.author} />
         </div>
       </CalmShell>
     );

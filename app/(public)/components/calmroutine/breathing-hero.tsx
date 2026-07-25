@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, ShieldCheck } from "lucide-react";
-import { calmAuthor } from "@/lib/calmroutine";
+import { type CalmAuthor } from "@/lib/calmroutine";
 import Image from "next/image";
 
-export function BreathingHero() {
+export function BreathingHero({ author }: { author: CalmAuthor }) {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -83,13 +83,13 @@ export function BreathingHero() {
         <div className="mt-10 flex flex-col items-center gap-3 text-sm text-text-secondary sm:flex-row sm:gap-6">
           <span className="inline-flex items-center gap-2">
             <Image
-              src={calmAuthor.avatarUrl || "/placeholder.svg"}
+              src={author.avatarUrl || "/placeholder.svg"}
               alt=""
               width={28}
               height={28}
               className="h-7 w-7 rounded-full object-cover"
             />
-            Written by {calmAuthor.name}
+            Written by {author.name}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Check className="h-4 w-4 text-accent-mid" />

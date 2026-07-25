@@ -12,7 +12,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { CalmShell } from "../../components/calmroutine/shell";
 import { CalmCategoryPage as CalmCategoryView } from "../../components/calmroutine/category-view";
-import { calmCategories, type CalmCategorySlug } from "@/lib/calmroutine";
+import { type CalmCategorySlug } from "@/lib/calmroutine";
+import { getCalmConfig } from "@/lib/calm-config";
 
 /** Revalidate category pages every 60 seconds (ISR) */
 export const revalidate = 60;
@@ -29,7 +30,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const site = await getCurrentSite();
 
   if (site.slug === "calm-routine") {
-    const cat = calmCategories[slug as CalmCategorySlug];
+    const calmConfig = await getCalmConfig(site.id);
+    const cat = calmConfig.categories[slug as CalmCategorySlug];
     if (!cat) {
       return { title: "Not Found" };
     }
@@ -89,13 +91,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const site = await getCurrentSite();
 
   if (site.slug === "calm-routine") {
-    if (!calmCategories[slug as CalmCategorySlug]) {
+    const calmConfig = await getCalmConfig(site.id);
+    if (!calmConfig.categories[slug as CalmCategorySlug]) {
       notFound();
     }
     return (
       <CalmShell site={site}>
         <div className="mx-auto max-w-5xl px-6 py-10">
-          <CalmCategoryView category={slug as CalmCategorySlug} />
+          <CalmCategoryView category={slug as CalmCategorySlug} config={calmConfig} />
         </div>
       </CalmShell>
     );

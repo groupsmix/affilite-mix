@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { calmProductGroups, getCalmProductsByCategory } from "@/lib/calmroutine";
+import { getCalmProductsByCategory, type CalmSiteConfig } from "@/lib/calm-config";
 import { CalmProductCard } from "./product-card";
 
-export function CalmToolsPage() {
+export function CalmToolsPage({ config }: { config: CalmSiteConfig }) {
   return (
     <>
       <header className="max-w-2xl">
@@ -18,8 +18,8 @@ export function CalmToolsPage() {
       </header>
 
       <div className="mt-14 flex flex-col gap-16">
-        {calmProductGroups.map((group) => {
-          const items = getCalmProductsByCategory(group.category);
+        {config.productGroups.map((group) => {
+          const items = getCalmProductsByCategory(config, group.category);
           return (
             <section key={group.category} aria-labelledby={`group-${group.category}`}>
               <div className="max-w-xl">

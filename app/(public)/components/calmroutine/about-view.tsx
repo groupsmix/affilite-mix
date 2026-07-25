@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, FlaskConical, ShieldCheck } from "lucide-react";
-import { calmAuthor } from "@/lib/calmroutine";
+import { type CalmAuthor } from "@/lib/calmroutine";
 
 const badges = [
   {
@@ -21,25 +21,25 @@ const badges = [
   },
 ];
 
-export function CalmAboutPage() {
+export function CalmAboutPage({ author }: { author: CalmAuthor }) {
   return (
     <>
       <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
         <Image
-          src={calmAuthor.avatarUrl || "/placeholder.svg"}
-          alt={`Portrait of ${calmAuthor.name}`}
+          src={author.avatarUrl || "/placeholder.svg"}
+          alt={`Portrait of ${author.name}`}
           width={120}
           height={120}
           className="h-[120px] w-[120px] rounded-full object-cover"
         />
         <div>
-          <h1 className="font-serif text-4xl text-text-primary">{calmAuthor.name}</h1>
-          <p className="mt-2 text-sm text-text-secondary">{calmAuthor.credentialLine}</p>
+          <h1 className="font-serif text-4xl text-text-primary">{author.name}</h1>
+          <p className="mt-2 text-sm text-text-secondary">{author.credentialLine}</p>
         </div>
       </div>
 
       <p className="mt-8 font-serif text-xl leading-relaxed text-text-secondary text-pretty">
-        {calmAuthor.bio}
+        {author.bio}
       </p>
 
       <div className="mt-8 space-y-4 text-base leading-[1.7] text-text-primary/90">
