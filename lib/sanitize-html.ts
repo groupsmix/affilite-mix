@@ -52,6 +52,12 @@ const ALLOWED_TAGS = new Set([
 const ALLOWED_ATTRS: Record<string, Set<string>> = {
   a: new Set(["href", "title", "target", "rel"]),
   img: new Set(["src", "alt", "title", "width", "height", "loading"]),
+  h1: new Set(["id"]),
+  h2: new Set(["id"]),
+  h3: new Set(["id"]),
+  h4: new Set(["id"]),
+  h5: new Set(["id"]),
+  h6: new Set(["id"]),
   td: new Set(["colspan", "rowspan"]),
   th: new Set(["colspan", "rowspan", "scope"]),
   ol: new Set(["start", "type"]),
