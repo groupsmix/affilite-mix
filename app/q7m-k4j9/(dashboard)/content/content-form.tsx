@@ -20,6 +20,8 @@ import { autoSlug } from "@/lib/auto-slug";
 
 import { sanitizeHtml } from "@/lib/sanitize-html";
 
+import { validateNoAiLanguage } from "@/lib/human-content";
+
 import { toast } from "sonner";
 
 import { useCallback } from "react";
@@ -231,6 +233,15 @@ export function ContentForm({
 
       og_image: ogImage || null,
     };
+
+    const aiErrors = validateNoAiLanguage(payload);
+    if (aiErrors.length) {
+      const msg = aiErrors.join(" ");
+      setError(msg);
+      toast.error(msg);
+      setSaving(false);
+      return;
+    }
 
     // M1/H4: wrap in try/catch/finally so a network error can never leave the
     // form permanently disabled, and check the product-link PUT result instead

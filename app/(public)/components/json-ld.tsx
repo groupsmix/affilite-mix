@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { NONCE_HEADER } from "@/lib/csp";
 import { safeJsonLdString } from "@/lib/safe-json-ld";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
+import { humanizeAuthorName } from "@/lib/human-content";
 
 interface JsonLdProps {
   data: Record<string, unknown>;
@@ -105,7 +106,7 @@ export function personJsonLd(site: SiteDefinition, author: AuthorRow): Record<st
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Person",
-    name: author.name,
+    name: humanizeAuthorName(author.name, site.name),
     url: `https://${site.domain}/author/${author.slug}`,
     description: author.bio || undefined,
     jobTitle: author.credentials || undefined,
@@ -139,7 +140,7 @@ export function articleJsonLd(
     author: author
       ? personJsonLd(site, author)
       : content.author
-        ? { "@type": "Person", name: content.author }
+        ? { "@type": "Person", name: humanizeAuthorName(content.author, site.name) }
         : { "@type": "Organization", name: site.name },
     publisher: {
       "@type": "Organization",
@@ -177,7 +178,7 @@ export function reviewJsonLd(
     author: author
       ? personJsonLd(site, author)
       : content.author
-        ? { "@type": "Person", name: content.author }
+        ? { "@type": "Person", name: humanizeAuthorName(content.author, site.name) }
         : { "@type": "Organization", name: site.name },
     publisher: {
       "@type": "Organization",

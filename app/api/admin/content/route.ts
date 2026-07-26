@@ -22,6 +22,7 @@ import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { isUsableUuid } from "@/lib/security/uuid";
 import { canonicalizeVsSlug } from "@/lib/vs-slug";
 import { getTenantClientForSite } from "@/lib/supabase-server";
+import { validateNoAiLanguage } from "@/lib/human-content";
 
 export const GET = withAuthz(
   "content",
@@ -103,6 +104,14 @@ export const POST = withAuthz(
 
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
+    const aiErrors = validateNoAiLanguage(rawOrError as Record<string, unknown>);
+    if (aiErrors.length) {
+      return NextResponse.json(
+        { error: "AI wording not allowed", details: aiErrors },
+        { status: 400 },
+      );
+    }
+
     const parsed = validateCreateContent(rawOrError);
     if (parsed.errors) {
       return NextResponse.json(
@@ -186,6 +195,14 @@ export const PATCH = withAuthz(
 
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
+    const aiErrors = validateNoAiLanguage(rawOrError as Record<string, unknown>);
+    if (aiErrors.length) {
+      return NextResponse.json(
+        { error: "AI wording not allowed", details: aiErrors },
+        { status: 400 },
+      );
+    }
+
     const parsed = validateUpdateContent(rawOrError);
     if (parsed.errors) {
       return NextResponse.json(

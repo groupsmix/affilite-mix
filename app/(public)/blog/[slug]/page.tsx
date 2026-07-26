@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { getContentBySlug, getRelatedContent } from "@/lib/dal/content";
+import { getAuthorById } from "@/lib/dal/authors";
 import { BlogArticle } from "../../components/blog-article";
 
 export const revalidate = 60;
@@ -57,7 +58,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound();
   }
 
-  const relatedContent = await getRelatedContent(site.id, content.category_id, content.id, 3);
+  const [relatedContent, author] = await Promise.all([
+    getRelatedContent(site.id, content.category_id, content.id, 3),
+    content.author_id ? getAuthorById(site.id, content.author_id) : Promise.resolve(null),
+  ]);
 
-  return <BlogArticle content={content} site={site} relatedContent={relatedContent} />;
+  return (
+    <BlogArticle content={content} site={site} author={author} relatedContent={relatedContent} />
+  );
 }
