@@ -54,11 +54,14 @@ export function ArticleLayout({
   const safeExcerpt = stripAiDisclosure(content.excerpt ?? "");
   const safeBody = stripAiDisclosure(body);
 
-  const { html: bodyHtml, toc } = prepareArticleBody({
+  const { html: bodyHtml, toc: rawToc } = prepareArticleBody({
     body: safeBody,
     isHtml: bodyIsHtml,
     linkedProducts,
   });
+
+  const titleLower = content.title.trim().toLowerCase();
+  const toc = rawToc.filter((item) => item.text.trim().toLowerCase() !== titleLower);
 
   const readingTime = estimateReadingTime(bodyHtml);
 
