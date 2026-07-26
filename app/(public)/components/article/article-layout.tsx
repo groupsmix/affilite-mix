@@ -137,12 +137,12 @@ export function ArticleLayout({
               </span>
             )}
 
-            <h1 className="text-pretty text-3xl font-bold leading-tight text-foreground md:text-4xl lg:text-5xl">
+            <h1 className="text-balance text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground md:text-5xl lg:text-6xl">
               {content.title}
             </h1>
 
             {safeExcerpt && (
-              <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
+              <p className="mt-5 text-balance text-lg leading-relaxed text-muted-foreground md:text-xl md:leading-relaxed">
                 {safeExcerpt}
               </p>
             )}
@@ -259,11 +259,17 @@ export function ArticleLayout({
           <div
             dir={site.direction}
             className={cn(
-              "prose prose-lg max-w-none",
-              "prose-headings:font-semibold prose-headings:tracking-tight",
-              "prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-2xl",
-              "prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-xl",
-              "prose-p:leading-[1.75] prose-a:font-medium prose-a:text-primary hover:prose-a:underline",
+              "prose prose-lg prose-neutral max-w-none dark:prose-invert",
+              "mx-auto lg:max-w-3xl",
+              "prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-foreground",
+              "prose-h2:mt-14 prose-h2:mb-5 prose-h2:text-3xl prose-h2:leading-tight md:prose-h2:text-4xl",
+              "prose-h3:mt-10 prose-h3:mb-4 prose-h3:text-2xl prose-h3:leading-tight md:prose-h3:text-3xl",
+              "prose-p:leading-[1.8] prose-p:text-foreground/95",
+              "prose-a:font-medium prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
+              "prose-strong:font-semibold prose-strong:text-foreground",
+              "prose-ul:my-6 prose-ol:my-6 prose-li:my-2 prose-li:text-foreground/95",
+              "prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-5 prose-blockquote:italic prose-blockquote:text-foreground/80",
+              "prose-table:w-full prose-table:border-collapse prose-table:text-left prose-th:border prose-th:border-border prose-th:bg-muted prose-th:p-3 prose-th:font-semibold prose-td:border prose-td:border-border prose-td:p-3",
               "prose-img:rounded-lg prose-pre:overflow-x-auto",
               site.direction === "rtl" && "text-right",
             )}

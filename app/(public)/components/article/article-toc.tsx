@@ -46,27 +46,27 @@ export function ArticleToc({ items, title = "Contents", className }: ArticleTocP
   return (
     <nav
       aria-label="Table of contents"
-      className={cn("rounded-xl border border-border bg-card/60 p-5", className)}
+      className={cn("rounded-xl border border-border bg-card/70 p-5", className)}
     >
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
         {title}
       </p>
-      <ol className="mt-3 space-y-2 text-sm">
+      <ol className="space-y-2 text-sm">
         {items.map((item) => (
           <li
             key={item.id}
             className={cn(
-              "leading-snug",
-              item.level === 3 && "pl-3",
-              item.level && item.level >= 4 && "pl-6",
+              "border-l-2 pl-3 leading-snug transition-colors",
+              item.level === 3 && "pl-5",
+              item.level && item.level >= 4 && "pl-7",
+              activeId === item.id
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             <a
               href={`#${item.id}`}
-              className={cn(
-                "block transition-colors hover:text-primary",
-                activeId === item.id ? "font-medium text-primary" : "text-muted-foreground",
-              )}
+              className={cn("block transition-colors", activeId === item.id ? "font-medium" : "")}
               onClick={(e) => {
                 e.preventDefault();
                 const el = document.getElementById(item.id);
