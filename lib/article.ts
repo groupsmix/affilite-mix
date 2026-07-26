@@ -54,13 +54,47 @@ export function extractToc(html: string): TocItem[] {
   return toc;
 }
 
+function normalizeHeadingText(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "");
+}
+
+function removeLeadingTitleHeading(html: string, title: string): string {
+  if (!title) return html;
+  const trimmed = html.trim();
+  const match = trimmed.match(/^<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/i);
+  if (!match) return html;
+  const headingText = match[2] ?? "";
+  const headingPlain = normalizeHeadingText(headingText);
+  const titlePlain = normalizeHeadingText(title);
+  if (!headingPlain || !titlePlain) return html;
+  if (
+    headingPlain === titlePlain ||
+    headingPlain.includes(titlePlain) ||
+    titlePlain.includes(headingPlain)
+  ) {
+    return trimmed.slice(match[0].length).trimStart();
+  }
+  return html;
+}
+
 export interface PrepareBodyInput {
   body: string;
   isHtml?: boolean;
   linkedProducts?: ProductRow[];
+  title?: string;
 }
 
-export function prepareArticleBody({ body, isHtml = false, linkedProducts }: PrepareBodyInput): {
+export function prepareArticleBody({
+  body,
+  isHtml = false,
+  linkedProducts,
+  title,
+}: PrepareBodyInput): {
   html: string;
   toc: TocItem[];
 } {
@@ -73,6 +107,7 @@ export function prepareArticleBody({ body, isHtml = false, linkedProducts }: Pre
   }
 
   html = injectHeadingIds(html);
+  html = removeLeadingTitleHeading(html, title ?? "");
   const toc = extractToc(html);
   return { html, toc };
 }
