@@ -55,6 +55,72 @@ function lineIsSpecial(line: string): boolean {
   );
 }
 
+const SENTENCE_STARTERS = new Set([
+  "The",
+  "This",
+  "That",
+  "These",
+  "Those",
+  "If",
+  "When",
+  "Where",
+  "While",
+  "Because",
+  "Although",
+  "You",
+  "We",
+  "They",
+  "It",
+  "A",
+  "An",
+  "All",
+  "Every",
+  "Some",
+  "Most",
+  "Many",
+  "There",
+  "Here",
+  "Keep",
+  "Remember",
+  "One",
+  "Two",
+  "Three",
+  "First",
+  "Second",
+  "Third",
+  "Both",
+  "Such",
+]);
+
+/**
+ * Some AI-generated bodies dump a heading and its following paragraph on the
+ * same line (e.g. "## How the ATO Classifies NFTs The ATO treats...").
+ * When the heading text is unusually long, try to split it at the first place
+ * a new sentence starts.
+ */
+function splitHeadingAndBody(text: string): { heading: string; body?: string } {
+  if (text.length <= 80) return { heading: text };
+
+  const words = text.split(/\s+/);
+  for (let i = Math.min(1, words.length - 2); i < words.length - 1; i++) {
+    const prev = words[i];
+    const next = words[i + 1];
+    if (
+      prev &&
+      next &&
+      SENTENCE_STARTERS.has(next) &&
+      /^[A-Z][a-zA-Z0-9]*/.test(prev) &&
+      !/^[0-9]+$/.test(prev)
+    ) {
+      return {
+        heading: words.slice(0, i + 1).join(" "),
+        body: words.slice(i + 1).join(" "),
+      };
+    }
+  }
+  return { heading: text };
+}
+
 function normalizeMarkdown(markdown: string): string {
   let text = markdown.replace(/\r\n?/g, "\n");
   const lines = text.split("\n");
@@ -65,7 +131,9 @@ function normalizeMarkdown(markdown: string): string {
       .replace(/(^|\s)(#{1,6}\s)/g, "$1\n$2")
       .replace(/(^|\s)(---|___|\*\*\*)\s/g, "$1\n$2\n")
       .replace(/(^|\s)(\d+\.\s)/g, "$1\n$2")
-      .replace(/(^|\s)([-*]\s)/g, "$1\n$2");
+      // Split collapsed unordered list items that start with bold markers,
+      // without breaking "**text** - explanation" sub-clauses.
+      .replace(/(?<!\*)\s-\s(?=\*\*)/g, "\n- ");
   }
   return text;
 }
@@ -132,7 +200,12 @@ export function markdownToHtml(markdown: string): string {
       flushList();
       const level = heading[1]!.length;
       const tag = `h${level}`;
-      blocks.push(`<${tag}>${inlineHtml(escapeHtml(heading[2]!.trim()))}</${tag}>`);
+      const headingText = heading[2]!.trim();
+      const split = splitHeadingAndBody(headingText);
+      blocks.push(`<${tag}>${inlineHtml(escapeHtml(split.heading))}</${tag}>`);
+      if (split.body) {
+        currentParagraph.push(split.body);
+      }
       continue;
     }
 
