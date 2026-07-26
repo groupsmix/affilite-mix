@@ -1,4 +1,5 @@
 import { sanitizeHtmlMemoized } from "@/lib/sanitize-html";
+import { looksLikeMarkdown, markdownToHtml } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 
 interface HtmlRendererProps {
@@ -34,9 +35,11 @@ export function HtmlRenderer({ html, direction = "ltr", className, invert }: Htm
         className,
       )}
       style={{ "--tw-prose-links": "var(--color-accent, #10B981)" } as React.CSSProperties}
-      // audit-etap1 #6: sanitizer call inlined at the JSX site so the ESLint
-      // rule statically verifies every `dangerouslySetInnerHTML` is wrapped.
-      dangerouslySetInnerHTML={{ __html: sanitizeHtmlMemoized(html) }}
+      // Convert Markdown bodies (common for AI-generated drafts) to HTML before
+      // sanitising; existing HTML content is left untouched.
+      dangerouslySetInnerHTML={{
+        __html: sanitizeHtmlMemoized(looksLikeMarkdown(html) ? markdownToHtml(html) : html),
+      }}
     />
   );
 }

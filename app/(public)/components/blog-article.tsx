@@ -1,8 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import type { ContentRow } from "@/types/database";
+import type { AuthorRow, ContentRow } from "@/types/database";
 import type { SiteDefinition } from "@/config/site-definition";
-import { author } from "@/lib/dial-guides";
+import { humanizeAuthorName, stripAiDisclosure } from "@/lib/human-content";
 import { HtmlRenderer } from "./html-renderer";
 import { DisclosureBanner } from "./article/disclosure-banner";
 import { ContentCardGrid } from "./content-card-grid";
@@ -11,10 +11,11 @@ import { JsonLd, articleJsonLd, breadcrumbJsonLd } from "./json-ld";
 interface BlogArticleProps {
   content: ContentRow;
   site: SiteDefinition;
+  author?: AuthorRow | null;
   relatedContent?: ContentRow[];
 }
 
-export function BlogArticle({ content, site, relatedContent }: BlogArticleProps) {
+export function BlogArticle({ content, site, author, relatedContent }: BlogArticleProps) {
   // site.locale uses OpenGraph-style underscores (e.g. en_US); Intl expects BCP 47 hyphens.
   const dateLocale = (site.locale ?? "en-US").replace(/_/g, "-");
   const updated = new Date(content.updated_at ?? content.created_at).toLocaleDateString(
@@ -24,26 +25,25 @@ export function BlogArticle({ content, site, relatedContent }: BlogArticleProps)
   const published = new Date(content.publish_at ?? content.created_at).toISOString();
   const modified = new Date(content.updated_at ?? content.created_at).toISOString();
 
+  const displayAuthorName = humanizeAuthorName(author?.name ?? content.author, site.name);
+  const displayAuthor = author ? { ...author, name: displayAuthorName } : null;
+  const safeExcerpt = stripAiDisclosure(content.excerpt ?? "");
+  const safeBody = stripAiDisclosure(content.body ?? "");
+  const initials = displayAuthorName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const role = author?.credentials ?? `${site.name} editorial team`;
+
   const breadcrumbs = breadcrumbJsonLd(site, [
     { name: site.name, path: "/" },
     { name: "Blog", path: "/blog" },
     { name: content.title, path: `/blog/${content.slug}` },
   ]);
 
-  const jsonLd = articleJsonLd(site, content, {
-    name: author.name,
-    photo_url: "",
-    credentials: author.role,
-    bio: author.bio,
-    slug: "daniel-osei",
-    id: "",
-    site_id: site.id,
-    is_active: true,
-    expertise: [],
-    social_links: {},
-    created_at: published,
-    updated_at: modified,
-  });
+  const jsonLd = articleJsonLd(site, content, displayAuthor);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -74,9 +74,9 @@ export function BlogArticle({ content, site, relatedContent }: BlogArticleProps)
           <h1 className="mt-3 font-serif text-pretty text-4xl font-semibold leading-tight md:text-5xl">
             {content.title}
           </h1>
-          {content.excerpt && (
+          {safeExcerpt && (
             <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-              {content.excerpt}
+              {safeExcerpt}
             </p>
           )}
 
@@ -86,11 +86,11 @@ export function BlogArticle({ content, site, relatedContent }: BlogArticleProps)
                 className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/50 bg-secondary font-serif text-sm font-semibold text-primary"
                 aria-hidden="true"
               >
-                {author.initials}
+                {initials}
               </span>
               <div className="text-sm leading-tight">
-                <p className="font-medium">By {author.name}</p>
-                <p className="text-muted-foreground">{author.role}</p>
+                <p className="font-medium">By {displayAuthorName}</p>
+                <p className="text-muted-foreground">{role}</p>
               </div>
             </div>
             <span className="hidden h-8 w-px bg-border sm:block" aria-hidden="true" />
@@ -116,7 +116,7 @@ export function BlogArticle({ content, site, relatedContent }: BlogArticleProps)
         )}
 
         <div className="mt-10">
-          <HtmlRenderer html={content.body} invert />
+          <HtmlRenderer html={safeBody} invert />
         </div>
 
         {relatedContent && relatedContent.length > 0 && (

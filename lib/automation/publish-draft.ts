@@ -12,6 +12,8 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { injectAffiliateShortcodeLinks } from "@/lib/affiliate/link-injection";
 import { deriveMetaDescription, deriveMetaTitle } from "@/lib/seo/auto-meta";
+import { humanizeAuthorName, stripAiDisclosure } from "@/lib/human-content";
+import { getSiteById } from "@/config/sites";
 import type { AIDraftRow } from "@/lib/dal/ai-drafts";
 import type { ContentRow } from "@/types/database";
 
@@ -87,19 +89,27 @@ export async function publishDraft(
     throw err;
   }
 
-  const title = overrides.title ?? draft.title;
-  const excerpt = overrides.excerpt ?? draft.excerpt;
-  let body = overrides.body ? sanitizeHtml(overrides.body) : sanitizeHtml(draft.body);
-  const metaTitle = deriveMetaTitle({
-    title,
-    metaTitle: overrides.meta_title ?? draft.meta_title,
-  });
-  const metaDescription = deriveMetaDescription({
-    metaDescription: overrides.meta_description ?? draft.meta_description,
-    excerpt,
-    body,
-  });
+  const site = getSiteById(siteId);
+  const title = stripAiDisclosure(overrides.title ?? draft.title);
+  const excerpt = stripAiDisclosure(overrides.excerpt ?? draft.excerpt);
+  let body = stripAiDisclosure(
+    overrides.body ? sanitizeHtml(overrides.body) : sanitizeHtml(draft.body),
+  );
+  const metaTitle = stripAiDisclosure(
+    deriveMetaTitle({
+      title,
+      metaTitle: overrides.meta_title ?? draft.meta_title,
+    }),
+  );
+  const metaDescription = stripAiDisclosure(
+    deriveMetaDescription({
+      metaDescription: overrides.meta_description ?? draft.meta_description,
+      excerpt,
+      body,
+    }) ?? "",
+  );
   const slug = await resolveUniqueSlug(siteId, overrides.slug ?? draft.slug, getAutomationDbClient);
+  const authorName = humanizeAuthorName("AI", site?.name ?? "");
 
   // Auto-wire affiliate shortcode links: match product names in the body and
   // insert `/r/<slug>?ref=<contentSlug>` links with the site's network tracking
@@ -133,7 +143,7 @@ export async function publishDraft(
         type: contentType,
         status: "published",
         tags: draft.keywords,
-        author: "AI",
+        author: authorName,
         publish_at: now,
         meta_title: metaTitle,
         meta_description: metaDescription,
@@ -156,7 +166,7 @@ export async function publishDraft(
         status: "published",
         category_id: null,
         tags: draft.keywords,
-        author: "AI",
+        author: authorName,
         publish_at: now,
         meta_title: metaTitle,
         meta_description: metaDescription,

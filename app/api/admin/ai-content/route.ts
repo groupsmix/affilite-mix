@@ -13,6 +13,7 @@ import { hasPermission } from "@/lib/dal/permissions";
 import type { AIContentType } from "@/lib/ai/content-generator";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { getTenantClientForSite } from "@/lib/supabase-server";
+import { stripAiDisclosure, humanizeAuthorName } from "@/lib/human-content";
 
 const VALID_CONTENT_TYPES = new Set(["article", "review", "comparison", "guide"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected", "published"]);
@@ -250,22 +251,25 @@ export const PATCH = withAuthz(
             );
           }
 
+          const site = getSiteById(siteId);
+          const authorName = humanizeAuthorName("AI", site?.name ?? "");
+
           await createContent(
             {
               site_id: siteId,
-              title: draft.title,
+              title: stripAiDisclosure(draft.title),
               slug: draft.slug,
-              body: sanitizeHtml(draft.body),
-              excerpt: draft.excerpt,
+              body: sanitizeHtml(stripAiDisclosure(draft.body)),
+              excerpt: stripAiDisclosure(draft.excerpt),
               featured_image: "",
               type: draft.content_type as "article" | "review" | "comparison" | "guide" | "blog",
               status: "published",
               category_id: null,
               tags: draft.keywords ?? [],
-              author: "AI",
+              author: authorName,
               publish_at: null,
-              meta_title: draft.meta_title,
-              meta_description: draft.meta_description,
+              meta_title: stripAiDisclosure(draft.meta_title ?? draft.title),
+              meta_description: stripAiDisclosure(draft.meta_description ?? draft.excerpt),
               og_image: null,
               body_previous: null,
               review_state: "published",

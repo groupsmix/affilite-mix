@@ -7,6 +7,9 @@ import { injectProductLinks, buildRelatedLinks } from "@/lib/internal-links";
 import { autoSlug } from "@/lib/auto-slug";
 import { getAdminSession } from "@/lib/auth";
 import { validatePreviewToken } from "@/lib/preview-token";
+import { humanizeAuthorName, stripAiDisclosure } from "@/lib/human-content";
+import { looksLikeMarkdown, markdownToHtml } from "@/lib/markdown";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import Image from "next/image";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
@@ -89,18 +92,15 @@ export async function generateMetadata({
   const url = `https://${site.domain}/${content.type}/${content.slug}`;
 
   const metaTitle = content.meta_title || content.title;
-  const metaDesc = content.meta_description || content.excerpt || "";
+  const metaDesc = stripAiDisclosure(content.meta_description || content.excerpt || "");
   const ogImageUrl = content.og_image || content.featured_image || undefined;
   const ogImages = ogImageUrl ? [{ url: ogImageUrl, width: 1200, height: 630 }] : undefined;
 
-  // S5-05 / A109: Emit AI-generated provenance <meta> tag from the page
-  // template (outside sanitized body HTML) so it cannot be stripped.
-  const otherMeta = content.ai_generated ? { "ai-generated": "true" } : undefined;
+  const displayAuthor = humanizeAuthorName(content.author, site.name);
 
   return {
     title: metaTitle,
     description: metaDesc,
-    ...(otherMeta && { other: otherMeta }),
     alternates: {
       canonical: url,
     },
@@ -113,7 +113,7 @@ export async function generateMetadata({
       type: "article",
       publishedTime: content.created_at,
       modifiedTime: content.updated_at || undefined,
-      authors: content.author ? [content.author] : undefined,
+      authors: displayAuthor ? [displayAuthor] : undefined,
       images: ogImages,
     },
     twitter: {
@@ -187,6 +187,17 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
     content.author_id ? getAuthorById(site.id, content.author_id) : Promise.resolve(null),
   ]);
 
+  const displayAuthorName = humanizeAuthorName(author?.name ?? content.author, site.name);
+  const displayAuthor = author ? { ...author, name: displayAuthorName } : null;
+  const safeExcerpt = stripAiDisclosure(content.excerpt ?? "");
+  const displayBody = stripAiDisclosure(content.body ?? "");
+  const bodyHtmlBase = looksLikeMarkdown(displayBody) ? markdownToHtml(displayBody) : displayBody;
+  const bodyHtmlSafe = sanitizeHtml(bodyHtmlBase);
+  const bodyHtmlWithLinks = injectProductLinks(
+    bodyHtmlSafe,
+    linkedProducts.map((lp) => lp.product),
+  );
+
   // CA-306: automated contextual internal links. Find published content that
   // references the same tools (reviews of the compared tools, comparisons that
   // feature this tool) via content_products, then build the related-links
@@ -251,11 +262,11 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   )[0];
 
   const contentSchema = isReview
-    ? reviewJsonLd(site, content, heroProduct, author)
-    : articleJsonLd(site, content, author);
+    ? reviewJsonLd(site, content, heroProduct, displayAuthor)
+    : articleJsonLd(site, content, displayAuthor);
 
   // Build FAQ JSON-LD if content has FAQ-like structure
-  const faqSchema = faqJsonLd(content.body);
+  const faqSchema = faqJsonLd(bodyHtmlWithLinks);
 
   // Build ItemList JSON-LD for comparison/listicle content so "best X"
   // pages can appear as ranked lists in SERPs.
@@ -318,7 +329,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         <header className="mb-8">
           <div className="mb-2 text-sm text-gray-500">{contentTypeLabel}</div>
           <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">{content.title}</h1>
-          {content.excerpt && <p className="text-lg text-gray-600">{content.excerpt}</p>}
+          {safeExcerpt && <p className="text-lg text-gray-600">{safeExcerpt}</p>}
 
           {/* Author byline + methodology / disclosure */}
           {(content.author || author) && (
@@ -326,7 +337,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
               {author?.photo_url && (
                 <Image
                   src={author.photo_url}
-                  alt={author.name}
+                  alt={displayAuthorName}
                   width={40}
                   height={40}
                   className="rounded-full object-cover"
@@ -340,10 +351,10 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
                       href={`/author/${author.slug}`}
                       className="font-medium text-gray-900 hover:underline"
                     >
-                      {author.name}
+                      {displayAuthorName}
                     </Link>
                   ) : (
-                    <span className="font-medium text-gray-900">{content.author}</span>
+                    <span className="font-medium text-gray-900">{displayAuthorName}</span>
                   )}
                 </span>
                 {author?.credentials && <span className="text-gray-500">{author.credentials}</span>}
@@ -393,17 +404,6 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           </div>
         )}
 
-        {/* AI disclosure — EU AI Act Art. 50 compliance */}
-        {content.ai_generated && (
-          <aside
-            role="note"
-            aria-label="AI disclosure"
-            className="mb-6 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800"
-          >
-            This content was generated with AI assistance and reviewed by a human editor.
-          </aside>
-        )}
-
         {/* Verdict (reviews) — bottom-line-up-front: score, price, CTA.
           Supersedes the former HeroProductCta with an explicit verdict line. */}
         {isReview && heroProduct && (
@@ -411,7 +411,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
             product={heroProduct}
             language={site.language}
             variant="review"
-            verdict={content.excerpt || heroProduct.description}
+            verdict={safeExcerpt || heroProduct.description}
             lastVerified={lastVerifiedLabel}
             priority
           />
@@ -476,13 +476,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
 
         {/* Content body with auto-linked product mentions */}
         <div className="mb-10">
-          <HtmlRenderer
-            html={injectProductLinks(
-              content.body,
-              linkedProducts.map((lp) => lp.product),
-            )}
-            direction={site.direction}
-          />
+          <HtmlRenderer html={bodyHtmlWithLinks} direction={site.direction} />
         </div>
 
         {/* In-article ad slot (renders only when an active image placement exists) */}
