@@ -6,19 +6,22 @@ import { RankedPick } from "./ranked-pick";
 import { BuyingGuide } from "./buying-guide";
 import { ArticleFaq } from "./article-faq";
 import Link from "next/link";
-import { author, getDialGuidePicks, type DialGuide } from "@/lib/dial-guides";
+import { getDialGuidePicks, type DialGuide, type DialGuideAuthor } from "@/lib/dial-guides";
 import type { Watch } from "@/lib/dial-config";
 import { safeJsonLdString } from "@/lib/safe-json-ld";
 
-const UPDATED = "July 2026";
-const PUBLISHED = "2026-07-01";
-
 export function GuideArticle({
   guide,
+  author,
+  updated,
+  published,
   siteName = "WristNerd",
   watches,
 }: {
   guide: DialGuide;
+  author: DialGuideAuthor;
+  updated: string;
+  published: string;
   siteName?: string;
   watches?: Watch[];
 }) {
@@ -36,8 +39,8 @@ export function GuideArticle({
       {
         "@type": "Article",
         headline: guide.h1,
-        datePublished: PUBLISHED,
-        dateModified: PUBLISHED,
+        datePublished: published,
+        dateModified: published,
         author: { "@type": "Person", name: author.name, jobTitle: author.role },
         publisher: { "@type": "Organization", name: siteName },
       },
@@ -98,7 +101,7 @@ export function GuideArticle({
             {guide.lede}
           </p>
           <div className="mt-6">
-            <ArticleByline updated={UPDATED} />
+            <ArticleByline author={author} updated={updated} />
           </div>
           <div className="mt-6">
             <DisclosureBanner />
@@ -131,7 +134,7 @@ export function GuideArticle({
               lede={guide.buying.lede}
               sections={guide.buying.sections}
             />
-            <ArticleFaq faqs={guide.faqs} />
+            <ArticleFaq faqs={guide.faqs} title={guide.faqTitle} />
           </div>
 
           {/* Sticky sidebar */}

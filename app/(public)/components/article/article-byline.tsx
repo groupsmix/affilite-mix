@@ -1,7 +1,7 @@
 import { BadgeCheck } from "lucide-react";
-import { author } from "@/lib/dial-guides";
+import type { DialGuideAuthor } from "@/lib/dial-guides";
 
-export function ArticleByline({ updated }: { updated: string }) {
+export function ArticleByline({ author, updated }: { author: DialGuideAuthor; updated: string }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
       <div className="flex items-center gap-3">

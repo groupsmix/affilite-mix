@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
-import { getDialGuide } from "@/lib/dial-guides";
+import { getDialGuidesConfig, getDialGuideFromConfig } from "@/lib/dial-guides";
 import { getDialHomepageConfig } from "@/lib/dial-config";
 import { getCalmConfig, getCalmPost } from "@/lib/calm-config";
 import { GuideArticle } from "../components/article/guide-article";
@@ -39,17 +39,19 @@ export async function generateMetadata({
     };
   }
 
-  const guide = getDialGuide(slug);
-  if (guide && site.homepageTemplate === "dial") {
-    const url = `https://${site.domain}/${guide.slug}`;
+  const dialGuidesConfig =
+    site.homepageTemplate === "dial" ? await getDialGuidesConfig(site.id) : undefined;
+  const dialGuide = dialGuidesConfig ? getDialGuideFromConfig(dialGuidesConfig, slug) : undefined;
+  if (dialGuide && site.homepageTemplate === "dial") {
+    const url = `https://${site.domain}/${dialGuide.slug}`;
     return {
       metadataBase: new URL(`https://${site.domain}`),
-      title: guide.meta.title,
-      description: guide.meta.description,
+      title: dialGuide.meta.title,
+      description: dialGuide.meta.description,
       alternates: { canonical: url },
       openGraph: {
-        title: guide.meta.title,
-        description: guide.meta.description,
+        title: dialGuide.meta.title,
+        description: dialGuide.meta.description,
         url,
         siteName: site.name,
         locale: site.locale,
@@ -110,10 +112,21 @@ export default async function PublicSlugPage({
     notFound();
   }
 
-  const guide = getDialGuide(slug);
-  if (guide && site.homepageTemplate === "dial") {
+  const dialGuidesConfig =
+    site.homepageTemplate === "dial" ? await getDialGuidesConfig(site.id) : undefined;
+  const dialGuide = dialGuidesConfig ? getDialGuideFromConfig(dialGuidesConfig, slug) : undefined;
+  if (dialGuidesConfig && dialGuide && site.homepageTemplate === "dial") {
     const dialConfig = await getDialHomepageConfig(site.id);
-    return <GuideArticle guide={guide} siteName={site.name} watches={dialConfig.watches} />;
+    return (
+      <GuideArticle
+        guide={dialGuide}
+        author={dialGuidesConfig.author}
+        updated={dialGuidesConfig.updated}
+        published={dialGuidesConfig.published}
+        siteName={site.name}
+        watches={dialConfig.watches}
+      />
+    );
   }
 
   const ct = site.contentTypes.find((c) => c.value === slug);
