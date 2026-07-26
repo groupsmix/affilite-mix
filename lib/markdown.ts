@@ -55,8 +55,24 @@ function lineIsSpecial(line: string): boolean {
   );
 }
 
+function normalizeMarkdown(markdown: string): string {
+  let text = markdown.replace(/\r\n?/g, "\n");
+  const lines = text.split("\n");
+  // If the text has almost no line breaks, the AI likely dumped everything on
+  // one line. Insert newlines before block markers so the parser can do its job.
+  if (lines.length <= 2) {
+    text = text
+      .replace(/(^|\s)(#{1,6}\s)/g, "$1\n$2")
+      .replace(/(^|\s)(---|___|\*\*\*)\s/g, "$1\n$2\n")
+      .replace(/(^|\s)(\d+\.\s)/g, "$1\n$2")
+      .replace(/(^|\s)([-*]\s)/g, "$1\n$2");
+  }
+  return text;
+}
+
 export function markdownToHtml(markdown: string): string {
-  const rawLines = markdown.replace(/\r\n?/g, "\n").split("\n");
+  const normalized = normalizeMarkdown(markdown);
+  const rawLines = normalized.split("\n");
   const lines = rawLines.map((l) => l.trimEnd());
 
   const blocks: string[] = [];
