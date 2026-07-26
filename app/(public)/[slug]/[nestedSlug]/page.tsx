@@ -4,23 +4,18 @@ import { getLinkedProducts, getContentLinkedToProducts } from "@/lib/dal/content
 import { getCategoryById } from "@/lib/dal/categories";
 import { getAuthorById } from "@/lib/dal/authors";
 import { injectProductLinks, buildRelatedLinks } from "@/lib/internal-links";
-import { autoSlug } from "@/lib/auto-slug";
 import { getAdminSession } from "@/lib/auth";
 import { validatePreviewToken } from "@/lib/preview-token";
 import { humanizeAuthorName, stripAiDisclosure } from "@/lib/human-content";
 import { looksLikeMarkdown, markdownToHtml } from "@/lib/markdown";
 import { sanitizeHtml } from "@/lib/sanitize-html";
-import Image from "next/image";
-import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
 import { RelatedLinks } from "../../components/related-links";
 import { AdSlot, adLabel, resolveSlotImageAd } from "../../components/ads/ad-slot";
 import { AdImage } from "../../components/ads/ad-image";
-import { Breadcrumbs } from "../../components/breadcrumbs";
-import { cn } from "@/lib/utils";
 import { ReportContentLink } from "../../components/report-content-link";
-import Link from "next/link";
+import { ArticleLayout } from "../../components/article/article-layout";
 import dynamic from "next/dynamic";
 
 const ComparisonTable = dynamic(() =>
@@ -28,9 +23,6 @@ const ComparisonTable = dynamic(() =>
 );
 const StickyCtaBar = dynamic(() =>
   import("../../components/sticky-cta-bar").then((m) => m.StickyCtaBar),
-);
-const ReadingProgress = dynamic(() =>
-  import("../../components/reading-progress").then((m) => m.ReadingProgress),
 );
 const VerdictBox = dynamic(() => import("../../components/verdict-box").then((m) => m.VerdictBox));
 const TopPickBanner = dynamic(() =>
@@ -294,267 +286,180 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   // centred single-column reading width.
   const sidebarAd = await resolveSlotImageAd(site.id, "sidebar");
 
-  return (
-    <div
-      className={cn("mx-auto px-4 py-8", sidebarAd ? "max-w-6xl lg:flex lg:gap-8" : "max-w-4xl")}
-    >
-      <article className={sidebarAd ? "min-w-0 flex-1" : undefined}>
-        <JsonLd data={breadcrumbs} />
-        <JsonLd data={contentSchema} />
-        {faqSchema && <JsonLd data={faqSchema} />}
-        {itemListSchema && <JsonLd data={itemListSchema} />}
-        {linkedProducts.map((lp) => (
-          <JsonLd key={lp.product_id} data={productJsonLd(site, lp.product)} />
-        ))}
+  const jsonLd = (
+    <>
+      <JsonLd data={breadcrumbs} />
+      <JsonLd data={contentSchema} />
+      {faqSchema && <JsonLd data={faqSchema} />}
+      {itemListSchema && <JsonLd data={itemListSchema} />}
+      {linkedProducts.map((lp) => (
+        <JsonLd key={lp.product_id} data={productJsonLd(site, lp.product)} />
+      ))}
+    </>
+  );
 
-        <ReadingProgress />
-
-        {/* Preview banner */}
-        {isPreview && (
-          <div className="mb-4 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-2 text-sm font-medium text-yellow-800">
-            Preview Mode — This content is not yet published.
-          </div>
-        )}
-
-        {/* Breadcrumbs UI */}
-        <Breadcrumbs
-          items={[
-            { label: site.name, href: "/" },
-            { label: contentTypeLabel, href: `/${content.type}` },
-            { label: content.title },
-          ]}
-        />
-
-        {/* Header */}
-        <header className="mb-8">
-          <div className="mb-2 text-sm text-gray-500">{contentTypeLabel}</div>
-          <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">{content.title}</h1>
-          {safeExcerpt && <p className="text-lg text-gray-600">{safeExcerpt}</p>}
-
-          {/* Author byline + methodology / disclosure */}
-          {(content.author || author) && (
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-              {author?.photo_url && (
-                <Image
-                  src={author.photo_url}
-                  alt={displayAuthorName}
-                  width={40}
-                  height={40}
-                  className="rounded-full object-cover"
-                />
-              )}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-600">
-                <span>
-                  By{" "}
-                  {author ? (
-                    <Link
-                      href={`/author/${author.slug}`}
-                      className="font-medium text-gray-900 hover:underline"
-                    >
-                      {displayAuthorName}
-                    </Link>
-                  ) : (
-                    <span className="font-medium text-gray-900">{displayAuthorName}</span>
-                  )}
-                </span>
-                {author?.credentials && <span className="text-gray-500">{author.credentials}</span>}
-                <Link
-                  href="/how-we-rank"
-                  className="text-gray-500 hover:text-gray-900 hover:underline"
-                >
-                  How we test
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {(content.publish_at ?? content.created_at) && (
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-              <span>
-                Published:{" "}
-                <time dateTime={content.publish_at ?? content.created_at}>
-                  {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale, {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </time>
-              </span>
-              {content.updated_at &&
-                content.updated_at !== (content.publish_at ?? content.created_at) && (
-                  <span>
-                    Last updated:{" "}
-                    <time dateTime={content.updated_at}>
-                      {new Date(content.updated_at).toLocaleDateString(locale, {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </time>
-                  </span>
-                )}
-            </div>
-          )}
-        </header>
-
-        {/* Affiliate disclosure — only for sites that use affiliate monetization */}
-        {linkedProducts.length > 0 && site.monetizationType !== "ads" && (
-          <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            {site.contentDisclosure}
-          </div>
-        )}
-
-        {/* Verdict (reviews) — bottom-line-up-front: score, price, CTA.
-          Supersedes the former HeroProductCta with an explicit verdict line. */}
-        {isReview && heroProduct && (
-          <VerdictBox
-            product={heroProduct}
-            language={site.language}
-            variant="review"
-            verdict={safeExcerpt || heroProduct.description}
-            lastVerified={lastVerifiedLabel}
-            priority
-          />
-        )}
-
-        {/* Verdict (comparisons) — declare the winner above the spec table so the
-          page answers "who wins" before any scrolling. */}
-        {isComparison && comparisonWinner && (
-          <VerdictBox
-            product={comparisonWinner}
-            language={site.language}
-            variant="comparison"
-            verdict={comparisonWinner.description}
-            runnerUp={
-              comparisonRunnerUp
-                ? { name: comparisonRunnerUp.name, score: comparisonRunnerUp.score }
-                : null
-            }
-            runnerUpProduct={comparisonRunnerUp ?? null}
-            totalCompared={comparisonProducts.length}
-            productLabelPlural={site.productLabelPlural}
-            lastVerified={lastVerifiedLabel}
-          />
-        )}
-
-        {/* Sticky "Our #1 Pick" for listicles / best-X round-ups:
-          appears when an article has multiple linked products and is not a
-          dedicated review or comparison page. */}
-        {!isReview && !isComparison && linkedProducts.length > 0 && topPickProduct && (
-          <TopPickBanner
-            product={topPickProduct}
-            language={site.language}
-            totalCompared={linkedProducts.length}
-            lastVerified={lastVerifiedLabel}
-          />
-        )}
-
-        {/* Comparison table — full side-by-side detail */}
-        {isComparison && comparisonProducts.length >= 2 && (
-          <ComparisonTable products={comparisonProducts} />
-        )}
-
-        {/* Pros/Cons for review pages — uses structured data from product fields */}
-        {isReview &&
-          heroProduct &&
-          (heroProduct.pros || heroProduct.cons) &&
-          (() => {
-            const pros = heroProduct.pros
-              ? heroProduct.pros
-                  .split("\n")
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [];
-            const cons = heroProduct.cons
-              ? heroProduct.cons
-                  .split("\n")
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [];
-            return <ProsCons pros={pros} cons={cons} language={site.language} />;
-          })()}
-
-        {/* Content body with auto-linked product mentions */}
-        <div className="mb-10">
-          <HtmlRenderer html={bodyHtmlWithLinks} direction={site.direction} />
-        </div>
-
-        {/* In-article ad slot (renders only when an active image placement exists) */}
-        <AdSlot placementType="in_content" className="mb-10 px-0" />
-
-        {/* Linked products */}
-        {linkedProducts.length > 0 && (
-          <section className="mt-10 border-t border-gray-200 pt-8">
-            <h2 className="mb-6 text-2xl font-bold">
-              {site.language === "ar"
-                ? `${site.productLabelPlural} المرتبطة`
-                : `Related ${site.productLabelPlural}`}
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {linkedProducts.map((link) => {
-                const review = reviewByProductId.get(link.product_id);
-                return (
-                  <ProductCard
-                    key={link.product_id}
-                    product={link.product}
-                    sourceType="content"
-                    ctaLabel={site.language === "ar" ? "احصل على العرض" : "View Deal"}
-                    relatedContentHref={review ? `/${review.type}/${review.slug}` : undefined}
-                    relatedContentLabel={
-                      site.language === "ar" ? "اقرأ المراجعة الكاملة →" : "Read our review →"
-                    }
-                  />
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* CA-306: automated contextual internal links (reviews ⇄ comparisons,
-          category hub, same-category siblings) — derived from content_products. */}
-        <RelatedLinks groups={relatedLinkGroups} language={site.language} />
-
-        {/* Related content */}
-        {relatedContent.length > 0 && (
-          <section className="mt-10 border-t border-gray-200 pt-8">
-            <h2 className="mb-6 text-2xl font-bold">
-              {site.language === "ar" ? "محتوى ذو صلة" : "You Might Also Like"}
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {relatedContent.map((item) => (
-                <ContentCard key={item.id} content={item} locale={locale} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* A159-01: Public content reporting link */}
-        <div className="mt-10 border-t border-gray-200 pt-6 text-right">
-          <ReportContentLink
-            contentUrl={`https://${site.domain}/${content.type}/${content.slug}`}
-            contentTitle={content.title}
-            abuseEmail={site.brand.contactEmail}
-          />
-        </div>
-
-        {/* Sticky CTA bar — only for affiliate/both sites */}
-        {heroProduct && heroProduct.affiliate_url && site.monetizationType !== "ads" && (
-          <StickyCtaBar product={heroProduct} />
-        )}
-      </article>
-      {sidebarAd && (
-        <aside className="mt-8 lg:mt-0 lg:w-72 lg:flex-shrink-0" aria-label="Advertisement">
-          <div className="lg:sticky lg:top-24">
-            <AdImage
-              placementId={sidebarAd.placementId}
-              imageUrl={sidebarAd.config.image_url}
-              clickUrl={sidebarAd.config.click_url}
-              alt={sidebarAd.config.alt}
-              label={adLabel(site.language)}
-            />
-          </div>
-        </aside>
-      )}
+  const rightSidebar = sidebarAd ? (
+    <div className="lg:sticky lg:top-24">
+      <AdImage
+        placementId={sidebarAd.placementId}
+        imageUrl={sidebarAd.config.image_url}
+        clickUrl={sidebarAd.config.click_url}
+        alt={sidebarAd.config.alt}
+        label={adLabel(site.language)}
+      />
     </div>
+  ) : undefined;
+
+  const preBody = (
+    <>
+      {/* Verdict (reviews) */}
+      {isReview && heroProduct && (
+        <VerdictBox
+          product={heroProduct}
+          language={site.language}
+          variant="review"
+          verdict={safeExcerpt || heroProduct.description}
+          lastVerified={lastVerifiedLabel}
+          priority
+        />
+      )}
+
+      {/* Verdict (comparisons) */}
+      {isComparison && comparisonWinner && (
+        <VerdictBox
+          product={comparisonWinner}
+          language={site.language}
+          variant="comparison"
+          verdict={comparisonWinner.description}
+          runnerUp={
+            comparisonRunnerUp
+              ? { name: comparisonRunnerUp.name, score: comparisonRunnerUp.score }
+              : null
+          }
+          runnerUpProduct={comparisonRunnerUp ?? null}
+          totalCompared={comparisonProducts.length}
+          productLabelPlural={site.productLabelPlural}
+          lastVerified={lastVerifiedLabel}
+        />
+      )}
+
+      {/* Top pick for listicles */}
+      {!isReview && !isComparison && linkedProducts.length > 0 && topPickProduct && (
+        <TopPickBanner
+          product={topPickProduct}
+          language={site.language}
+          totalCompared={linkedProducts.length}
+          lastVerified={lastVerifiedLabel}
+        />
+      )}
+
+      {/* Comparison table */}
+      {isComparison && comparisonProducts.length >= 2 && (
+        <ComparisonTable products={comparisonProducts} />
+      )}
+
+      {/* Pros/Cons for reviews */}
+      {isReview &&
+        heroProduct &&
+        (heroProduct.pros || heroProduct.cons) &&
+        (() => {
+          const pros = heroProduct.pros
+            ? heroProduct.pros
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+          const cons = heroProduct.cons
+            ? heroProduct.cons
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+          return <ProsCons pros={pros} cons={cons} language={site.language} />;
+        })()}
+    </>
+  );
+
+  const postBody = (
+    <>
+      <AdSlot placementType="in_content" className="mb-10 px-0" />
+
+      {linkedProducts.length > 0 && (
+        <section className="mt-10 border-t border-gray-200 pt-8">
+          <h2 className="mb-6 text-2xl font-bold">
+            {site.language === "ar"
+              ? `${site.productLabelPlural} المرتبطة`
+              : `Related ${site.productLabelPlural}`}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {linkedProducts.map((link) => {
+              const review = reviewByProductId.get(link.product_id);
+              return (
+                <ProductCard
+                  key={link.product_id}
+                  product={link.product}
+                  sourceType="content"
+                  ctaLabel={site.language === "ar" ? "احصل على العرض" : "View Deal"}
+                  relatedContentHref={review ? `/${review.type}/${review.slug}` : undefined}
+                  relatedContentLabel={
+                    site.language === "ar" ? "اقرأ المراجعة الكاملة →" : "Read our review →"
+                  }
+                />
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <RelatedLinks groups={relatedLinkGroups} language={site.language} />
+
+      {relatedContent.length > 0 && (
+        <section className="mt-10 border-t border-gray-200 pt-8">
+          <h2 className="mb-6 text-2xl font-bold">
+            {site.language === "ar" ? "محتوى ذو صلة" : "You Might Also Like"}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {relatedContent.map((item) => (
+              <ContentCard key={item.id} content={item} locale={locale} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="mt-10 border-t border-gray-200 pt-6 text-right">
+        <ReportContentLink
+          contentUrl={`https://${site.domain}/${content.type}/${content.slug}`}
+          contentTitle={content.title}
+          abuseEmail={site.brand.contactEmail}
+        />
+      </div>
+
+      {heroProduct && heroProduct.affiliate_url && site.monetizationType !== "ads" && (
+        <StickyCtaBar product={heroProduct} />
+      )}
+    </>
+  );
+
+  return (
+    <ArticleLayout
+      content={content}
+      site={site}
+      author={displayAuthor}
+      typeLabel={contentTypeLabel}
+      backHref={`/${content.type}`}
+      backLabel={contentTypeLabel}
+      body={bodyHtmlWithLinks}
+      bodyIsHtml
+      disclosure={
+        linkedProducts.length > 0 && site.monetizationType !== "ads"
+          ? site.contentDisclosure
+          : undefined
+      }
+      methodologyHref="/how-we-rank"
+      rightSidebar={rightSidebar}
+      jsonLd={jsonLd}
+      preBody={preBody}
+      postBody={postBody}
+    />
   );
 }
