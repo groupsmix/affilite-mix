@@ -46,7 +46,7 @@ export function ArticleToc({ items, title = "Contents", className }: ArticleTocP
   return (
     <nav
       aria-label="Table of contents"
-      className={cn("rounded-xl border border-border bg-card/70 p-5", className)}
+      className={cn("rounded-xl border border-border bg-card/80 p-5", className)}
     >
       <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
         {title}
