@@ -301,6 +301,16 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/dial-guides",
+    methods: ["GET", "PUT"],
+    requestSchema: "DialGuidesConfig",
+    responseSchema: "DialGuidesConfig",
+    sensitiveFields: [],
+    notes:
+      "Reads/writes raw JSON for the dial guide pages (pages.slug = 'dial-guides', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/content",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "ContentInput",

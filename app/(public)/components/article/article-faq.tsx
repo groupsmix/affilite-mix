@@ -1,12 +1,12 @@
 import { Reveal } from "./reveal";
 import type { GuideFaq } from "@/lib/dial-guides";
 
-export function ArticleFaq({ faqs }: { faqs: GuideFaq[] }) {
+export function ArticleFaq({ faqs, title }: { faqs: GuideFaq[]; title?: string }) {
   return (
     <section id="faq" className="scroll-mt-24">
       <Reveal>
         <h2 className="font-serif text-2xl font-semibold md:text-3xl">
-          Frequently asked questions
+          {title ?? "Frequently asked questions"}
         </h2>
       </Reveal>
       <div className="mt-6 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">

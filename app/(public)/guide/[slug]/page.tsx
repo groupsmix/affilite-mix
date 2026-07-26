@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { getSiteGuide, getAllSiteGuides } from "@/lib/site-guides";
-import { getDialGuide } from "@/lib/dial-guides";
+import { getDialGuidesConfig, getDialGuideFromConfig } from "@/lib/dial-guides";
 import { getDialHomepageConfig } from "@/lib/dial-config";
 import { GuideArticle } from "../../components/article/guide-article";
 import { HtmlRenderer } from "../../components/html-renderer";
@@ -19,7 +19,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
-  const dialGuide = site.homepageTemplate === "dial" ? getDialGuide(slug) : undefined;
+  const dialGuidesConfig =
+    site.homepageTemplate === "dial" ? await getDialGuidesConfig(site.id) : undefined;
+  const dialGuide = dialGuidesConfig ? getDialGuideFromConfig(dialGuidesConfig, slug) : undefined;
   if (dialGuide) {
     const url = `https://${site.domain}/guide/${dialGuide.slug}`;
     return {
@@ -63,13 +65,24 @@ export async function generateMetadata({
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const site = await getCurrentSite();
-  const dialGuide = site.homepageTemplate === "dial" ? getDialGuide(slug) : undefined;
-  if (dialGuide) {
+  const dialGuidesConfig =
+    site.homepageTemplate === "dial" ? await getDialGuidesConfig(site.id) : undefined;
+  const dialGuide = dialGuidesConfig ? getDialGuideFromConfig(dialGuidesConfig, slug) : undefined;
+  if (dialGuidesConfig && dialGuide) {
     if (site.homepageTemplate === "dial") {
       permanentRedirect(`/${dialGuide.slug}`);
     }
     const dialConfig = await getDialHomepageConfig(site.id);
-    return <GuideArticle guide={dialGuide} siteName={site.name} watches={dialConfig.watches} />;
+    return (
+      <GuideArticle
+        guide={dialGuide}
+        author={dialGuidesConfig.author}
+        updated={dialGuidesConfig.updated}
+        published={dialGuidesConfig.published}
+        siteName={site.name}
+        watches={dialConfig.watches}
+      />
+    );
   }
 
   const guide = getSiteGuide(site.slug ?? site.id, slug);
