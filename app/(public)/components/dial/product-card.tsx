@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowUpRight, Award, Star } from "lucide-react";
 import type { Watch } from "@/lib/dial-config";
 import { resolveDialAffiliateUrl } from "@/lib/dial-affiliate";
@@ -94,7 +95,15 @@ export function ProductCard({ watch }: ProductCardProps) {
               We may earn a commission at no extra cost to you.
             </p>
           </>
-        ) : null}
+        ) : (
+          <Link
+            href={`/search?q=${encodeURIComponent(`${watch.brand} ${watch.name}`)}`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-transparent px-4 py-2.5 text-center text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          >
+            Find deals
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        )}
       </div>
     </article>
   );

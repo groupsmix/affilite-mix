@@ -1,4 +1,5 @@
 import { ArrowUpRight, Star } from "lucide-react";
+import Link from "next/link";
 import type { DialHomepageConfig } from "@/lib/dial-config";
 import { resolveDialAffiliateUrl } from "@/lib/dial-affiliate";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
@@ -76,7 +77,13 @@ export function ComparisonTable({ config }: ComparisonTableProps) {
                         }
                       />
                     ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
+                      <Link
+                        href={`/search?q=${encodeURIComponent(`${w.brand} ${w.name}`)}`}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                      >
+                        Find deals
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </Link>
                     )}
                   </td>
                 </tr>

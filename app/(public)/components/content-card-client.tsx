@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { FileText, ImageIcon } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
 
 interface ContentCardImageProps {
@@ -42,26 +42,16 @@ export function ContentCardImage({
     ) : null;
 
   const fallback = !image && (
-    <div
-      className="flex h-full w-full flex-col justify-end bg-slate-800 bg-cover bg-center p-4"
-      style={{ backgroundImage: "url(/images/content-fallback-bg.png)" }}
-      aria-hidden={!!title}
-    >
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent" />
-      <div className="relative z-10">
-        {type && (
-          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground backdrop-blur-sm">
-            <FileText className="size-3" aria-hidden="true" />
-            {type}
-          </span>
-        )}
-        {title && (
-          <p className="line-clamp-2 text-sm font-semibold leading-snug text-white shadow-black drop-shadow-md">
-            {title}
-          </p>
-        )}
-        {!title && <ImageIcon className="size-10 text-white/80" aria-hidden="true" />}
-      </div>
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted p-4 text-center">
+      <ImageIcon className="size-10 text-muted-foreground" aria-hidden="true" />
+      {type && (
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          {type}
+        </span>
+      )}
+      {title && (
+        <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{title}</p>
+      )}
     </div>
   );
 
@@ -69,7 +59,7 @@ export function ContentCardImage({
     <Link
       href={href}
       aria-label={alt}
-      className="relative block aspect-[16/10] w-full overflow-hidden rounded-t-2xl bg-gray-100"
+      className="relative block aspect-[16/10] w-full overflow-hidden rounded-t-2xl bg-muted"
     >
       {image ?? fallback}
     </Link>

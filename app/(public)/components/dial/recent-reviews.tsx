@@ -17,11 +17,11 @@ export function RecentReviews({ content, locale = "en-US" }: RecentReviewsProps)
         <div>
           <p className="text-sm font-medium uppercase tracking-widest text-primary">Latest</p>
           <h2 className="mt-3 font-serif text-2xl font-semibold tracking-tight md:text-3xl">
-            Recent reviews & guides
+            Latest from WristNerd
           </h2>
         </div>
         <Link
-          href="/review"
+          href="/blog"
           className="hidden text-sm font-medium text-primary hover:underline sm:block"
         >
           See all &rarr;
