@@ -442,7 +442,7 @@ export const defaultDialGuides: DialGuide[] = [
     meta: {
       title: "Best Watches Under $200 (2026) — Tested & Ranked | WristNerd",
       description:
-        "The best watches under $200, hands-on tested and ranked. Field, minimalist, vintage-style and budget beater picks with pros, cons, and honest buying advice.",
+        "The best watches under $200, hands-on tested and ranked. Dive, field, minimalist, vintage-style and budget beater picks with pros, cons, and honest buying advice.",
       keywords: [
         "best watches under 200",
         "best watch under 200",
@@ -459,6 +459,12 @@ export const defaultDialGuides: DialGuide[] = [
         award: "Best Overall",
         reason:
           "A slim quartz dress watch with a clean dial and mesh bracelet that feels far more expensive than the price. It has real character without the usual budget-watch compromises.",
+      },
+      {
+        watchId: "casio-duro-walmart",
+        award: "Best Dive Beater",
+        reason:
+          "A genuine 200m diver with a screw-down crown and stainless steel case for under $70. Tough enough to swim in, cheap enough not to worry about, and the best entry-level dive watch we have tested.",
       },
       {
         watchId: "aria-minimalist",
@@ -489,7 +495,7 @@ export const defaultDialGuides: DialGuide[] = [
     faqs: [
       {
         q: "What is the best watch under $200 overall?",
-        a: "Our top pick is the Timex Fairfield 37mm. It offers a slim case, clean dial, and a mesh bracelet — a rare combination of style and value under $200.",
+        a: "Our top overall pick is the Timex Fairfield 37mm for its slim case, clean dial, and mesh bracelet. If you want a sporty option, the Casio Duro MDV106-1AV is the best budget diver we have tested under $200, with a true 200m rating and screw-down crown.",
       },
       {
         q: "Can you get an automatic watch under $200?",
