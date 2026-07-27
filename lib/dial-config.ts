@@ -484,12 +484,21 @@ function getAmazonSearchUrl(brand: string, name: string): string {
   return `https://www.amazon.com/s?k=${encodeURIComponent(query)}`;
 }
 
+function isAmazonHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "amazon.com" || host.endsWith(".amazon.com");
+  } catch {
+    return false;
+  }
+}
+
 function appendAmazonTag(url: string): string {
   const tag = process.env.AMAZON_ASSOCIATE_TAG;
-  if (!tag || !url.includes("amazon.com")) return url;
+  if (!tag || !isAmazonHost(url)) return url;
   try {
     const u = new URL(url);
-    if (u.searchParams.has("tag") || u.searchParams.has("tag=")) return url;
+    if (u.searchParams.has("tag")) return url;
     u.searchParams.set("tag", tag);
     return u.toString();
   } catch {
@@ -500,7 +509,7 @@ function appendAmazonTag(url: string): string {
 function resolveWatchAffiliateUrl(watch: Watch): string {
   const url = watch.affiliateUrl?.trim() ?? "";
   if (url.length > 0) {
-    const isAmazon = url.includes("amazon.com");
+    const isAmazon = isAmazonHost(url);
     if (isAmazon && !process.env.AMAZON_ASSOCIATE_TAG && !hasAmazonReferral(url)) {
       return "";
     }

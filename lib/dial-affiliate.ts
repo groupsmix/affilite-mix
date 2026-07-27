@@ -26,8 +26,17 @@ function getAmazonSearchUrl(brand: string, name: string): string {
   return url;
 }
 
+function isAmazonHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "amazon.com" || host.endsWith(".amazon.com");
+  } catch {
+    return false;
+  }
+}
+
 function appendAmazonTag(url: string): string {
-  if (!AMAZON_TAG || !url.includes("amazon.com")) return url;
+  if (!AMAZON_TAG || !isAmazonHost(url)) return url;
   try {
     const u = new URL(url);
     if (u.searchParams.has("tag")) return url;
@@ -40,7 +49,7 @@ function appendAmazonTag(url: string): string {
 
 export function resolveDialAffiliateUrl(watch: DialAffiliateWatch): string {
   if (hasUsableAffiliateUrl(watch.affiliateUrl)) {
-    const isAmazon = watch.affiliateUrl.includes("amazon.com");
+    const isAmazon = isAmazonHost(watch.affiliateUrl);
     if (isAmazon && !AMAZON_TAG && !hasAmazonReferral(watch.affiliateUrl)) return "";
     return appendAmazonTag(watch.affiliateUrl);
   }
