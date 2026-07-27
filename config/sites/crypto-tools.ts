@@ -23,14 +23,15 @@ import { defineSite } from "../define-site";
  */
 export const cryptoToolsSite = defineSite({
   id: "crypto-tools",
-  name: "Crypto Tax AU",
+  name: "CryptoRanked",
   domain: "cryptoranked.xyz",
   aliases: ["crypto.localhost"],
   niche: "Australian Crypto Tax for DeFi, Staking, Airdrops & NFTs",
   description:
     "Plain-English Australian crypto tax guides and software reviews for DeFi, staking, airdrop and NFT investors — built around ATO rules so you can lodge on time and pay less.",
-  tagline: "ATO-aligned guidance. No sponsored rankings.",
-  logo: "/images/crypto-tax-au-logo.png",
+  tagline: "Australian crypto tax, ranked and explained.",
+  logo: "/images/cryptoranked-logo-wide.png",
+  faviconUrl: "/images/cryptoranked-icon.png",
 
   colors: { primary: "#0B2540", accent: "#16A34A", accentText: "#15803D" },
   fonts: { heading: "Geist", body: "Geist" },
@@ -54,7 +55,7 @@ export const cryptoToolsSite = defineSite({
   contentDisclosure:
     "This page contains affiliate links. We may earn a commission at no extra cost to you if you sign up through our links. General information only — not tax advice. Verify with the ATO or a registered tax agent.",
   affiliateDisclosure:
-    "Crypto Tax AU earns affiliate commissions from crypto-tax software and accountant referrals. This never changes what you pay, and we only recommend tools we believe help Australian crypto investors report accurately.",
+    "CryptoRanked earns affiliate commissions from crypto-tax software and accountant referrals. This never changes what you pay, and we only recommend tools we believe help Australian crypto investors report accurately.",
 
   nav: [
     { title: "Home", href: "/" },
@@ -100,7 +101,7 @@ export const cryptoToolsSite = defineSite({
 
   pages: {
     about: {
-      title: "About Crypto Tax AU",
+      title: "About CryptoRanked",
       description:
         "Independent Australian crypto tax guides and software reviews for DeFi, staking, airdrop and NFT investors.",
     },
@@ -114,7 +115,7 @@ export const cryptoToolsSite = defineSite({
     },
     contact: {
       title: "Contact Us",
-      description: "Get in touch with the Crypto Tax AU team",
+      description: "Get in touch with the CryptoRanked team",
       email: "contact@cryptoranked.xyz",
     },
     affiliateDisclosurePage: {

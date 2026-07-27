@@ -67,6 +67,7 @@ export function ArticleToc({ items, title = "Contents", className }: ArticleTocP
             <a
               href={`#${item.id}`}
               className={cn("block transition-colors", activeId === item.id ? "font-medium" : "")}
+              aria-current={activeId === item.id ? "location" : undefined}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
