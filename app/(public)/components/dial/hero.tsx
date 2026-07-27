@@ -43,16 +43,20 @@ export function Hero({ config }: HeroProps) {
           </div>
 
           <div className="mt-8 flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <div className="flex">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-                ))}
+            {hero.trustRating && (
+              <div className="flex items-center gap-1.5">
+                <div className="flex">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                  ))}
+                </div>
+                <span>{hero.trustRating}</span>
               </div>
-              <span>{hero.trustRating}</span>
-            </div>
-            <div className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
-            <span className="hidden sm:block">{hero.trustReviews}</span>
+            )}
+            {hero.trustRating && hero.trustReviews && (
+              <div className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
+            )}
+            {hero.trustReviews && <span className="hidden sm:block">{hero.trustReviews}</span>}
           </div>
         </div>
 
