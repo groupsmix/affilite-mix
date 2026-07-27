@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentSite } from "@/lib/site-context";
+import { requireSiteFeature } from "@/lib/site-features";
 import { listPublishedContent } from "@/lib/dal/content";
 import { ContentCardGrid } from "../components/content-card-grid";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
@@ -11,7 +11,7 @@ export const revalidate = 60;
 const PAGE_SIZE = 12;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const site = await getCurrentSite();
+  const site = await requireSiteFeature("blog");
   const title = `Blog — ${site.name}`;
   const description = `Editorial articles, how-tos, and buying advice from ${site.name}.`;
 
@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function BlogIndexPage() {
-  const site = await getCurrentSite();
+  const site = await requireSiteFeature("blog");
   const items = await listPublishedContent(site.id, "blog", PAGE_SIZE, 0);
 
   if (!items) {
