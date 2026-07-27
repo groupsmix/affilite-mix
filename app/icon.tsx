@@ -17,10 +17,15 @@ export default async function Icon() {
       ? await getSiteRowByDomain(site.domain).catch(() => null)
       : null;
 
-  // Check for custom favicon_url from DB
-  if (dbSite?.favicon_url) {
+  const faviconUrl = dbSite?.favicon_url || site.brand.faviconUrl;
+
+  // Check for custom favicon_url from DB or static config
+  if (faviconUrl) {
     try {
-      const res = await safeFetch(dbSite.favicon_url);
+      const faviconUrlAbsolute = faviconUrl.startsWith("http")
+        ? faviconUrl
+        : new URL(faviconUrl, `https://${site.domain}`).toString();
+      const res = await safeFetch(faviconUrlAbsolute);
       if (res.ok) {
         const cType = res.headers.get("content-type");
         if (!cType?.startsWith("image/")) throw new Error("Invalid content type");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Search } from "lucide-react";
@@ -105,10 +106,26 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
     >
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60 bg-primary/10 text-primary">
-            <span className="h-2 w-2 rounded-full bg-primary" />
-          </span>
-          <span className="font-serif text-lg font-semibold tracking-tight">{site.name}</span>
+          {site.brand.logo ? (
+            <span className="relative block h-9 w-[54px] shrink-0">
+              <Image
+                src={site.brand.logo}
+                alt={site.name}
+                fill
+                sizes="80px"
+                className="object-contain"
+                priority
+              />
+            </span>
+          ) : (
+            <>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60 bg-primary/10 text-primary">
+                <span className="h-2 w-2 rounded-full bg-primary" />
+              </span>
+              <span className="font-serif text-lg font-semibold tracking-tight">{site.name}</span>
+            </>
+          )}
+          {site.brand.logo && <span className="sr-only">{site.name}</span>}
         </Link>
 
         <ul className="hidden items-center gap-6 md:flex">
