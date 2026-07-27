@@ -187,7 +187,14 @@ export default async function HomePage() {
   }
 
   if (template === "dial") {
-    return <DialHomepage site={site} config={dialConfig ?? defaultDialConfig} />;
+    return (
+      <DialHomepage
+        site={site}
+        config={dialConfig ?? defaultDialConfig}
+        categories={categories}
+        recentContent={recentContent}
+      />
+    );
   }
 
   if (template === "calmroutine") {

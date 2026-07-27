@@ -661,7 +661,6 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
   const watchCount = watches.length;
   const brandCount = new Set(watches.map((w) => w.brand)).size;
   const tierCount = priceTiers.length;
-  const paidPlacements = trustBar.stats.find((s) => s.icon === "banknote")?.value ?? "$0";
 
   hero = {
     ...hero,
@@ -681,7 +680,6 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
         label: `Brand${brandCount === 1 ? "" : "s"} covered`,
       },
       { icon: "clock", value: String(tierCount), label: "Price tiers" },
-      { icon: "banknote", value: paidPlacements, label: "Paid placements" },
     ],
   };
 

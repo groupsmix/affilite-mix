@@ -18,7 +18,7 @@ export const watchToolsSite = defineSite({
     accentText: "#2A9D8F",
     accentLight: "rgba(42,157,143,0.12)",
   },
-  fonts: "classic",
+  fonts: { heading: "Playfair Display", body: "DM Sans" },
   homepage: "dial",
   layout: "standard",
   headerVariant: "standard",

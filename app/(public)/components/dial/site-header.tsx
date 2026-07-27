@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { DialHomepageConfig, DialPriceTier } from "@/lib/dial-config";
 import { Button } from "@/components/ui/button";
@@ -133,20 +133,36 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
           })}
         </ul>
 
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-2 md:flex">
+          <Link
+            href="/search"
+            aria-label="Search"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <Search className="h-5 w-5" />
+          </Link>
           <Button size="sm" asChild>
             <Link href={cta.href}>{cta.label}</Link>
           </Button>
         </div>
 
-        <button
-          aria-label="Toggle menu"
-          aria-expanded={mobileOpen}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-foreground md:hidden"
-          onClick={() => setMobileOpen((open) => !open)}
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center md:hidden">
+          <Link
+            href="/search"
+            aria-label="Search"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <Search className="h-5 w-5" />
+          </Link>
+          <button
+            aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-foreground"
+            onClick={() => setMobileOpen((open) => !open)}
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </nav>
 
       {mobileOpen && (

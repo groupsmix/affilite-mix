@@ -6,6 +6,7 @@ import {
   Playfair_Display,
   Fraunces,
   Public_Sans,
+  DM_Sans,
 } from "next/font/google";
 import { headers } from "next/headers";
 import { getCurrentSite } from "@/lib/site-context";
@@ -145,6 +146,14 @@ const publicSans = Public_Sans({
   preload: false,
 });
 
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-dm-sans",
+  preload: false,
+});
+
 const fontVarMap: Record<string, string> = {
   Inter: inter.variable,
   Geist: geist.variable,
@@ -152,6 +161,7 @@ const fontVarMap: Record<string, string> = {
   "Playfair Display": playfairDisplay.variable,
   Fraunces: fraunces.variable,
   "Public Sans": publicSans.variable,
+  "DM Sans": dmSans.variable,
 };
 
 const fontFamilyMap: Record<string, string> = {
@@ -161,6 +171,7 @@ const fontFamilyMap: Record<string, string> = {
   "Playfair Display": playfairDisplay.style.fontFamily,
   Fraunces: fraunces.style.fontFamily,
   "Public Sans": publicSans.style.fontFamily,
+  "DM Sans": dmSans.style.fontFamily,
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
