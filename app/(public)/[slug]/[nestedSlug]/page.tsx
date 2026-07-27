@@ -161,8 +161,14 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
 
   const content = await getContentBySlug(site.id, slug, isPreview);
 
-  if (!content || content.type !== contentType) {
+  if (!content) {
     notFound();
+  }
+
+  // If the slug is reached through a different content-type path, send the
+  // user to the canonical URL based on the content's real type.
+  if (content.type !== contentType) {
+    redirect(`/${content.type}/${content.slug}`);
   }
 
   // Preview of already-published content should send the user to the canonical
