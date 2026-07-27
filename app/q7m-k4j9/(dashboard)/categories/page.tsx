@@ -5,15 +5,10 @@ import { getTenantClientForSite } from "@/lib/supabase-server";
 import Link from "next/link";
 
 import { redirect } from "next/navigation";
-import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
-import {
-  CATEGORIES_TABLE_PAGE_SIZE,
-  CategoriesTable,
-  type CategoriesTableRow,
-} from "./categories-table";
+import { CategoriesTable, type CategoriesTableRow } from "./categories-table";
 
-const DEFAULT_PAGE_SIZE = CATEGORIES_TABLE_PAGE_SIZE;
+const DEFAULT_PAGE_SIZE = 50;
 
 const TAXONOMY_VALUES = new Set(["general", "budget", "occasion", "recipient", "brand"] as const);
 type TaxonomyValue = typeof TAXONOMY_VALUES extends Set<infer V> ? V : never;
@@ -76,14 +71,6 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
   const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
 
   const all = await listCategories(dbSiteId, q ? { q } : undefined, getClient);
-  logger.info("[categories/page] listCategories result", {
-    dbSiteId,
-    userId: session.userId,
-    q,
-    count: all.length,
-    first: all[0]?.id ?? null,
-  });
-
   const filteredByTaxonomy =
     taxonomyFilter.length > 0
       ? all.filter((c) => taxonomyFilter.includes(c.taxonomy_type as TaxonomyValue))
