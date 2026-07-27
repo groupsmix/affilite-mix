@@ -38,7 +38,7 @@ export const cryptoToolsSite = defineSite({
   // Branded dark header/footer with a green accent stripe and a clear CTA.
   layout: "compare",
   headerConfig: {
-    logoMode: "image",
+    logoMode: "image-and-text",
     showCta: true,
     ctaLabel: "Find my tax tool",
     ctaHref: "/#finder",

@@ -24,9 +24,9 @@ export function footerContainerClass(config: FooterConfig): string {
   return CONTAINER_WIDTH_CLASS[config.containerWidth];
 }
 
-/** Turn a camelCase footerNav section key (e.g. "quickLinks") into spaced words. */
+/** Turn a camelCase footerNav section key (e.g. "quickLinks") into title-cased words. */
 function humanizeSection(section: string): string {
-  return section.replace(/([a-z])([A-Z])/g, "$1 $2");
+  return section.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** Internal (next/link) or external (new-tab, rel-safe) link, chosen by href. */

@@ -1,43 +1,36 @@
-import { ShieldCheck, Users, Award, Newspaper, Quote } from "lucide-react";
+import { ShieldCheck, Users, Award, Newspaper } from "lucide-react";
 
 interface TrustSignalsProps {
   affiliateDisclosure: string;
   contentDisclosure: string;
   contactEmail?: string;
+  stats?: {
+    tools?: number;
+    guides?: number;
+    reviews?: number;
+    categories?: number;
+  };
 }
 
 export function TrustSignals({
   affiliateDisclosure,
   contentDisclosure,
   contactEmail,
+  stats,
 }: TrustSignalsProps) {
-  const testimonials = [
-    {
-      quote:
-        "I had 800 DeFi transactions across three wallets. The comparison here helped me pick the right tool and I lodged two weeks early.",
-      name: "Sarah M.",
-      detail: "Melbourne, VIC",
-    },
-    {
-      quote:
-        "Finally a site that explains ATO rules without trying to sell me a product first. Saved me hours of confusion.",
-      name: "David K.",
-      detail: "Sydney, NSW",
-    },
-    {
-      quote:
-        "The side-by-side breakdown made it obvious which software handled NFTs properly. Worth bookmarking for next year.",
-      name: "Priya R.",
-      detail: "Brisbane, QLD",
-    },
-  ];
-
   const trustBadges = [
     { icon: ShieldCheck, label: "ATO-aligned methodology" },
     { icon: Users, label: "Independent reviews" },
     { icon: Award, label: "No sponsored rankings" },
     { icon: Newspaper, label: "Updated for FY2026" },
   ];
+
+  const statItems = [
+    { label: "Tools compared", value: stats?.tools },
+    { label: "Tax guides", value: stats?.guides },
+    { label: "Categories covered", value: stats?.categories },
+    { label: "Review criteria", value: stats?.reviews },
+  ].filter((item) => typeof item.value === "number" && item.value > 0);
 
   return (
     <section className="border-y border-slate-200 bg-white py-12 lg:py-16">
@@ -55,47 +48,22 @@ export function TrustSignals({
           ))}
         </div>
 
-        {/* As seen / recognition */}
-        <div className="mt-10 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-            Recognised by Australian crypto & finance communities
-          </p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-4 opacity-60 grayscale">
-            {["Aussie Finance", "Crypto AU", "Tax Tech Weekly", "Bitcoin Australia"].map((name) => (
-              <span
-                key={name}
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm"
+        {/* Real stats */}
+        {statItems.length > 0 && (
+          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {statItems.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center"
               >
-                {name}
-              </span>
+                <p className="text-3xl font-extrabold tracking-tight text-slate-900">
+                  {item.value}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">{item.label}</p>
+              </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-slate-400">
-            Replace with your actual press logos once coverage is live.
-          </p>
-        </div>
-
-        {/* Testimonials */}
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {testimonials.map((t) => (
-            <blockquote
-              key={t.name}
-              className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
-            >
-              <Quote className="size-6 text-emerald-600/40" aria-hidden="true" />
-              <p className="mt-3 text-sm leading-relaxed text-slate-700">&ldquo;{t.quote}&rdquo;</p>
-              <footer className="mt-4 flex items-center gap-2">
-                <span className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
-                  {t.name.charAt(0)}
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{t.name}</p>
-                  <p className="text-xs text-slate-500">{t.detail}</p>
-                </div>
-              </footer>
-            </blockquote>
-          ))}
-        </div>
+        )}
 
         {/* Legal / disclaimers */}
         <div className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed text-slate-600 sm:p-6">
