@@ -49,7 +49,7 @@ export const cryptoToolsSite = defineSite({
   // Situation-triage "answer engine" homepage — see homepage-taxfinder.tsx.
   homepage: "taxfinder",
 
-  features: ["blog", "rssFeed", "search", "scheduling", "comparisons", "deals", "cookieConsent"],
+  features: ["rssFeed", "search", "comparisons", "cookieConsent"],
 
   contentDisclosure:
     "This page contains affiliate links. We may earn a commission at no extra cost to you if you sign up through our links. General information only — not tax advice. Verify with the ATO or a registered tax agent.",
