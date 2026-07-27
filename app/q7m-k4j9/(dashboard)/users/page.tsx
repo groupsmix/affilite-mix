@@ -34,12 +34,17 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
     ],
   );
   let [users, memberships] = usersResult.data;
-  if (users.length === 0 && session.email) {
+  if (users.length === 0 && (session.userId || session.email)) {
+    const fallbackEmail = session.email
+      ? session.email
+      : session.userId
+        ? session.userId
+        : "current-admin";
     users = [
       {
         id: session.userId ?? "current-admin",
-        email: session.email,
-        name: session.email.split("@")[0] ?? "Current admin",
+        email: fallbackEmail,
+        name: session.email?.split("@")[0] ?? "Current admin",
         role: session.role,
         is_active: true,
         totp_enabled: false,

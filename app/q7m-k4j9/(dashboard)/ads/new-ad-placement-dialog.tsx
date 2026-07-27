@@ -173,10 +173,12 @@ export function NewAdPlacementDialog({
         if (!next) resetForm();
       }}
     >
-      {children || (
+      {children === undefined ? (
         <DialogTrigger asChild>
           <Button>Add placement</Button>
         </DialogTrigger>
+      ) : (
+        children
       )}
       <DialogContent>
         <DialogHeader>

@@ -78,7 +78,7 @@ export function StickySaveBar({
           <Button type="button" variant="outline" onClick={handleCancelClick} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" form={formId} disabled={saving || disabled}>
+          <Button type="submit" form={formId} disabled={saving || disabled || !isDirty}>
             {saving ? savingLabel : saveLabel}
           </Button>
         </div>

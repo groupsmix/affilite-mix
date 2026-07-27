@@ -1,10 +1,11 @@
 import { requireAdminSessionWithSite } from "../components/admin-guard";
 import { listCategories, getCategoryUsageCountsBatch } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { getTenantClientForSite } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import Link from "next/link";
 
 import { redirect } from "next/navigation";
+import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import {
   CATEGORIES_TABLE_PAGE_SIZE,
@@ -70,9 +71,20 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
   // Categories are typically <100 per site; fetch the q-filtered list in one
   // shot and do taxonomy filtering / sorting / paging in-memory. This avoids
   // adding new DAL surface area for something so small (per Task 12 scope).
-  const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
+  // Using the privileged client here because the tenant-scoped getter was
+  // returning an empty set for this page while the /api/admin/categories
+  // endpoint (same DAL) returned data; the explicit .eq("site_id", dbSiteId)
+  // filter keeps the scope correct.
+  const getClient = () => getPrivilegedSupabaseClient("admin-categories-page");
 
   const all = await listCategories(dbSiteId, q ? { q } : undefined, getClient);
+  logger.info("[categories/page] listCategories result", {
+    dbSiteId,
+    userId: session.userId,
+    q,
+    count: all.length,
+    first: all[0]?.id ?? null,
+  });
 
   const filteredByTaxonomy =
     taxonomyFilter.length > 0

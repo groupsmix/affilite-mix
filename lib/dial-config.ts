@@ -470,6 +470,15 @@ function isOldSampleImage(url: unknown): boolean {
   return isString(url) && url.startsWith(OLD_SAMPLE_IMAGE_PREFIX);
 }
 
+function hasAmazonReferral(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.searchParams.has("tag") || u.searchParams.has("ref");
+  } catch {
+    return false;
+  }
+}
+
 function getAmazonSearchUrl(brand: string, name: string): string {
   const query = `${brand} ${name}`.replace(/\s+/g, " ").trim();
   return `https://www.amazon.com/s?k=${encodeURIComponent(query)}`;
@@ -489,11 +498,19 @@ function appendAmazonTag(url: string): string {
 }
 
 function resolveWatchAffiliateUrl(watch: Watch): string {
-  if (watch.affiliateUrl && watch.affiliateUrl.trim().length > 0) {
-    return appendAmazonTag(watch.affiliateUrl);
+  const url = watch.affiliateUrl?.trim() ?? "";
+  if (url.length > 0) {
+    const isAmazon = url.includes("amazon.com");
+    if (isAmazon && !process.env.AMAZON_ASSOCIATE_TAG && !hasAmazonReferral(url)) {
+      return "";
+    }
+    return appendAmazonTag(url);
   }
-  const searchUrl = getAmazonSearchUrl(watch.brand, watch.name);
-  return appendAmazonTag(searchUrl);
+  if (process.env.AMAZON_ASSOCIATE_TAG) {
+    const searchUrl = getAmazonSearchUrl(watch.brand, watch.name);
+    return appendAmazonTag(searchUrl);
+  }
+  return "";
 }
 
 function rebaseWatches(sourceWatches: Watch[], defaults: Watch[]): Watch[] {

@@ -65,7 +65,9 @@ export function PermissionsManager() {
       const res = await fetch("/api/admin/sites");
       if (res.ok) {
         const data = await res.json();
-        const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
+        const dbSites = (data.sites as SiteOption[]).filter(
+          (s) => s.source === "database" || s.source === "config",
+        );
         setSites(dbSites);
         if (dbSites.length > 0 && !selectedSiteId) {
           // F-013 (rc4): default to the globally active site, falling back to the

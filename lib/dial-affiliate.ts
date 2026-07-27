@@ -8,6 +8,15 @@ interface DialAffiliateWatch {
 
 const AMAZON_TAG = process.env.AMAZON_ASSOCIATE_TAG || process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG;
 
+function hasAmazonReferral(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.searchParams.has("tag") || u.searchParams.has("ref");
+  } catch {
+    return false;
+  }
+}
+
 function getAmazonSearchUrl(brand: string, name: string): string {
   const query = `${brand} ${name}`.replace(/\s+/g, " ").trim();
   let url = `https://www.amazon.com/s?k=${encodeURIComponent(query)}`;
@@ -31,7 +40,12 @@ function appendAmazonTag(url: string): string {
 
 export function resolveDialAffiliateUrl(watch: DialAffiliateWatch): string {
   if (hasUsableAffiliateUrl(watch.affiliateUrl)) {
+    const isAmazon = watch.affiliateUrl.includes("amazon.com");
+    if (isAmazon && !AMAZON_TAG && !hasAmazonReferral(watch.affiliateUrl)) return "";
     return appendAmazonTag(watch.affiliateUrl);
   }
-  return getAmazonSearchUrl(watch.brand, watch.name);
+  if (AMAZON_TAG) {
+    return getAmazonSearchUrl(watch.brand, watch.name);
+  }
+  return "";
 }

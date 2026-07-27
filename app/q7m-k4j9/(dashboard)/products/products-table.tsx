@@ -34,7 +34,7 @@ import { ProductBulkActions } from "./bulk-actions";
 import { ProductDeleteDialog } from "./product-delete-button";
 import type { CategoryRow } from "@/types/database";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
+import { hasUsableAffiliateUrl, isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 
 export interface ProductsTableRow {
   id: string;
@@ -294,7 +294,8 @@ const columns: ColumnDef<ProductsTableRow>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title="Network" />,
     cell: ({ row }) => {
       const merchant = row.original.merchant?.trim();
-      if (!merchant) return <span className="text-muted-foreground">—</span>;
+      const linkReady = hasUsableAffiliateUrl(row.original.affiliate_url);
+      if (!merchant || !linkReady) return <span className="text-muted-foreground">—</span>;
       return <Badge variant="secondary">{merchant}</Badge>;
     },
     filterFn: (row, _id, value: string[]) =>
