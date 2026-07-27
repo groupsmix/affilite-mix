@@ -28,15 +28,14 @@ export function SiteFooter({ site }: SiteFooterProps) {
           <div>
             <Link href="/" className="flex items-center gap-2">
               {site.brand.logo ? (
-                <span className="relative block h-7 w-[42px] shrink-0">
-                  <Image
-                    src={site.brand.logo}
-                    alt={site.name}
-                    fill
-                    sizes="60px"
-                    className="object-contain"
-                  />
-                </span>
+                <Image
+                  src={site.brand.logo}
+                  alt={site.name}
+                  width={60}
+                  height={40}
+                  sizes="60px"
+                  className="h-10 w-auto object-contain"
+                />
               ) : (
                 <>
                   <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60">
