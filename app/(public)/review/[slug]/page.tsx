@@ -12,6 +12,9 @@ import { HtmlRenderer } from "../../components/html-renderer";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd, faqJsonLd } from "../../components/json-ld";
 import { ProductCardCta } from "../../components/product-card-client";
 import Link from "next/link";
+import ContentPage, {
+  generateMetadata as generateContentMetadata,
+} from "../../[slug]/[nestedSlug]/page";
 
 export const revalidate = 60;
 
@@ -32,7 +35,10 @@ export async function generateMetadata({
   const review = getEtsyReview(slug);
   const site = await getCurrentSite();
   if (site.slug !== "ai-compared" || !review) {
-    return { title: "Not Found" };
+    return generateContentMetadata({
+      params: Promise.resolve({ slug: "review", nestedSlug: slug }),
+      searchParams: Promise.resolve({}),
+    });
   }
   const url = `https://${site.domain}/review/${review.slug}`;
   return {
@@ -57,7 +63,14 @@ export default async function ReviewPage({ params }: { params: Promise<{ slug: s
   const { slug } = await params;
   const review = getEtsyReview(slug);
   const site = await getCurrentSite();
-  if (site.slug !== "ai-compared" || !review) notFound();
+  if (site.slug !== "ai-compared" || !review) {
+    return (
+      <ContentPage
+        params={Promise.resolve({ slug: "review", nestedSlug: slug })}
+        searchParams={Promise.resolve({})}
+      />
+    );
+  }
 
   const tool = getEtsyTool(review.toolSlug);
   if (!tool) notFound();

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getCurrentSite } from "@/lib/site-context";
 import { getAllSiteGuides } from "@/lib/site-guides";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json-ld";
+import { ContentTypeListing } from "../[slug]/content-type-listing";
 
 export const revalidate = 60;
 
@@ -18,6 +19,25 @@ export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
   const guides = getAllSiteGuides(site.slug ?? site.id);
   if (guides.length === 0) {
+    const ct = site.contentTypes.find((c) => c.value === "guide");
+    if (ct) {
+      const url = `https://${site.domain}/guide`;
+      const plural = ct.labelPlural ?? `${ct.label}s`;
+      return {
+        metadataBase: new URL(`https://${site.domain}`),
+        title: `${plural} — ${site.name}`,
+        description: `Browse all ${plural.toLowerCase()} on ${site.name}`,
+        alternates: { canonical: url },
+        openGraph: {
+          title: `${plural} — ${site.name}`,
+          description: `Browse all ${plural.toLowerCase()} on ${site.name}`,
+          url,
+          siteName: site.name,
+          locale: site.locale,
+          type: "website",
+        },
+      };
+    }
     return { title: "Not Found" };
   }
   const url = `https://${site.domain}/guide`;
@@ -41,11 +61,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function GuideHubPage() {
+export default async function GuideHubPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const site = await getCurrentSite();
+  const { page } = await searchParams;
   const guides = getAllSiteGuides(site.slug ?? site.id);
   if (guides.length === 0) {
-    notFound();
+    const ct = site.contentTypes.find((c) => c.value === "guide");
+    if (!ct) notFound();
+    return <ContentTypeListing site={site} contentType="guide" page={page} />;
   }
 
   const orgJsonLd = organizationJsonLd(site);

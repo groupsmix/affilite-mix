@@ -14,6 +14,9 @@ import { HtmlRenderer } from "../../components/html-renderer";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd, faqJsonLd } from "../../components/json-ld";
 import { ProductCardCta } from "../../components/product-card-client";
 import Link from "next/link";
+import ContentPage, {
+  generateMetadata as generateContentMetadata,
+} from "../../[slug]/[nestedSlug]/page";
 
 export const revalidate = 60;
 
@@ -48,7 +51,10 @@ export async function generateMetadata({
   const comparison = getEtsyComparison(slug);
   const site = await getCurrentSite();
   if (site.slug !== "ai-compared" || !comparison) {
-    return { title: "Not Found" };
+    return generateContentMetadata({
+      params: Promise.resolve({ slug: "comparison", nestedSlug: slug }),
+      searchParams: Promise.resolve({}),
+    });
   }
   const url = `https://${site.domain}/comparison/${comparison.slug}`;
   return {
@@ -73,7 +79,14 @@ export default async function ComparisonPage({ params }: { params: Promise<{ slu
   const { slug } = await params;
   const comparison = getEtsyComparison(slug);
   const site = await getCurrentSite();
-  if (site.slug !== "ai-compared" || !comparison) notFound();
+  if (site.slug !== "ai-compared" || !comparison) {
+    return (
+      <ContentPage
+        params={Promise.resolve({ slug: "comparison", nestedSlug: slug })}
+        searchParams={Promise.resolve({})}
+      />
+    );
+  }
 
   const left = getEtsyTool(comparison.leftToolSlug);
   const right = getEtsyTool(comparison.rightToolSlug);

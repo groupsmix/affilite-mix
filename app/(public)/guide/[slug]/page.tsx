@@ -9,6 +9,9 @@ import { HtmlRenderer } from "../../components/html-renderer";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd, faqJsonLd } from "../../components/json-ld";
 import { NewsletterSignup } from "../../components/newsletter-signup";
 import Link from "next/link";
+import ContentPage, {
+  generateMetadata as generateContentMetadata,
+} from "../../[slug]/[nestedSlug]/page";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +44,10 @@ export async function generateMetadata({
   }
   const guide = getSiteGuide(site.slug ?? site.id, slug);
   if (!guide) {
-    return { title: "Not Found" };
+    return generateContentMetadata({
+      params: Promise.resolve({ slug: "guide", nestedSlug: slug }),
+      searchParams: Promise.resolve({}),
+    });
   }
   const url = `https://${site.domain}/guide/${guide.slug}`;
   return {
@@ -86,7 +92,14 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
   }
 
   const guide = getSiteGuide(site.slug ?? site.id, slug);
-  if (!guide) notFound();
+  if (!guide) {
+    return (
+      <ContentPage
+        params={Promise.resolve({ slug: "guide", nestedSlug: slug })}
+        searchParams={Promise.resolve({})}
+      />
+    );
+  }
 
   const orgJsonLd = organizationJsonLd(site);
   const breadcrumbs = breadcrumbJsonLd(site, [

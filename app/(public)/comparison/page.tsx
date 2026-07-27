@@ -3,24 +3,41 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentSite } from "@/lib/site-context";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json-ld";
+import { ContentTypeListing } from "../[slug]/content-type-listing";
 
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  if (site.slug !== "ai-compared") {
-    return { title: "Not Found" };
-  }
   const url = `https://${site.domain}/comparison`;
+  if (site.slug === "ai-compared") {
+    return {
+      metadataBase: new URL(`https://${site.domain}`),
+      title: `Tool Comparisons for Etsy Sellers | ${site.name}`,
+      description:
+        "Head-to-head comparisons of AI-powered Etsy research, SEO, design, and POD tools. We test first, then publish.",
+      alternates: { canonical: url },
+      openGraph: {
+        title: `Tool Comparisons for Etsy Sellers | ${site.name}`,
+        description: "Honest, tested comparisons for Etsy sellers.",
+        url,
+        siteName: site.name,
+        locale: site.locale,
+        type: "website",
+      },
+    };
+  }
+  const ct = site.contentTypes.find((c) => c.value === "comparison");
+  if (!ct) return { title: "Not Found" };
+  const plural = ct.labelPlural ?? `${ct.label}s`;
   return {
     metadataBase: new URL(`https://${site.domain}`),
-    title: `Tool Comparisons for Etsy Sellers | ${site.name}`,
-    description:
-      "Head-to-head comparisons of AI-powered Etsy research, SEO, design, and POD tools. We test first, then publish.",
+    title: `${plural} — ${site.name}`,
+    description: `Browse all ${plural.toLowerCase()} on ${site.name}`,
     alternates: { canonical: url },
     openGraph: {
-      title: `Tool Comparisons for Etsy Sellers | ${site.name}`,
-      description: "Honest, tested comparisons for Etsy sellers.",
+      title: `${plural} — ${site.name}`,
+      description: `Browse all ${plural.toLowerCase()} on ${site.name}`,
       url,
       siteName: site.name,
       locale: site.locale,
@@ -50,10 +67,17 @@ const COMPARISONS = [
   },
 ];
 
-export default async function ComparisonHubPage() {
+export default async function ComparisonHubPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const site = await getCurrentSite();
+  const { page } = await searchParams;
   if (site.slug !== "ai-compared") {
-    notFound();
+    const ct = site.contentTypes.find((c) => c.value === "comparison");
+    if (!ct) notFound();
+    return <ContentTypeListing site={site} contentType="comparison" page={page} />;
   }
   const breadcrumbs = breadcrumbJsonLd(site, [
     { name: site.name, path: "/" },

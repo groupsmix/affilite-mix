@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import type { NavItem } from "@/config/site-definition";
 
 interface MobileMenuProps {
-  nav: { title: string; href: string }[];
+  nav: NavItem[];
   searchLabel?: string;
   direction?: "ltr" | "rtl";
   /**
@@ -30,7 +31,6 @@ export function MobileMenu({
 
   const closeMenu = useCallback(() => {
     setOpen(false);
-    // Return focus to the hamburger button
     hamburgerRef.current?.focus();
   }, []);
 
@@ -56,7 +56,6 @@ export function MobileMenu({
     const firstEl = focusableElements[0];
     const lastEl = focusableElements[focusableElements.length - 1];
 
-    // Auto-focus the close button (first focusable)
     firstEl!.focus();
 
     function handleTab(e: KeyboardEvent) {
@@ -77,9 +76,20 @@ export function MobileMenu({
     return () => drawer.removeEventListener("keydown", handleTab);
   }, [open]);
 
+  const itemClass = `block rounded-md px-3 py-3 text-base font-medium transition-colors ${
+    dark
+      ? "text-gray-300 hover:bg-white/10 hover:text-white"
+      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+  }`;
+
+  const nestedItemClass = `block rounded-md px-3 py-2 text-sm transition-colors ${
+    dark
+      ? "text-gray-300 hover:bg-white/10 hover:text-white"
+      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+  }`;
+
   return (
     <>
-      {/* Hamburger button */}
       <button
         ref={hamburgerRef}
         type="button"
@@ -113,15 +123,12 @@ export function MobileMenu({
         )}
       </button>
 
-      {/* Mobile drawer */}
-      {/* Backdrop */}
       <div
         className={`fixed inset-0 z-40 bg-black/30 transition-opacity duration-200 md:hidden ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={closeMenu}
       />
-      {/* Drawer — slides from left for RTL, right for LTR */}
       <div
         ref={drawerRef}
         role={open ? "dialog" : undefined}
@@ -161,20 +168,38 @@ export function MobileMenu({
           </button>
         </div>
         <nav className="flex flex-col px-4 py-4">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={closeMenu}
-              className={`rounded-md px-3 py-3 text-base font-medium transition-colors ${
-                dark
-                  ? "text-gray-300 hover:bg-white/10 hover:text-white"
-                  : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-              }`}
-            >
-              {item.title}
-            </Link>
-          ))}
+          {nav.map((item) => {
+            if (item.children && item.children.length > 0) {
+              return (
+                <details key={item.href} className="group">
+                  <summary
+                    className={`cursor-pointer list-none rounded-md px-3 py-3 text-base font-medium ${
+                      dark ? "text-gray-300" : "text-gray-700"
+                    }`}
+                  >
+                    {item.title}
+                  </summary>
+                  <div className="pl-3">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={closeMenu}
+                        className={nestedItemClass}
+                      >
+                        {child.title}
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+              );
+            }
+            return (
+              <Link key={item.href} href={item.href} onClick={closeMenu} className={itemClass}>
+                {item.title}
+              </Link>
+            );
+          })}
           <Link
             href="/search"
             onClick={closeMenu}
