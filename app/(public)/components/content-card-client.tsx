@@ -11,7 +11,6 @@ interface ContentCardImageProps {
   src?: string | null;
   alt: string;
   title?: string;
-  type?: string;
   priority?: boolean;
 }
 
@@ -20,7 +19,6 @@ export function ContentCardImage({
   src,
   alt,
   title,
-  type,
   priority = false,
 }: ContentCardImageProps) {
   const [imgError, setImgError] = useState(false);
@@ -42,13 +40,8 @@ export function ContentCardImage({
     ) : null;
 
   const fallback = !image && (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted p-4 text-center">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-muted p-4 text-center">
       <ImageIcon className="size-10 text-muted-foreground" aria-hidden="true" />
-      {type && (
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          {type}
-        </span>
-      )}
       {title && (
         <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{title}</p>
       )}
