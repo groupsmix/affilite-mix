@@ -32,6 +32,8 @@ export interface SiteDefinition {
     niche: string;
     logo?: string;
     faviconUrl?: string;
+    /** Optional standalone brand mark (e.g. cropped icon) for the header. */
+    mark?: string;
     /** Optional short trust/positioning tagline shown in branded footers. */
     tagline?: string;
   };

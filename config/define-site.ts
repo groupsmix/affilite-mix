@@ -211,6 +211,8 @@ export interface SiteInput {
   logo?: string;
   /** Favicon URL */
   faviconUrl?: string;
+  /** Standalone brand mark (e.g. cropped icon) for the header. */
+  mark?: string;
   /** Short trust/positioning tagline shown in branded footers. */
   tagline?: string;
   /** Optional static header presentation overrides. */
@@ -318,6 +320,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
       niche: input.niche,
       logo: input.logo,
       faviconUrl: input.faviconUrl,
+      mark: input.mark,
       tagline: input.tagline,
     },
 

@@ -28,14 +28,14 @@ export function SiteFooter({ site }: SiteFooterProps) {
           <div>
             <Link href="/" className="flex items-center gap-2">
               {site.brand.logo ? (
-                <span className="inline-flex rounded-md bg-black px-2 py-1.5">
+                <span className="inline-flex rounded-md bg-primary p-2">
                   <Image
                     src={site.brand.logo}
                     alt={site.name}
-                    width={48}
-                    height={32}
-                    sizes="48px"
-                    className="h-8 w-auto object-contain"
+                    width={96}
+                    height={64}
+                    sizes="96px"
+                    className="h-16 w-auto object-contain"
                   />
                 </span>
               ) : (
@@ -48,7 +48,6 @@ export function SiteFooter({ site }: SiteFooterProps) {
                   </span>
                 </>
               )}
-              {site.brand.logo && <span className="sr-only">{site.name}</span>}
             </Link>
             <p className="mt-4 max-w-xs text-pretty text-sm leading-relaxed text-muted-foreground">
               {site.brand.description}

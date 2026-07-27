@@ -106,16 +106,31 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
     >
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex items-center gap-2">
-          {site.brand.logo ? (
+          {site.brand.mark ? (
+            <>
+              <Image
+                src={site.brand.mark}
+                alt=""
+                width={36}
+                height={36}
+                sizes="36px"
+                priority
+                className="h-9 w-9 object-contain"
+              />
+              <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
+                {site.name}
+              </span>
+            </>
+          ) : site.brand.logo ? (
             <span className="inline-flex rounded-md bg-black px-2 py-1.5">
               <Image
                 src={site.brand.logo}
                 alt={site.name}
-                width={66}
-                height={44}
-                sizes="66px"
+                width={96}
+                height={64}
+                sizes="96px"
                 priority
-                className="h-11 w-auto object-contain"
+                className="h-16 w-auto object-contain"
               />
             </span>
           ) : (
@@ -126,7 +141,6 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
               <span className="font-serif text-lg font-semibold tracking-tight">{site.name}</span>
             </>
           )}
-          {site.brand.logo && <span className="sr-only">{site.name}</span>}
         </Link>
 
         <ul className="hidden items-center gap-6 md:flex">
