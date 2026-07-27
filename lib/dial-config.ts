@@ -238,6 +238,27 @@ export const defaultWatches: Watch[] = [
     cons: ["Not water-resistant for swimming"],
     affiliateUrl: "https://www.amazon.com/s?k=Skagen+Signatur+Lille",
   },
+  {
+    id: "casio-duro-walmart",
+    name: "Men's Black Dive Style Sport Watch MDV106-1AV",
+    brand: "Casio",
+    image: "https://m.media-amazon.com/images/I/61nHUVwR65L._AC_SL1500_.jpg",
+    imageAlt: "Casio MDV106-1AV black dive watch with black resin band",
+    price: 66.26,
+    rating: 4.7,
+    reviewCount: 1200,
+    tier: "under-200",
+    category: "Dive",
+    movement: "Quartz",
+    waterResistance: "200m",
+    caseSize: "44mm",
+    bestFor: "Entry-level diver / beater",
+    editorNote:
+      "The Casio Duro is the budget diver everyone recommends. 200m water resistance, screw-down crown, and a stainless steel case for under $70.",
+    pros: ["200m water resistance", "Screw-down crown", "Incredible value"],
+    cons: ["Resin band wears quickly", "Mineral crystal"],
+    affiliateUrl: "https://sovrn.co/1m9tdvu",
+  },
 ];
 
 export const defaultDialConfig: DialHomepageConfig = {
@@ -492,9 +513,12 @@ function rebaseWatches(sourceWatches: Watch[], defaults: Watch[]): Watch[] {
     }
   }
 
-  return defaults
-    .map((watch) => merged.get(watch.id) ?? watch)
-    .map((watch) => ({ ...watch, affiliateUrl: resolveWatchAffiliateUrl(watch) }));
+  const base = defaults.map((watch) => merged.get(watch.id) ?? watch);
+  const extras = sourceWatches.filter((w) => !defaultsById.has(w.id));
+  return [...base, ...extras].map((watch) => ({
+    ...watch,
+    affiliateUrl: resolveWatchAffiliateUrl(watch),
+  }));
 }
 
 export function mergeWithDefault(input: unknown): DialHomepageConfig {
