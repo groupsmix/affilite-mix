@@ -4,12 +4,14 @@ import { listAdminUsers } from "@/lib/dal/admin-users";
 import { listAllAdminSiteMembershipsWithSlugs } from "@/lib/dal/admin-site-memberships";
 
 import { NewUserDialog } from "./new-user-dialog";
-import { USERS_TABLE_PAGE_SIZE, UsersTable, type UsersTableRow } from "./users-table";
+import { UsersTable, type UsersTableRow } from "./users-table";
 import {
   applyUsersQuery,
   parseUsersSearchParams,
   type UsersSearchParamsInput,
 } from "./users-query";
+
+const USERS_TABLE_PAGE_SIZE = 20;
 
 interface AdminUsersPageProps {
   searchParams: Promise<UsersSearchParamsInput>;
