@@ -69,10 +69,17 @@ export function ArticleToc({ items, title = "Contents", className }: ArticleTocP
               className={cn("block transition-colors", activeId === item.id ? "font-medium" : "")}
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const el = document.getElementById(item.id);
                 if (el) {
-                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  const header = document.querySelector("header");
+                  const offset = (header?.getBoundingClientRect().height ?? 80) + 16;
+                  const top = el.getBoundingClientRect().top + window.scrollY - offset;
+                  window.scrollTo({ top, behavior: "smooth" });
                   window.history.pushState(null, "", `#${item.id}`);
+
+                  const details = e.currentTarget.closest("details");
+                  if (details) details.open = false;
                 }
               }}
             >

@@ -223,7 +223,7 @@ describe("audit5-#27 — wrangler placeholder guard", () => {
       const stderr =
         typeof e.stderr === "string"
           ? e.stderr
-          : e.stderr instanceof Buffer
+          : Buffer.isBuffer(e.stderr)
             ? e.stderr.toString("utf8")
             : "";
       return { exit: e.status ?? 1, stderr };
