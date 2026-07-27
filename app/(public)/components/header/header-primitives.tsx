@@ -42,10 +42,14 @@ function SearchIcon() {
 /** Resolve the effective nav items — DB overrides win, else site config. */
 export function resolveNav(
   site: SiteDefinition,
-  dbNavItems?: { label: string; href: string; icon?: string }[],
+  dbNavItems?: { label: string; href: string; icon?: string; children?: NavItem[] }[],
 ): NavItem[] {
   return dbNavItems && dbNavItems.length > 0
-    ? dbNavItems.map((item) => ({ title: item.label, href: item.href }))
+    ? dbNavItems.map((item) => ({
+        title: item.label,
+        href: item.href,
+        children: item.children,
+      }))
     : site.nav;
 }
 

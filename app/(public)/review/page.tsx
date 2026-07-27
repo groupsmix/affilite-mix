@@ -3,24 +3,41 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentSite } from "@/lib/site-context";
 import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json-ld";
+import { ContentTypeListing } from "../[slug]/content-type-listing";
 
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  if (site.slug !== "ai-compared") {
-    return { title: "Not Found" };
-  }
   const url = `https://${site.domain}/review`;
+  if (site.slug === "ai-compared") {
+    return {
+      metadataBase: new URL(`https://${site.domain}`),
+      title: `Etsy Tool Reviews | ${site.name}`,
+      description:
+        "Hands-on reviews of AI-powered Etsy research, SEO, design, and POD tools. No paid placement; we test before we write.",
+      alternates: { canonical: url },
+      openGraph: {
+        title: `Etsy Tool Reviews | ${site.name}`,
+        description: "Hands-on reviews of AI-powered Etsy tools.",
+        url,
+        siteName: site.name,
+        locale: site.locale,
+        type: "website",
+      },
+    };
+  }
+  const ct = site.contentTypes.find((c) => c.value === "review");
+  if (!ct) return { title: "Not Found" };
+  const plural = ct.labelPlural ?? `${ct.label}s`;
   return {
     metadataBase: new URL(`https://${site.domain}`),
-    title: `Etsy Tool Reviews | ${site.name}`,
-    description:
-      "Hands-on reviews of AI-powered Etsy research, SEO, design, and POD tools. No paid placement; we test before we write.",
+    title: `${plural} — ${site.name}`,
+    description: `Browse all ${plural.toLowerCase()} on ${site.name}`,
     alternates: { canonical: url },
     openGraph: {
-      title: `Etsy Tool Reviews | ${site.name}`,
-      description: "Hands-on reviews of AI-powered Etsy tools.",
+      title: `${plural} — ${site.name}`,
+      description: `Browse all ${plural.toLowerCase()} on ${site.name}`,
       url,
       siteName: site.name,
       locale: site.locale,
@@ -45,10 +62,17 @@ const REVIEWS = [
   { slug: "kittl-review", name: "Kittl", focus: "AI design and POD mockups", status: "Planned" },
 ];
 
-export default async function ReviewHubPage() {
+export default async function ReviewHubPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const site = await getCurrentSite();
+  const { page } = await searchParams;
   if (site.slug !== "ai-compared") {
-    notFound();
+    const ct = site.contentTypes.find((c) => c.value === "review");
+    if (!ct) notFound();
+    return <ContentTypeListing site={site} contentType="review" page={page} />;
   }
   const breadcrumbs = breadcrumbJsonLd(site, [
     { name: site.name, path: "/" },

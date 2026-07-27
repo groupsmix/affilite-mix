@@ -98,7 +98,10 @@ export function TaxFinderHomepage({
   featuredProducts,
   categories,
 }: TaxFinderHomepageProps) {
-  const firstContentType = site.contentTypes[0]?.value ?? "guide";
+  const firstContentType =
+    site.contentTypes.find((c) => c.value === "guide")?.value ??
+    site.contentTypes[0]?.value ??
+    "guide";
   const usable = featuredProducts.filter((p) => hasUsableAffiliateUrl(p.affiliate_url));
 
   const softwareProducts = usable.filter((p) => SOFTWARE_SLUGS.has(p.slug));
@@ -222,36 +225,40 @@ export function TaxFinderHomepage({
               Go deeper on how the ATO treats each one.
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {categories.slice(0, 7).map((cat, i) => {
-                const { Icon, iconBg, iconText, iconRing, hoverBg, hoverText, labelColor } =
-                  categoryStyle(cat.slug);
-                return (
-                  <Link
-                    key={cat.id}
-                    href={`/category/${cat.slug}`}
-                    className={`group flex flex-col rounded-2xl border border-slate-200 bg-[#F8F9FA] p-5 transition-all hover:-translate-y-1 hover:border-slate-300 hover:bg-white hover:shadow-lg ${
-                      i === 0 ? "sm:col-span-2" : ""
-                    }`}
-                  >
-                    <span
-                      className={`inline-flex size-10 items-center justify-center rounded-lg ${iconBg} ${iconText} ring-1 ${iconRing} transition-colors ${hoverBg} ${hoverText}`}
+              {categories
+                .filter((cat) => CATEGORY_ORDER.includes(cat.slug))
+                .sort((a, b) => CATEGORY_ORDER.indexOf(a.slug) - CATEGORY_ORDER.indexOf(b.slug))
+                .slice(0, 7)
+                .map((cat, i) => {
+                  const { Icon, iconBg, iconText, iconRing, hoverBg, hoverText, labelColor } =
+                    categoryStyle(cat.slug);
+                  return (
+                    <Link
+                      key={cat.id}
+                      href={`/category/${cat.slug}`}
+                      className={`group flex flex-col rounded-2xl border border-slate-200 bg-[#F8F9FA] p-5 transition-all hover:-translate-y-1 hover:border-slate-300 hover:bg-white hover:shadow-lg ${
+                        i === 0 ? "sm:col-span-2" : ""
+                      }`}
                     >
-                      <Icon className="size-5" aria-hidden={true} />
-                    </span>
-                    <h3 className="mt-3 font-bold text-slate-900">{cat.name}</h3>
-                    {cat.description && (
-                      <p className="mt-1 line-clamp-2 text-[13px] text-slate-500">
-                        {cat.description}
-                      </p>
-                    )}
-                    <span
-                      className={`mt-auto inline-flex items-center gap-1 pt-3 text-[13px] font-semibold ${labelColor} group-hover:underline`}
-                    >
-                      Learn more <ArrowRight className="size-3.5" aria-hidden="true" />
-                    </span>
-                  </Link>
-                );
-              })}
+                      <span
+                        className={`inline-flex size-10 items-center justify-center rounded-lg ${iconBg} ${iconText} ring-1 ${iconRing} transition-colors ${hoverBg} ${hoverText}`}
+                      >
+                        <Icon className="size-5" aria-hidden={true} />
+                      </span>
+                      <h3 className="mt-3 font-bold text-slate-900">{cat.name}</h3>
+                      {cat.description && (
+                        <p className="mt-1 line-clamp-2 text-[13px] text-slate-500">
+                          {cat.description}
+                        </p>
+                      )}
+                      <span
+                        className={`mt-auto inline-flex items-center gap-1 pt-3 text-[13px] font-semibold ${labelColor} group-hover:underline`}
+                      >
+                        Learn more <ArrowRight className="size-3.5" aria-hidden="true" />
+                      </span>
+                    </Link>
+                  );
+                })}
             </div>
           </div>
         </section>
@@ -536,6 +543,8 @@ const CATEGORY_STYLES: Record<string, CategoryStyle> = {
     labelColor: "text-indigo-700",
   },
 };
+
+const CATEGORY_ORDER = Object.keys(CATEGORY_STYLES);
 
 function categoryStyle(slug: string): CategoryStyle {
   return (
