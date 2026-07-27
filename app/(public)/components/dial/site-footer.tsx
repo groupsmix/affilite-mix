@@ -28,13 +28,13 @@ export function SiteFooter({ site }: SiteFooterProps) {
           <div>
             <Link href="/" className="flex items-center gap-2">
               {site.brand.logo ? (
-                <span className="inline-flex rounded-md bg-primary px-2 py-1.5">
+                <span className="inline-flex rounded-md bg-black px-2 py-1.5">
                   <Image
                     src={site.brand.logo}
                     alt={site.name}
-                    width={60}
-                    height={40}
-                    sizes="60px"
+                    width={48}
+                    height={32}
+                    sizes="48px"
                     className="h-8 w-auto object-contain"
                   />
                 </span>
