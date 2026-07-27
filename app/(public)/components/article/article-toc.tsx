@@ -67,14 +67,7 @@ export function ArticleToc({ items, title = "Contents", className }: ArticleTocP
             <a
               href={`#${item.id}`}
               className={cn("block transition-colors", activeId === item.id ? "font-medium" : "")}
-              onClick={(e) => {
-                e.preventDefault();
-                const el = document.getElementById(item.id);
-                if (el) {
-                  el.scrollIntoView({ behavior: "smooth", block: "start" });
-                  window.history.pushState(null, "", `#${item.id}`);
-                }
-              }}
+              aria-current={activeId === item.id ? "location" : undefined}
             >
               {item.label}
             </a>
