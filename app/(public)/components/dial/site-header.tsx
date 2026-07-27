@@ -107,15 +107,17 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex items-center gap-2">
           {site.brand.logo ? (
-            <Image
-              src={site.brand.logo}
-              alt={site.name}
-              width={72}
-              height={48}
-              sizes="72px"
-              priority
-              className="h-12 w-auto object-contain"
-            />
+            <span className="inline-flex rounded-md bg-primary px-2.5 py-1.5">
+              <Image
+                src={site.brand.logo}
+                alt={site.name}
+                width={72}
+                height={48}
+                sizes="72px"
+                priority
+                className="h-10 w-auto object-contain"
+              />
+            </span>
           ) : (
             <>
               <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60 bg-primary/10 text-primary">
