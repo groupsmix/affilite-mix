@@ -27,6 +27,9 @@ export interface DialGuide {
     description: string;
     keywords: string[];
   };
+  /** Full-width hero image shown at the top of the guide. */
+  heroImage?: string;
+  heroImageAlt?: string;
   /** Short "why trust us" note shown above the picks. */
   introNote: string;
   picks: GuidePick[];
@@ -104,6 +107,8 @@ function isDialGuide(raw: unknown): DialGuide | null {
   const picksRaw = raw.picks;
   const buying = raw.buying;
   const faqsRaw = raw.faqs;
+  const heroImage = raw.heroImage;
+  const heroImageAlt = raw.heroImageAlt;
 
   if (
     !isString(slug) ||
@@ -146,6 +151,8 @@ function isDialGuide(raw: unknown): DialGuide | null {
     lede,
     breadcrumbLabel,
     meta: { title: meta.title, description: meta.description, keywords: meta.keywords },
+    heroImage: isString(heroImage) ? heroImage : undefined,
+    heroImageAlt: isString(heroImageAlt) ? heroImageAlt : undefined,
     introNote,
     picks,
     buying: { title: buyingTitle, lede: buyingLede, sections },
@@ -203,6 +210,8 @@ export const defaultDialGuides: DialGuide[] = [
     h1: "The Best Watches Under $500 in 2026",
     lede: "We spent months wearing and testing dozens of watches to find the six that genuinely deliver more than their price suggests — from a true dive automatic to the perfect dress watch. Here is what earned a spot, and why.",
     breadcrumbLabel: "Best Watches Under $500",
+    heroImage: "/images/wristnerd/wristnerd-hero-under-500.png",
+    heroImageAlt: "Premium affordable watches on a dark desk with leather strap and pen",
     meta: {
       title: "Best Watches Under $500 (2026) — Tested & Ranked | WristNerd",
       description:
@@ -289,6 +298,8 @@ export const defaultDialGuides: DialGuide[] = [
     h1: "The Best Watches Under $300 in 2026",
     lede: "The $300 mark is the affordable-watch sweet spot — enough for sapphire crystals, quality straps, and genuinely good design without overspending. These are the four we recommend without hesitation.",
     breadcrumbLabel: "Best Watches Under $300",
+    heroImage: "/images/wristnerd/wristnerd-hero-under-300.png",
+    heroImageAlt: "Mid-tier watches and tools arranged on a leather tray",
     meta: {
       title: "Best Watches Under $300 (2026) — Tested & Ranked | WristNerd",
       description:
@@ -358,6 +369,8 @@ export const defaultDialGuides: DialGuide[] = [
     h1: "The Best Dress Watches Under $500 in 2026",
     lede: "A great dress watch is thin, understated, and quietly elegant — the kind of piece that slips under a cuff and elevates a suit. These are the three that nail the brief without breaking $500.",
     breadcrumbLabel: "Best Dress Watch Under $500",
+    heroImage: "/images/wristnerd/wristnerd-hero-dress.png",
+    heroImageAlt: "Slim dress watch on a dark wood desk with a folded shirt cuff",
     meta: {
       title: "Best Dress Watch Under $500 (2026) — Tested & Ranked | WristNerd",
       description:
@@ -439,6 +452,8 @@ export const defaultDialGuides: DialGuide[] = [
     h1: "The Best Watches Under $200 in 2026",
     lede: "You do not need to spend a lot to get a capable, characterful watch. The best sub-$200 picks combine honest specs, real-world durability, and enough style to wear anywhere.",
     breadcrumbLabel: "Best Watches Under $200",
+    heroImage: "/images/wristnerd/wristnerd-hero-under-200.png",
+    heroImageAlt: "Affordable dive and digital watches on concrete with sunglasses",
     meta: {
       title: "Best Watches Under $200 (2026) — Tested & Ranked | WristNerd",
       description:
