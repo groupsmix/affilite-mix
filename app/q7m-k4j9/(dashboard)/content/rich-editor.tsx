@@ -531,6 +531,7 @@ function MenuBar({
 }
 
 export function RichEditor({ value, onChange, products }: RichEditorProps) {
+  const safeValue = value ?? "";
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -560,7 +561,7 @@ export function RichEditor({ value, onChange, products }: RichEditorProps) {
         height: 360,
       }),
     ],
-    content: value,
+    content: safeValue,
     onUpdate: ({ editor: e }) => {
       // F-23: Assert TipTap output passes sanitize-html before rendering
       const rawHtml = e.getHTML();
@@ -586,10 +587,10 @@ export function RichEditor({ value, onChange, products }: RichEditorProps) {
 
   // Sync external value changes (e.g. when loading saved content or form reset)
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value, { emitUpdate: false });
+    if (editor && typeof safeValue === "string" && safeValue !== editor.getHTML()) {
+      editor.commands.setContent(safeValue, { emitUpdate: false });
     }
-  }, [editor, value]);
+  }, [editor, safeValue]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">

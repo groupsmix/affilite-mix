@@ -29,6 +29,7 @@ import { useCallback } from "react";
 import { ErrorBoundary } from "../components/error-boundary";
 
 const RichEditor = dynamic(() => import("./rich-editor").then((m) => m.RichEditor), {
+  ssr: false,
   loading: () => (
     <div className="h-[300px] animate-pulse rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50" />
   ),

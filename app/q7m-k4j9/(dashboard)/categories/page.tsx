@@ -6,13 +6,9 @@ import Link from "next/link";
 
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  CATEGORIES_TABLE_PAGE_SIZE,
-  CategoriesTable,
-  type CategoriesTableRow,
-} from "./categories-table";
+import { CategoriesTable, type CategoriesTableRow } from "./categories-table";
 
-const DEFAULT_PAGE_SIZE = CATEGORIES_TABLE_PAGE_SIZE;
+const DEFAULT_PAGE_SIZE = 50;
 
 const TAXONOMY_VALUES = new Set(["general", "budget", "occasion", "recipient", "brand"] as const);
 type TaxonomyValue = typeof TAXONOMY_VALUES extends Set<infer V> ? V : never;
@@ -70,10 +66,11 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
   // Categories are typically <100 per site; fetch the q-filtered list in one
   // shot and do taxonomy filtering / sorting / paging in-memory. This avoids
   // adding new DAL surface area for something so small (per Task 12 scope).
+  // Use the tenant-scoped client with the server-derived active site; this
+  // matches the working /api/admin/categories endpoint and product pages.
   const getClient = () => getTenantClientForSite(dbSiteId, session.userId);
 
   const all = await listCategories(dbSiteId, q ? { q } : undefined, getClient);
-
   const filteredByTaxonomy =
     taxonomyFilter.length > 0
       ? all.filter((c) => taxonomyFilter.includes(c.taxonomy_type as TaxonomyValue))

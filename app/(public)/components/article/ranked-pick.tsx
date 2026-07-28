@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ArrowUpRight, Check, Minus, Star } from "lucide-react";
 import type { Watch } from "@/lib/dial-config";
 import { resolveDialAffiliateUrl } from "@/lib/dial-affiliate";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 import { ProductCardCta } from "../product-card-client";
 import { Reveal } from "./reveal";
 
@@ -96,25 +97,27 @@ export function RankedPick({ rank, award, reason, watch }: RankedPickProps) {
 
           <div className="mt-5 flex-1" />
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <ProductCardCta
-              href={resolveDialAffiliateUrl(watch)}
-              slug={watch.id}
-              sourceType="guide"
-              placement="ranked-pick"
-              productName={`${watch.brand} ${watch.name}`}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              label={
-                <>
-                  Check price
-                  <ArrowUpRight className="h-4 w-4" />
-                </>
-              }
-            />
-            <p className="text-[11px] text-muted-foreground">
-              We may earn a commission at no extra cost to you.
-            </p>
-          </div>
+          {hasUsableAffiliateUrl(watch.affiliateUrl) ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <ProductCardCta
+                href={resolveDialAffiliateUrl(watch)}
+                slug={watch.id}
+                sourceType="guide"
+                placement="ranked-pick"
+                productName={`${watch.brand} ${watch.name}`}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                label={
+                  <>
+                    Check price
+                    <ArrowUpRight className="h-4 w-4" />
+                  </>
+                }
+              />
+              <p className="text-[11px] text-muted-foreground">
+                We may earn a commission at no extra cost to you.
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </Reveal>

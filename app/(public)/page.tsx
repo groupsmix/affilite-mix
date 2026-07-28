@@ -63,12 +63,8 @@ const Top10Homepage = dynamic(() =>
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  const isCryptoTaxAu =
-    site.name === "Crypto Tax AU" ||
-    site.domain === "cryptoranked.xyz" ||
-    (site.slug ?? site.id) === "crypto-tools";
   const ogTitle = `${site.name} — ${site.brand.niche}`;
-  const ogImageSrc = isCryptoTaxAu ? "/images/hero-crypto-tax-au.png" : site.brand.logo;
+  const ogImageSrc = site.brand.logo;
   const ogImage = ogImageSrc
     ? { url: ogImageSrc, width: 1536, height: 1024, alt: site.name }
     : undefined;
@@ -187,7 +183,14 @@ export default async function HomePage() {
   }
 
   if (template === "dial") {
-    return <DialHomepage site={site} config={dialConfig ?? defaultDialConfig} />;
+    return (
+      <DialHomepage
+        site={site}
+        config={dialConfig ?? defaultDialConfig}
+        categories={categories}
+        recentContent={recentContent}
+      />
+    );
   }
 
   if (template === "calmroutine") {

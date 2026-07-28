@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { logger } from "@/lib/logger";
 
@@ -19,12 +18,8 @@ export interface DashboardStats {
 /**
  * Fetch all dashboard aggregate stats in a single RPC call.
  * Falls back to individual queries if the RPC is not yet deployed.
- *
- * Cached per request via React.cache so multiple dashboard components (e.g.
- * header power reserve + KPI grid) can share the same RPC result without
- * duplicating database work.
  */
-export const getDashboardStats = cache(async function getDashboardStats(
+export async function getDashboardStats(
   siteId: string,
   todayStart: string,
   sevenDaysAgo: string,
@@ -68,7 +63,7 @@ export const getDashboardStats = cache(async function getDashboardStats(
     content_no_products: Number(stats.content_no_products ?? 0),
     scheduled_content: Number(stats.scheduled_content ?? 0),
   };
-});
+}
 
 /** Fallback: individual queries when RPC is not available */
 function emptyDashboardStats(): DashboardStats {

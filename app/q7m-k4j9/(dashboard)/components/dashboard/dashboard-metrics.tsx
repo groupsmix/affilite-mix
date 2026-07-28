@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_noStore } from "next/cache";
 
 import { getDashboardStats, type DashboardStats } from "@/lib/dal/dashboard-stats";
 import { getDailyClicks } from "@/lib/dal/affiliate-clicks";
@@ -28,6 +29,7 @@ export async function DashboardMetrics({
   todayStart,
   sevenDaysAgo,
 }: DashboardMetricsProps) {
+  unstable_noStore();
   const metricsResult = await safeAdminData(
     "dashboard metrics",
     () =>

@@ -1,3 +1,4 @@
+import { unstable_noStore } from "next/cache";
 import { getDashboardStats } from "@/lib/dal/dashboard-stats";
 import { PowerReserveMeter } from "./dashboard-motion";
 
@@ -8,6 +9,7 @@ interface DashboardHealthProps {
 }
 
 export async function DashboardHealth({ siteId, todayStart, sevenDaysAgo }: DashboardHealthProps) {
+  unstable_noStore();
   const stats = await getDashboardStats(siteId, todayStart, sevenDaysAgo).catch(() => null);
 
   let health = 100;

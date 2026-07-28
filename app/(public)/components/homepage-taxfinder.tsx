@@ -20,7 +20,6 @@ import {
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 import { TaxFinder, type TaxFinderTool, type TopicKey } from "./tax-finder";
-import { HeroImage } from "./hero-image";
 import { TrustSignals } from "./trust-signals";
 import { ScoreRing } from "./score-ring";
 import { StarRating } from "./star-rating";
@@ -79,8 +78,9 @@ function toFinderTool(p: ProductRow): TaxFinderTool {
 
 function parseBulletList(raw: string | null | undefined): string[] {
   if (!raw) return [];
+  // Split on semicolons or commas that are not part of a number (e.g. 3,000+).
   return raw
-    .split(/[,;]/)
+    .split(/(?<!\d),\s*(?!\d)|;/)
     .map((s) => s.trim())
     .filter(Boolean);
 }
@@ -97,6 +97,8 @@ export function TaxFinderHomepage({
   recentContent,
   featuredProducts,
   categories,
+  productCount,
+  reviewCount,
 }: TaxFinderHomepageProps) {
   const firstContentType =
     site.contentTypes.find((c) => c.value === "guide")?.value ??
@@ -152,22 +154,22 @@ export function TaxFinderHomepage({
 
       {/* Hero + Finder */}
       <section className="border-b border-slate-200 bg-[#F8F9FA] pt-10 pb-12 sm:pt-12 sm:pb-16 lg:pb-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="grid items-start gap-10 lg:grid-cols-2">
-            <div className="flex flex-col gap-6">
-              <div>
-                <p className="text-[13.5px] font-semibold uppercase tracking-[0.04em] text-emerald-700">
-                  Australian crypto tax
-                </p>
-                <h1 className="mt-3 max-w-[20ch] text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-                  Find the right crypto tax tool for your ATO return.
-                </h1>
-                <p className="mt-4 max-w-[55ch] text-lg leading-relaxed text-slate-600">
-                  Pick what you did with crypto. We&apos;ll show your taxable events and the
-                  software built for it.
-                </p>
-              </div>
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center gap-8 text-center">
+            <div>
+              <p className="text-[13.5px] font-semibold uppercase tracking-[0.04em] text-emerald-700">
+                Australian crypto tax
+              </p>
+              <h1 className="mx-auto mt-3 max-w-[18ch] text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+                Find the right crypto tax tool for your ATO return.
+              </h1>
+              <p className="mx-auto mt-4 max-w-[55ch] text-lg leading-relaxed text-slate-600">
+                Pick what you did with crypto. We&apos;ll show your taxable events and the software
+                built for it.
+              </p>
+            </div>
 
+            <div className="w-full max-w-2xl text-left">
               <TaxFinder
                 tools={finderTools}
                 accountant={accountant}
@@ -176,10 +178,6 @@ export function TaxFinderHomepage({
                 affiliateDisclosure=""
                 sourceType="homepage-finder"
               />
-            </div>
-
-            <div className="lg:sticky lg:top-28">
-              <HeroImage />
             </div>
           </div>
         </div>
@@ -190,6 +188,12 @@ export function TaxFinderHomepage({
         affiliateDisclosure={site.affiliateDisclosure}
         contentDisclosure={site.contentDisclosure}
         contactEmail={site.brand.contactEmail}
+        stats={{
+          tools: productCount,
+          guides: recentContent.length,
+          categories: categories.length,
+          reviews: reviewCount,
+        }}
       />
 
       {/* Comparison */}

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { SiteDefinition } from "@/config/site-definition";
 
@@ -26,10 +27,27 @@ export function SiteFooter({ site }: SiteFooterProps) {
         <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div>
             <Link href="/" className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60">
-                <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-              </span>
-              <span className="font-serif text-lg font-semibold tracking-tight">{site.name}</span>
+              {site.brand.logo ? (
+                <span className="inline-flex rounded-md bg-primary p-2">
+                  <Image
+                    src={site.brand.logo}
+                    alt={site.name}
+                    width={96}
+                    height={64}
+                    sizes="96px"
+                    className="h-16 w-auto object-contain"
+                  />
+                </span>
+              ) : (
+                <>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60">
+                    <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                  </span>
+                  <span className="font-serif text-lg font-semibold tracking-tight">
+                    {site.name}
+                  </span>
+                </>
+              )}
             </Link>
             <p className="mt-4 max-w-xs text-pretty text-sm leading-relaxed text-muted-foreground">
               {site.brand.description}

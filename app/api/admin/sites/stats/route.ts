@@ -70,12 +70,14 @@ export async function GET(request: NextRequest) {
       scopedRows = rows.filter((row) => allowedSiteIds.has(row.id));
     }
 
+    const getPrivileged = () => getPrivilegedSupabaseClient("admin-sites-stats");
+
     const entries = await Promise.all(
       scopedRows.map(async (row) => {
         const [activeProducts, publishedContent, clicks] = await Promise.all([
-          countProducts({ siteId: row.id, status: "active" }).catch(() => 0),
-          countContent({ siteId: row.id, status: "published" }).catch(() => 0),
-          getClickCount(row.id, sinceIso).catch(() => 0),
+          countProducts({ siteId: row.id, status: "active" }, getPrivileged).catch(() => 0),
+          countContent({ siteId: row.id, status: "published" }, getPrivileged).catch(() => 0),
+          getClickCount(row.id, sinceIso, undefined, getPrivileged).catch(() => 0),
         ]);
         return [row.slug, { activeProducts, publishedContent, clicks }] as const;
       }),

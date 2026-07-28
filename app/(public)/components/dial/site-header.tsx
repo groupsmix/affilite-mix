@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { DialHomepageConfig, DialPriceTier } from "@/lib/dial-config";
 import { Button } from "@/components/ui/button";
@@ -105,10 +106,41 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
     >
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60 bg-primary/10 text-primary">
-            <span className="h-2 w-2 rounded-full bg-primary" />
-          </span>
-          <span className="font-serif text-lg font-semibold tracking-tight">{site.name}</span>
+          {site.brand.mark ? (
+            <>
+              <Image
+                src={site.brand.mark}
+                alt=""
+                width={36}
+                height={36}
+                sizes="36px"
+                priority
+                className="h-9 w-9 object-contain"
+              />
+              <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
+                {site.name}
+              </span>
+            </>
+          ) : site.brand.logo ? (
+            <span className="inline-flex rounded-md bg-black px-2 py-1.5">
+              <Image
+                src={site.brand.logo}
+                alt={site.name}
+                width={96}
+                height={64}
+                sizes="96px"
+                priority
+                className="h-16 w-auto object-contain"
+              />
+            </span>
+          ) : (
+            <>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60 bg-primary/10 text-primary">
+                <span className="h-2 w-2 rounded-full bg-primary" />
+              </span>
+              <span className="font-serif text-lg font-semibold tracking-tight">{site.name}</span>
+            </>
+          )}
         </Link>
 
         <ul className="hidden items-center gap-6 md:flex">
@@ -133,20 +165,36 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
           })}
         </ul>
 
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-2 md:flex">
+          <Link
+            href="/search"
+            aria-label="Search"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <Search className="h-5 w-5" />
+          </Link>
           <Button size="sm" asChild>
             <Link href={cta.href}>{cta.label}</Link>
           </Button>
         </div>
 
-        <button
-          aria-label="Toggle menu"
-          aria-expanded={mobileOpen}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-foreground md:hidden"
-          onClick={() => setMobileOpen((open) => !open)}
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center md:hidden">
+          <Link
+            href="/search"
+            aria-label="Search"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <Search className="h-5 w-5" />
+          </Link>
+          <button
+            aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-foreground"
+            onClick={() => setMobileOpen((open) => !open)}
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </nav>
 
       {mobileOpen && (

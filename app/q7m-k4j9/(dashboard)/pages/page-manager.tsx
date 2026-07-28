@@ -89,9 +89,14 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
       const res = await fetchWithCsrf("/api/admin/pages", { credentials: "include" });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as PageInfo[];
 
-        setPages(data);
+        const excludedSlugs = new Set(["dial-homepage"]);
+        const filtered = data.filter(
+          (p) => !p.slug.startsWith("e2e-") && !excludedSlugs.has(p.slug),
+        );
+
+        setPages(filtered);
       }
     } catch {
       // fail-open: best-effort

@@ -425,13 +425,13 @@ h6 {
   }
 }
 
-/* ─── Dial homepage template (watch editorial dark theme) ─────────── *
+/* ─── Dial homepage template (WristNerd editorial light theme) ────────── *
  * Scoped utilities for the ported WristNerd dial design. These are kept
- * separate from global tokens so the dark theme only applies when a site
+ * separate from global tokens so the light theme only applies when a site
  * opts in via `homepage: "dial"` and the ThemeProvider mode. */
 
 [data-theme="dial"] {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .font-playfair {

@@ -238,6 +238,27 @@ export const defaultWatches: Watch[] = [
     cons: ["Not water-resistant for swimming"],
     affiliateUrl: "https://www.amazon.com/s?k=Skagen+Signatur+Lille",
   },
+  {
+    id: "casio-duro-walmart",
+    name: "Men's Black Dive Style Sport Watch MDV106-1AV",
+    brand: "Casio",
+    image: "https://m.media-amazon.com/images/I/61nHUVwR65L._AC_SL1500_.jpg",
+    imageAlt: "Casio MDV106-1AV black dive watch with black resin band",
+    price: 66.26,
+    rating: 4.7,
+    reviewCount: 1200,
+    tier: "under-200",
+    category: "Dive",
+    movement: "Quartz",
+    waterResistance: "200m",
+    caseSize: "44mm",
+    bestFor: "Entry-level diver / beater",
+    editorNote:
+      "The Casio Duro is the budget diver everyone recommends. 200m water resistance, screw-down crown, and a stainless steel case for under $70.",
+    pros: ["200m water resistance", "Screw-down crown", "Incredible value"],
+    cons: ["Resin band wears quickly", "Mineral crystal"],
+    affiliateUrl: "https://sovrn.co/1m9tdvu",
+  },
 ];
 
 export const defaultDialConfig: DialHomepageConfig = {
@@ -256,16 +277,14 @@ export const defaultDialConfig: DialHomepageConfig = {
       "No fluff, no paid rankings. We buy, wear, and rate affordable watches so you can spend with confidence — organized by exactly how much you want to spend.",
     ctaPrimary: { label: "Explore top picks", href: "#top-picks" },
     ctaSecondary: { label: "Shop by budget", href: "#tier-under-200" },
-    heroImage: "https://m.media-amazon.com/images/I/71IRSZa3DnL._AC_SL1500_.jpg",
-    heroImageAlt: "Black dive watch with luminous markers on a dark background",
-    trustRating: "4.8 avg reader rating",
-    trustReviews: "120+ watches reviewed",
+    heroImage: "/images/wristnerd/wristnerd-hero-home-v2.png",
+    heroImageAlt: "Curated collection of affordable watches tested by WristNerd",
+    trustRating: "",
+    trustReviews: "",
   },
   trustBar: {
     stats: [
-      { icon: "clock", value: "600+ hrs", label: "Hands-on testing" },
-      { icon: "gem", value: "120+", label: "Watches reviewed" },
-      { icon: "users", value: "85k", label: "Monthly readers" },
+      { icon: "gem", value: "0", label: "Watches reviewed" },
       { icon: "banknote", value: "$0", label: "Paid placements" },
     ],
   },
@@ -451,6 +470,58 @@ function isOldSampleImage(url: unknown): boolean {
   return isString(url) && url.startsWith(OLD_SAMPLE_IMAGE_PREFIX);
 }
 
+function hasAmazonReferral(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.searchParams.has("tag") || u.searchParams.has("ref");
+  } catch {
+    return false;
+  }
+}
+
+function getAmazonSearchUrl(brand: string, name: string): string {
+  const query = `${brand} ${name}`.replace(/\s+/g, " ").trim();
+  return `https://www.amazon.com/s?k=${encodeURIComponent(query)}`;
+}
+
+function isAmazonHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "amazon.com" || host.endsWith(".amazon.com");
+  } catch {
+    return false;
+  }
+}
+
+function appendAmazonTag(url: string): string {
+  const tag = process.env.AMAZON_ASSOCIATE_TAG;
+  if (!tag || !isAmazonHost(url)) return url;
+  try {
+    const u = new URL(url);
+    if (u.searchParams.has("tag")) return url;
+    u.searchParams.set("tag", tag);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+function resolveWatchAffiliateUrl(watch: Watch): string {
+  const url = watch.affiliateUrl?.trim() ?? "";
+  if (url.length > 0) {
+    const isAmazon = isAmazonHost(url);
+    if (isAmazon && !process.env.AMAZON_ASSOCIATE_TAG && !hasAmazonReferral(url)) {
+      return "";
+    }
+    return appendAmazonTag(url);
+  }
+  if (process.env.AMAZON_ASSOCIATE_TAG) {
+    const searchUrl = getAmazonSearchUrl(watch.brand, watch.name);
+    return appendAmazonTag(searchUrl);
+  }
+  return "";
+}
+
 function rebaseWatches(sourceWatches: Watch[], defaults: Watch[]): Watch[] {
   const defaultsById = new Map(defaults.map((w) => [w.id, w] as const));
   const merged = new Map<string, Watch>();
@@ -468,7 +539,12 @@ function rebaseWatches(sourceWatches: Watch[], defaults: Watch[]): Watch[] {
     }
   }
 
-  return defaults.map((watch) => merged.get(watch.id) ?? watch);
+  const base = defaults.map((watch) => merged.get(watch.id) ?? watch);
+  const extras = sourceWatches.filter((w) => !defaultsById.has(w.id));
+  return [...base, ...extras].map((watch) => ({
+    ...watch,
+    affiliateUrl: resolveWatchAffiliateUrl(watch),
+  }));
 }
 
 export function mergeWithDefault(input: unknown): DialHomepageConfig {
@@ -504,7 +580,7 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
         count: watches.filter((w) => w.tier === t.id).length,
       }));
 
-  const hero = isObject(source.hero)
+  let hero = isObject(source.hero)
     ? {
         badge: isString(source.hero.badge) ? source.hero.badge : defaultDialConfig.hero.badge,
         title: isString(source.hero.title) ? source.hero.title : defaultDialConfig.hero.title,
@@ -567,7 +643,7 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
       ? [...sourceNavLinks, ...missingDefaults]
       : defaultDialConfig.navLinks;
 
-  const trustBar = isObject(source.trustBar)
+  let trustBar = isObject(source.trustBar)
     ? {
         stats: Array.isArray(source.trustBar.stats)
           ? source.trustBar.stats
@@ -587,6 +663,34 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
           : defaultDialConfig.trustBar.stats,
       }
     : defaultDialConfig.trustBar;
+
+  // Replace any hardcoded/inflated marketing numbers with values derived from
+  // the actual watch inventory so the homepage never overstates what the tier
+  // pages actually contain.
+  const watchCount = watches.length;
+  const brandCount = new Set(watches.map((w) => w.brand)).size;
+  const tierCount = priceTiers.length;
+
+  hero = {
+    ...hero,
+    trustReviews: `${watchCount} watch${watchCount === 1 ? "" : "es"} reviewed`,
+  };
+
+  trustBar = {
+    stats: [
+      {
+        icon: "gem",
+        value: String(watchCount),
+        label: `Watch${watchCount === 1 ? "" : "es"} reviewed`,
+      },
+      {
+        icon: "users",
+        value: String(brandCount),
+        label: `Brand${brandCount === 1 ? "" : "s"} covered`,
+      },
+      { icon: "clock", value: String(tierCount), label: "Price tiers" },
+    ],
+  };
 
   const topPicks = isObject(source.topPicks)
     ? {
@@ -706,7 +810,7 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
 export async function getDialHomepageConfig(siteId: string): Promise<DialHomepageConfig> {
   const page = await getPageBySlug(siteId, DIAL_HOMEPAGE_SLUG);
   if (!page?.body) {
-    return defaultDialConfig;
+    return mergeWithDefault({});
   }
 
   try {

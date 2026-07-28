@@ -14,7 +14,7 @@ export function TopPicks({ config }: TopPicksProps) {
       <div className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
         <Reveal className="max-w-2xl">
           <p className="text-sm font-medium uppercase tracking-widest text-primary">
-            The short list
+            Best Budget Picks
           </p>
           <h2 className="mt-3 text-balance font-serif text-3xl font-semibold tracking-tight md:text-4xl">
             {topPicks.title}
@@ -24,9 +24,14 @@ export function TopPicks({ config }: TopPicksProps) {
           </p>
         </Reveal>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 flex gap-6 overflow-x-auto pb-4 md:grid md:grid-cols-3 md:overflow-visible">
           {watches.map((watch, i) => (
-            <Reveal key={watch.id} delay={(i % 3) * 90} as="article">
+            <Reveal
+              key={watch.id}
+              delay={(i % 3) * 90}
+              as="article"
+              className="min-w-[300px] md:min-w-0"
+            >
               <ProductCard watch={watch} />
             </Reveal>
           ))}

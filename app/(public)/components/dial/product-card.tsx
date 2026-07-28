@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowUpRight, Award, Star } from "lucide-react";
 import type { Watch } from "@/lib/dial-config";
 import { resolveDialAffiliateUrl } from "@/lib/dial-affiliate";
+import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 import { ProductCardCta } from "../product-card-client";
 
 interface ProductCardProps {
@@ -73,23 +75,35 @@ export function ProductCard({ watch }: ProductCardProps) {
 
         <div className="mt-5 flex-1" />
 
-        <ProductCardCta
-          href={resolveDialAffiliateUrl(watch)}
-          slug={watch.id}
-          sourceType="dial"
-          placement="product-card"
-          productName={`${watch.brand} ${watch.name}`}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          label={
-            <>
-              Check price
-              <ArrowUpRight className="h-4 w-4" />
-            </>
-          }
-        />
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
-          We may earn a commission at no extra cost to you.
-        </p>
+        {hasUsableAffiliateUrl(watch.affiliateUrl) ? (
+          <>
+            <ProductCardCta
+              href={resolveDialAffiliateUrl(watch)}
+              slug={watch.id}
+              sourceType="dial"
+              placement="product-card"
+              productName={`${watch.brand} ${watch.name}`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              label={
+                <>
+                  Check price
+                  <ArrowUpRight className="h-4 w-4" />
+                </>
+              }
+            />
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              We may earn a commission at no extra cost to you.
+            </p>
+          </>
+        ) : (
+          <Link
+            href={`/search?q=${encodeURIComponent(`${watch.brand} ${watch.name}`)}`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-transparent px-4 py-2.5 text-center text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          >
+            Find deals
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        )}
       </div>
     </article>
   );

@@ -198,7 +198,9 @@ function AdRowActions({ ad }: { ad: AdsTableRow }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <NewAdPlacementDialog ad={ad} open={editOpen} onOpenChange={setEditOpen} />
+      <NewAdPlacementDialog ad={ad} open={editOpen} onOpenChange={setEditOpen}>
+        {null}
+      </NewAdPlacementDialog>
     </>
   );
 }

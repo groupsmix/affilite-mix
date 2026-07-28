@@ -62,7 +62,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
   const [description, setDescription] = useState(product?.description ?? "");
 
-  const [affiliateUrl, setAffiliateUrl] = useState(product?.affiliate_url ?? "");
+  const [affiliateUrl, setAffiliateUrl] = useState(
+    product && !isPlaceholderAffiliateUrl(product.affiliate_url) ? product.affiliate_url : "",
+  );
 
   const [imageUrl, setImageUrl] = useState(product?.image_url ?? "");
 

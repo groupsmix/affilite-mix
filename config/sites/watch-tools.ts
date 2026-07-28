@@ -9,6 +9,9 @@ export const watchToolsSite = defineSite({
   description:
     "Honest watch reviews and buying guides — from the best watches under $500 to vintage Seiko and Casio, leather straps, and minimalist picks for women.",
   tagline: "Find the right watch without the hype.",
+  logo: "/wristnerd-logo-wide.png",
+  mark: "/wristnerd-icon.png",
+  faviconUrl: "/wristnerd-logo-square.png",
 
   // Deep charcoal with a teal accent and soft radius — avoids the warm-cream/
   // terracotta, acid-green-on-black, and broadsheet defaults.
@@ -18,7 +21,7 @@ export const watchToolsSite = defineSite({
     accentText: "#2A9D8F",
     accentLight: "rgba(42,157,143,0.12)",
   },
-  fonts: "classic",
+  fonts: { heading: "Playfair Display", body: "DM Sans" },
   homepage: "dial",
   layout: "standard",
   headerVariant: "standard",

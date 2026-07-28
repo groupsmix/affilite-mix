@@ -77,15 +77,6 @@ export function CategoryTree({
 
   return (
     <div className="space-y-1">
-      <CategoryOption
-        name={name}
-        value=""
-        checked={selected.size === 0}
-        onChange={() => onChange([])}
-      >
-        <span className="text-muted-foreground">No category</span>
-      </CategoryOption>
-
       {TAXONOMY_ORDER.map((type) => {
         const list = byType.get(type);
         if (!list || list.length === 0) return null;

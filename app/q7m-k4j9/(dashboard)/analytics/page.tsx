@@ -393,62 +393,58 @@ export default async function AnalyticsPage({
               <p className="text-sm text-muted-foreground">No click data yet.</p>
             ) : (
               <ExpandableTable rows={topProducts.length} initialLimit={10}>
-                {(limit) => (
-                  <ul className="divide-y divide-border">
-                    {topProducts.slice(0, limit).map((product, index) => {
-                      const match = productByName.get(product.product_name);
-                      const href = match ? `/q7m-k4j9/products/${match.id}` : "/q7m-k4j9/products";
-                      const image = match?.image_url;
+                {topProducts.map((product, index) => {
+                  const match = productByName.get(product.product_name);
+                  const href = match ? `/q7m-k4j9/products/${match.id}` : "/q7m-k4j9/products";
+                  const image = match?.image_url;
 
-                      return (
-                        <li
-                          key={`${product.product_name}-${index}`}
-                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  return (
+                    <li
+                      key={`${product.product_name}-${index}`}
+                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    >
+                      <Badge variant="outline" className="shrink-0 tabular-nums">
+                        #{index + 1}
+                      </Badge>
+
+                      <div className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                        {image ? (
+                          <Image
+                            src={image}
+                            alt={match?.image_alt ?? product.product_name}
+                            fill
+                            sizes="40px"
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <span
+                            aria-hidden
+                            className="flex h-full w-full items-center justify-center text-xs font-medium text-muted-foreground"
+                          >
+                            {product.product_name.slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={href}
+                          className="truncate text-sm font-medium text-foreground hover:underline"
                         >
-                          <Badge variant="outline" className="shrink-0 tabular-nums">
-                            #{index + 1}
-                          </Badge>
+                          {product.product_name}
+                        </Link>
+                      </div>
 
-                          <div className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
-                            {image ? (
-                              <Image
-                                src={image}
-                                alt={match?.image_alt ?? product.product_name}
-                                fill
-                                sizes="40px"
-                                className="object-cover"
-                                unoptimized
-                              />
-                            ) : (
-                              <span
-                                aria-hidden
-                                className="flex h-full w-full items-center justify-center text-xs font-medium text-muted-foreground"
-                              >
-                                {product.product_name.slice(0, 2).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <Link
-                              href={href}
-                              className="truncate text-sm font-medium text-foreground hover:underline"
-                            >
-                              {product.product_name}
-                            </Link>
-                          </div>
-
-                          <div className="text-end">
-                            <div className="text-sm font-semibold tabular-nums text-foreground">
-                              {product.click_count.toLocaleString()}
-                            </div>
-                            <div className="text-xs text-muted-foreground">clicks</div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                      <div className="text-end">
+                        <div className="text-sm font-semibold tabular-nums text-foreground">
+                          {product.click_count.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">clicks</div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ExpandableTable>
             )}
           </CardContent>
@@ -468,72 +464,68 @@ export default async function AnalyticsPage({
               <p className="text-sm text-muted-foreground">No referrer data yet.</p>
             ) : (
               <ExpandableTable rows={topReferrers.length} initialLimit={10}>
-                {(limit) => (
-                  <ul className="divide-y divide-border">
-                    {topReferrers.slice(0, limit).map((referrer, index) => {
-                      const meta = getReferrerMeta(referrer.referrer);
+                {topReferrers.map((referrer, index) => {
+                  const meta = getReferrerMeta(referrer.referrer);
 
-                      return (
-                        <li
-                          key={`${referrer.referrer}-${index}`}
-                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                        >
-                          <Badge variant="outline" className="shrink-0 tabular-nums">
-                            #{index + 1}
-                          </Badge>
+                  return (
+                    <li
+                      key={`${referrer.referrer}-${index}`}
+                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    >
+                      <Badge variant="outline" className="shrink-0 tabular-nums">
+                        #{index + 1}
+                      </Badge>
 
-                          <div className="flex min-w-0 flex-1 items-center gap-3">
-                            {meta.faviconUrl ? (
-                              <Image
-                                src={meta.faviconUrl}
-                                alt=""
-                                width={16}
-                                height={16}
-                                className="size-4 shrink-0 rounded-sm"
-                                unoptimized
-                              />
-                            ) : (
-                              <span
-                                aria-hidden
-                                className="inline-block size-4 shrink-0 rounded-sm bg-muted"
-                              />
-                            )}
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        {meta.faviconUrl ? (
+                          <Image
+                            src={meta.faviconUrl}
+                            alt=""
+                            width={16}
+                            height={16}
+                            className="size-4 shrink-0 rounded-sm"
+                            unoptimized
+                          />
+                        ) : (
+                          <span
+                            aria-hidden
+                            className="inline-block size-4 shrink-0 rounded-sm bg-muted"
+                          />
+                        )}
 
-                            <div className="min-w-0">
-                              {meta.href ? (
-                                <a
-                                  href={meta.href}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="block truncate text-sm font-medium text-foreground hover:underline"
-                                >
-                                  {referrer.referrer}
-                                </a>
-                              ) : (
-                                <span className="block truncate text-sm font-medium text-foreground">
-                                  {referrer.referrer}
-                                </span>
-                              )}
+                        <div className="min-w-0">
+                          {meta.href ? (
+                            <a
+                              href={meta.href}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block truncate text-sm font-medium text-foreground hover:underline"
+                            >
+                              {referrer.referrer}
+                            </a>
+                          ) : (
+                            <span className="block truncate text-sm font-medium text-foreground">
+                              {referrer.referrer}
+                            </span>
+                          )}
 
-                              {meta.host ? (
-                                <span className="block truncate text-xs text-muted-foreground">
-                                  {meta.host}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
+                          {meta.host ? (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {meta.host}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
 
-                          <div className="text-end">
-                            <div className="text-sm font-semibold tabular-nums text-foreground">
-                              {referrer.click_count.toLocaleString()}
-                            </div>
-                            <div className="text-xs text-muted-foreground">clicks</div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                      <div className="text-end">
+                        <div className="text-sm font-semibold tabular-nums text-foreground">
+                          {referrer.click_count.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">clicks</div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ExpandableTable>
             )}
           </CardContent>
@@ -553,38 +545,34 @@ export default async function AnalyticsPage({
               <p className="text-sm text-muted-foreground">No content click data yet.</p>
             ) : (
               <ExpandableTable rows={topContentWithTitles.length} initialLimit={10}>
-                {(limit) => (
-                  <ul className="divide-y divide-border">
-                    {topContentWithTitles.slice(0, limit).map((content, index) => (
-                      <li
-                        key={`${content.content_slug}-${index}`}
-                        className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                      >
-                        <Badge variant="outline" className="shrink-0 tabular-nums">
-                          #{index + 1}
-                        </Badge>
+                {topContentWithTitles.map((content, index) => (
+                  <li
+                    key={`${content.content_slug}-${index}`}
+                    className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <Badge variant="outline" className="shrink-0 tabular-nums">
+                      #{index + 1}
+                    </Badge>
 
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {content.displayTitle}
-                          </p>
-                          {content.displayTitle !== content.content_slug ? (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {content.content_slug}
-                            </p>
-                          ) : null}
-                        </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {content.displayTitle}
+                      </p>
+                      {content.displayTitle !== content.content_slug ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {content.content_slug}
+                        </p>
+                      ) : null}
+                    </div>
 
-                        <div className="text-end">
-                          <div className="text-sm font-semibold tabular-nums text-foreground">
-                            {content.click_count.toLocaleString()}
-                          </div>
-                          <div className="text-xs text-muted-foreground">clicks</div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                    <div className="text-end">
+                      <div className="text-sm font-semibold tabular-nums text-foreground">
+                        {content.click_count.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">clicks</div>
+                    </div>
+                  </li>
+                ))}
               </ExpandableTable>
             )}
           </CardContent>

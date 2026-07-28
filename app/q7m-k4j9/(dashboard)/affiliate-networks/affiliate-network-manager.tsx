@@ -105,7 +105,19 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
     }
   }
 
-  const configuredNetworkKeys = new Set(configured.map((c) => c.network));
+  function isPlaceholderNetwork(c: AffiliateNetworkConfig): boolean {
+    const pid = c.publisher_id?.trim().toLowerCase() ?? "";
+    return (
+      pid.length === 0 ||
+      pid === "partner123" ||
+      pid === "example" ||
+      pid === "placeholder" ||
+      pid === "test"
+    );
+  }
+
+  const visibleConfigured = configured.filter((c) => !isPlaceholderNetwork(c));
+  const configuredNetworkKeys = new Set(visibleConfigured.map((c) => c.network));
 
   // Always render the app-defined catalog: use the DB-derived list when present,
   // otherwise fall back to the static `NETWORK_CONFIGS` catalog.
@@ -150,13 +162,13 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
         <h2 className="text-lg font-semibold mb-3">Active Networks</h2>
         {loading ? (
           <div className="py-8 text-center text-gray-500 dark:text-gray-400">Loading...</div>
-        ) : configured.length === 0 ? (
+        ) : visibleConfigured.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 py-8 text-center text-gray-500 dark:text-gray-400">
             No affiliate networks configured yet. Add one below.
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {configured.map((net) => (
+            {visibleConfigured.map((net) => (
               <div
                 key={net.id}
                 className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4"

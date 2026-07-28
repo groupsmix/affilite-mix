@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { getDialGuidesConfig, getDialGuideFromConfig } from "@/lib/dial-guides";
 import { getDialHomepageConfig } from "@/lib/dial-config";
@@ -131,6 +131,11 @@ export default async function PublicSlugPage({
 
   const ct = site.contentTypes.find((c) => c.value === slug);
   if (ct) {
+    // Crypto Tax AU no longer uses article hubs; send any /article traffic to /guide.
+    if (site.slug === "crypto-tools" && slug === "article") {
+      redirect(`/guide${page ? `?page=${page}` : ""}`);
+    }
+
     return <ContentTypeListing site={site} contentType={slug} page={page} />;
   }
 

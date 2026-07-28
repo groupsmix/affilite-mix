@@ -249,8 +249,8 @@ export function AIContentManager({
             }}
             className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${
               statusFilter === tab.value
-                ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab.label}

@@ -76,7 +76,7 @@ export function KpiCard({
         className="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
         style={{ backgroundColor: "var(--color-accent)" }}
       />
-      <CardHeader className="px-5 [&>div]:!gap-0">
+      <CardHeader className="px-5">
         <CardDescription className="text-xs font-medium uppercase tracking-wider">
           {title}
         </CardDescription>
