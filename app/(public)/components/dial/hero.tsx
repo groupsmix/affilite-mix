@@ -53,7 +53,7 @@ export function Hero({ config }: HeroProps) {
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white/30 font-medium text-white hover:bg-white/10"
+                className="border-white/30 bg-transparent font-medium text-white hover:bg-white/10 hover:text-white"
                 asChild
               >
                 <a href={hero.ctaSecondary.href}>{hero.ctaSecondary.label}</a>

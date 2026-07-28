@@ -40,11 +40,8 @@ export function ContentCardImage({
     ) : null;
 
   const fallback = !image && (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-muted p-4 text-center">
+    <div className="flex h-full w-full items-center justify-center bg-muted">
       <ImageIcon className="size-10 text-muted-foreground" aria-hidden="true" />
-      {title && (
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{title}</p>
-      )}
     </div>
   );
 

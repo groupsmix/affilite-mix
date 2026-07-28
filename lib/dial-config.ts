@@ -271,13 +271,13 @@ export const defaultDialConfig: DialHomepageConfig = {
   ],
   hero: {
     badge: "Independent reviews · Reader-supported",
-    title: "The best watches under $500,",
+    title: "The best watches under $500",
     highlight: "actually tested",
     subtitle:
       "No fluff, no paid rankings. We buy, wear, and rate affordable watches so you can spend with confidence — organized by exactly how much you want to spend.",
     ctaPrimary: { label: "Explore top picks", href: "#top-picks" },
     ctaSecondary: { label: "Shop by budget", href: "#tier-under-200" },
-    heroImage: "/images/wristnerd/wristnerd-hero-home-v2.png",
+    heroImage: "/images/wristnerd/wristnerd-hero-home-v3.png",
     heroImageAlt: "Curated collection of affordable watches tested by WristNerd",
     trustRating: "",
     trustReviews: "",
@@ -309,9 +309,8 @@ export const defaultDialConfig: DialHomepageConfig = {
     },
   ],
   topPicks: {
-    title: "Our top picks right now",
-    subtitle:
-      "The watches we’d actually spend our own money on this season — chosen for build quality, accuracy, and value.",
+    title: "Every watch we reviewed",
+    subtitle: "All currently tested picks in one place — sorted by value, not by who paid us.",
   },
   tierSections: {
     title: "Winners by budget",
@@ -465,6 +464,11 @@ function coerceStringArray(value: unknown): string[] | undefined {
 }
 
 const OLD_SAMPLE_IMAGE_PREFIX = "/watches/";
+const OLD_HOME_HERO_IMAGE = "/images/wristnerd/wristnerd-hero-home-v2.png";
+const OLD_HERO_TITLE = "The best watches under $500,";
+const OLD_TOP_PICKS_TITLE = "Our top picks right now";
+const OLD_TOP_PICKS_SUBTITLE =
+  "The watches we’d actually spend our own money on this season — chosen for build quality, accuracy, and value.";
 
 function isOldSampleImage(url: unknown): boolean {
   return isString(url) && url.startsWith(OLD_SAMPLE_IMAGE_PREFIX);
@@ -583,7 +587,11 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
   let hero = isObject(source.hero)
     ? {
         badge: isString(source.hero.badge) ? source.hero.badge : defaultDialConfig.hero.badge,
-        title: isString(source.hero.title) ? source.hero.title : defaultDialConfig.hero.title,
+        title: isString(source.hero.title)
+          ? source.hero.title === OLD_HERO_TITLE
+            ? defaultDialConfig.hero.title
+            : source.hero.title
+          : defaultDialConfig.hero.title,
         highlight: isString(source.hero.highlight)
           ? source.hero.highlight
           : defaultDialConfig.hero.highlight,
@@ -611,7 +619,9 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
             }
           : defaultDialConfig.hero.ctaSecondary,
         heroImage:
-          isString(source.hero.heroImage) && !isOldSampleImage(source.hero.heroImage)
+          isString(source.hero.heroImage) &&
+          !isOldSampleImage(source.hero.heroImage) &&
+          source.hero.heroImage !== OLD_HOME_HERO_IMAGE
             ? source.hero.heroImage
             : defaultDialConfig.hero.heroImage,
         heroImageAlt: isString(source.hero.heroImageAlt)
@@ -671,10 +681,9 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
   const brandCount = new Set(watches.map((w) => w.brand)).size;
   const tierCount = priceTiers.length;
 
-  hero = {
-    ...hero,
-    trustReviews: `${watchCount} watch${watchCount === 1 ? "" : "es"} reviewed`,
-  };
+  // The trust bar already shows the real watch/brand/tier counts, so the hero
+  // no longer needs a duplicate line under the CTA buttons.
+  hero = { ...hero, trustReviews: "" };
 
   trustBar = {
     stats: [
@@ -695,10 +704,14 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
   const topPicks = isObject(source.topPicks)
     ? {
         title: isString(source.topPicks.title)
-          ? source.topPicks.title
+          ? source.topPicks.title === OLD_TOP_PICKS_TITLE
+            ? defaultDialConfig.topPicks.title
+            : source.topPicks.title
           : defaultDialConfig.topPicks.title,
         subtitle: isString(source.topPicks.subtitle)
-          ? source.topPicks.subtitle
+          ? source.topPicks.subtitle === OLD_TOP_PICKS_SUBTITLE
+            ? defaultDialConfig.topPicks.subtitle
+            : source.topPicks.subtitle
           : defaultDialConfig.topPicks.subtitle,
       }
     : defaultDialConfig.topPicks;

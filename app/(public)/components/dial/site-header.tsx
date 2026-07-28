@@ -86,7 +86,16 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
 
   const navLinks = config.navLinks;
   const tiers = config.priceTiers;
-  const cta = useMemo(() => deriveCta(navLinks, pathname, tiers), [navLinks, pathname, tiers]);
+  const cta = useMemo(() => {
+    const headerCta = site.headerConfig;
+    if (headerCta?.showCta && headerCta.ctaLabel && headerCta.ctaHref) {
+      return {
+        label: headerCta.ctaLabel,
+        href: resolveDialHeaderHref(headerCta.ctaHref, pathname, tiers),
+      };
+    }
+    return deriveCta(navLinks, pathname, tiers);
+  }, [site.headerConfig, navLinks, pathname, tiers]);
 
   // Automatically add a Blog link when the site supports blog content, without
   // overriding the dashboard-driven navLinks order.

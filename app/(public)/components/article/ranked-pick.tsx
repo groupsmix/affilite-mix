@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowUpRight, Check, Minus, Star } from "lucide-react";
 import type { Watch } from "@/lib/dial-config";
 import { resolveDialAffiliateUrl } from "@/lib/dial-affiliate";
@@ -34,14 +35,17 @@ export function RankedPick({ rank, award, reason, watch }: RankedPickProps) {
         <div className="flex items-center gap-1.5 text-sm">
           <Star className="h-4 w-4 fill-primary text-primary" aria-hidden="true" />
           <span className="font-medium">{watch.rating}</span>
+          <span className="text-muted-foreground" aria-hidden="true">
+            &middot;
+          </span>
           <span className="text-muted-foreground">
-            ({watch.reviewCount.toLocaleString()} reviews)
+            {watch.reviewCount.toLocaleString()} reviews
           </span>
         </div>
       </div>
 
       <div className="grid gap-6 p-5 md:grid-cols-[280px_1fr] md:p-6">
-        <div className="relative aspect-square overflow-hidden rounded-xl bg-secondary/40">
+        <div className="relative aspect-square overflow-hidden rounded-xl bg-secondary/50 ring-1 ring-inset ring-border/40">
           <Image
             src={watch.image || "/placeholder.svg"}
             alt={`${watch.brand} ${watch.name} watch`}
@@ -117,7 +121,15 @@ export function RankedPick({ rank, award, reason, watch }: RankedPickProps) {
                 We may earn a commission at no extra cost to you.
               </p>
             </div>
-          ) : null}
+          ) : (
+            <Link
+              href={`/search?q=${encodeURIComponent(`${watch.brand} ${watch.name}`)}`}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-foreground/30 bg-secondary/50 px-4 py-2 text-center text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+              Find deals
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
       </div>
     </Reveal>

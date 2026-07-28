@@ -14,7 +14,7 @@ export function TopPicks({ config }: TopPicksProps) {
       <div className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
         <Reveal className="max-w-2xl">
           <p className="text-sm font-medium uppercase tracking-widest text-primary">
-            Best Budget Picks
+            All tested picks
           </p>
           <h2 className="mt-3 text-balance font-serif text-3xl font-semibold tracking-tight md:text-4xl">
             {topPicks.title}

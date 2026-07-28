@@ -15,7 +15,7 @@ interface ProductCardProps {
 export function ProductCard({ watch }: ProductCardProps) {
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-black/30">
-      <div className="relative aspect-[4/3] overflow-hidden bg-secondary/40">
+      <div className="relative aspect-[4/3] overflow-hidden bg-secondary/50 ring-1 ring-inset ring-border/40">
         {watch.editorsChoice && (
           <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">
             <Award className="h-3 w-3" />
@@ -47,7 +47,12 @@ export function ProductCard({ watch }: ProductCardProps) {
         <div className="mt-2 flex items-center gap-1.5 text-sm">
           <Star className="h-4 w-4 fill-primary text-primary" />
           <span className="font-medium">{watch.rating}</span>
-          <span className="text-muted-foreground">({watch.reviewCount.toLocaleString()})</span>
+          <span className="text-muted-foreground" aria-hidden="true">
+            &middot;
+          </span>
+          <span className="text-muted-foreground">
+            {watch.reviewCount.toLocaleString()} reviews
+          </span>
         </div>
 
         <p className="mt-3 text-pretty text-sm leading-relaxed text-muted-foreground">
@@ -98,7 +103,7 @@ export function ProductCard({ watch }: ProductCardProps) {
         ) : (
           <Link
             href={`/search?q=${encodeURIComponent(`${watch.brand} ${watch.name}`)}`}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-transparent px-4 py-2.5 text-center text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-foreground/30 bg-secondary/50 px-4 py-2.5 text-center text-sm font-medium text-foreground transition-colors hover:bg-secondary"
           >
             Find deals
             <ArrowUpRight className="h-4 w-4" />

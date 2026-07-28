@@ -121,9 +121,9 @@ export default function CookieConsentCmp({
 
       guiOptions: {
         consentModal: {
-          layout: "box inline",
-          position: "bottom left",
-          equalWeightButtons: true,
+          layout: "bar",
+          position: "bottom center",
+          equalWeightButtons: false,
         },
         preferencesModal: {
           layout: "box",
