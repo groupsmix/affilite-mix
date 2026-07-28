@@ -15,6 +15,7 @@ import Link from "next/link";
 import ContentPage, {
   generateMetadata as generateContentMetadata,
 } from "../../[slug]/[nestedSlug]/page";
+import { isExcludedCompareaiSlug } from "@/lib/compareai-cleanup";
 
 export const revalidate = 60;
 
@@ -35,6 +36,9 @@ export async function generateMetadata({
   const review = getEtsyReview(slug);
   const site = await getCurrentSite();
   if (site.slug !== "ai-compared" || !review) {
+    if (site.slug === "ai-compared" && isExcludedCompareaiSlug(slug)) {
+      notFound();
+    }
     return generateContentMetadata({
       params: Promise.resolve({ slug: "review", nestedSlug: slug }),
       searchParams: Promise.resolve({}),
@@ -64,6 +68,9 @@ export default async function ReviewPage({ params }: { params: Promise<{ slug: s
   const review = getEtsyReview(slug);
   const site = await getCurrentSite();
   if (site.slug !== "ai-compared" || !review) {
+    if (site.slug === "ai-compared" && isExcludedCompareaiSlug(slug)) {
+      notFound();
+    }
     return (
       <ContentPage
         params={Promise.resolve({ slug: "review", nestedSlug: slug })}

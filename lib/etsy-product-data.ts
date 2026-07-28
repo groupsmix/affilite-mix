@@ -26,6 +26,10 @@ export interface EtsyTool {
   cons: string[];
   officialSources: { label: string; url: string }[];
   lastVerified: string;
+  /** Optional brand-asset image for tool cards and directory. */
+  imageUrl?: string;
+  /** Optional brand color (hex) used for image fallbacks and accents. */
+  brandColor?: string;
 }
 
 export const etsyTools: Record<string, EtsyTool> = {
@@ -104,6 +108,7 @@ export const etsyTools: Record<string, EtsyTool> = {
       },
     ],
     lastVerified: "2026-07-18",
+    brandColor: "#10B981",
   },
   alura: {
     slug: "alura",
@@ -197,6 +202,7 @@ export const etsyTools: Record<string, EtsyTool> = {
       { label: "Alura Plans Feature Table", url: "https://www.alura.io/pricing" },
     ],
     lastVerified: "2026-07-18",
+    brandColor: "#F59E0B",
   },
   kittl: {
     slug: "kittl",
@@ -274,6 +280,7 @@ export const etsyTools: Record<string, EtsyTool> = {
       { label: "Kittl Pricing Page", url: "https://www.kittl.com/pricing" },
     ],
     lastVerified: "2026-07-18",
+    brandColor: "#EC4899",
   },
   canva: {
     slug: "canva",
@@ -351,6 +358,71 @@ export const etsyTools: Record<string, EtsyTool> = {
       },
     ],
     lastVerified: "2026-07-18",
+    brandColor: "#7D2AE8",
+  },
+  printful: {
+    slug: "printful",
+    name: "Printful",
+    tagline:
+      "Print-on-demand fulfillment and dropshipping built for Etsy sellers, with mockups and global shipping.",
+    websiteUrl: "https://www.printful.com/",
+    pricing: [
+      {
+        name: "Free",
+        monthlyUsd: 0,
+        annualUsd: 0,
+        annualTotalUsd: 0,
+        features: [
+          "All products and integrations",
+          "Automatic order fulfillment",
+          "24/7 customer support",
+          "20% off sample orders",
+          "No monthly subscription",
+        ],
+      },
+      {
+        name: "Growth",
+        monthlyUsd: 24.99,
+        annualUsd: 24.99,
+        annualTotalUsd: 299.88,
+        features: [
+          "Up to 33% off product pricing",
+          "9% off product branding",
+          "25% off sample orders",
+          "Exclusive large front print",
+          "Free embroidery digitization for samples",
+          "Free once yearly sales hit $12K",
+        ],
+      },
+    ],
+    bestFor: [
+      "Etsy sellers who want hands-off POD fulfillment",
+      "Sellers who need realistic mockups and global shipping",
+      "Anyone testing POD without upfront inventory cost",
+    ],
+    keyFeatures: [
+      "300+ customizable products",
+      "Automated Etsy order fulfillment",
+      "Realistic product mockups",
+      "Branded packaging and inserts",
+    ],
+    pros: [
+      "10% recurring commission on referral orders for 12 months (official affiliate page)",
+      "Free plan has no monthly fee",
+      "Wide product catalog and global fulfillment network",
+    ],
+    cons: [
+      "Higher base product cost than some POD competitors",
+      "Growth plan benefits only make sense at meaningful volume",
+      "Shipping times vary by destination and product",
+    ],
+    officialSources: [
+      { label: "Printful Pricing", url: "https://www.printful.com/pricing" },
+      { label: "Printful Affiliate Program", url: "https://www.printful.com/affiliates" },
+      { label: "Printful Growth Plan Details", url: "https://www.printful.com/plans" },
+    ],
+    lastVerified: "2026-07-26",
+    brandColor: "#43B02A",
   },
 };
 
@@ -523,4 +595,20 @@ export function getAllEtsyReviewSlugs(): string[] {
 
 export function formatCurrencyUSD(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+}
+
+export function getEtsyReviewByToolSlug(toolSlug: string): EtsyReview | undefined {
+  return Object.values(etsyReviews).find((review) => review.toolSlug === toolSlug);
+}
+
+export function getEtsyComparisonsByToolSlug(toolSlug: string): EtsyComparison[] {
+  return Object.values(etsyComparisons).filter(
+    (comparison) => comparison.leftToolSlug === toolSlug || comparison.rightToolSlug === toolSlug,
+  );
+}
+
+export function getEtsyToolStartingPrice(tool: EtsyTool): { name: string; monthlyUsd: number } {
+  const paid = tool.pricing.find((p) => p.monthlyUsd && p.monthlyUsd > 0);
+  if (paid) return { name: paid.name, monthlyUsd: paid.monthlyUsd ?? 0 };
+  return { name: tool.pricing[0]?.name ?? "Free", monthlyUsd: tool.pricing[0]?.monthlyUsd ?? 0 };
 }

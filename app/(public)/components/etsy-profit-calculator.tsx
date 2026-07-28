@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useCookieConsent } from "./cookie-consent";
 import { ProductCardCta } from "./product-card-client";
 import { NewsletterSignup } from "./newsletter-signup";
+import { getProductUrl, isAffiliateLinkReady } from "@/lib/etsy-affiliate-links";
 
 interface EtsyProfitCalculatorProps {
   siteLanguage?: string;
@@ -119,36 +120,32 @@ export function EtsyProfitCalculator({ siteLanguage = "en" }: EtsyProfitCalculat
   ]);
 
   const recommendTool = useMemo(() => {
-    if (result.sales < 30) {
-      return {
-        slug: "everbee",
-        name: "EverBee",
-        href: "https://everbee.io",
-        description: "Find proven Etsy products and analyze competitor listings before you design.",
-        cta: "Explore EverBee",
-        reason: "Best for research and validation",
-      };
-    }
+    const slug = result.sales < 30 ? "everbee" : "alura";
+    const name = slug === "everbee" ? "EverBee" : "Alura";
+    const description =
+      slug === "everbee"
+        ? "Find proven Etsy products and analyze competitor listings before you design."
+        : "Optimize titles, tags, and listings with marketplace data + AI suggestions.";
     return {
-      slug: "alura",
-      name: "Alura",
-      href: "https://alura.io",
-      description: "Optimize titles, tags, and listings with marketplace data + AI suggestions.",
-      cta: "Explore Alura",
-      reason: "Best for scaling listings",
+      slug,
+      name,
+      href: getProductUrl(slug),
+      description,
+      cta: isAffiliateLinkReady(slug) ? `Get ${name}` : `Visit ${name}`,
+      reason: slug === "everbee" ? "Best for research and validation" : "Best for scaling listings",
     };
   }, [result.sales]);
 
-  const designTool = useMemo(
-    () => ({
-      slug: "kittl",
+  const designTool = useMemo(() => {
+    const slug = "kittl";
+    return {
+      slug,
       name: "Kittl",
-      href: "https://kittl.com",
+      href: getProductUrl(slug),
       description: "Create POD designs, mockups, and variations with AI-assisted templates.",
-      cta: "Explore Kittl",
-    }),
-    [],
-  );
+      cta: isAffiliateLinkReady(slug) ? "Get Kittl" : "Visit Kittl",
+    };
+  }, []);
 
   return (
     <div className="mx-auto max-w-5xl">

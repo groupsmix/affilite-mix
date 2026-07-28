@@ -3,6 +3,10 @@ import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow } from "@/types/database";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import { NewsletterSignup } from "./newsletter-signup";
+import { etsyTools } from "@/lib/etsy-product-data";
+import { EtsyToolCard } from "./etsy-tool-card";
+import { getAllSiteGuides } from "@/lib/site-guides";
+import { filterExcludedCompareaiContent } from "@/lib/compareai-cleanup";
 
 interface EtsyHomepageProps {
   site: SiteDefinition;
@@ -53,7 +57,40 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
     },
   ];
 
-  const latestGuides = recentContent.length > 0 ? recentContent.slice(0, 3) : [];
+  const toolList = Object.values(etsyTools).slice(0, 4);
+
+  const filteredDb = filterExcludedCompareaiContent(recentContent).slice(0, 3);
+  const latestGuides: ContentRow[] = [...filteredDb];
+  if (latestGuides.length < 3) {
+    const needed = 3 - latestGuides.length;
+    const existingSlugs = new Set(latestGuides.map((c) => c.slug));
+    const staticGuides = getAllSiteGuides(site.slug ?? site.id)
+      .filter((g) => !existingSlugs.has(g.slug))
+      .slice(0, needed)
+      .map((g) => ({
+        id: g.slug,
+        site_id: site.id,
+        title: g.title,
+        slug: g.slug,
+        body: g.bodyHtml,
+        excerpt: g.excerpt,
+        featured_image: "",
+        type: "guide" as ContentRow["type"],
+        status: "published" as ContentRow["status"],
+        category_id: null,
+        tags: g.tags,
+        author: null,
+        publish_at: g.datePublished,
+        meta_title: g.metaTitle,
+        meta_description: g.metaDescription,
+        og_image: null,
+        body_previous: null,
+        review_state: "published" as ContentRow["review_state"],
+        created_at: g.datePublished,
+        updated_at: g.dateModified,
+      }));
+    latestGuides.push(...staticGuides);
+  }
 
   return (
     <div>
@@ -162,6 +199,41 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                 <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{step.body}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Featured tools */}
+        <section className="border-t border-gray-100 py-14">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
+                Tools we cover
+              </h2>
+              <p className="mt-2 text-base text-gray-600">
+                Research, design, listing, and POD tools we test and compare.
+              </p>
+            </div>
+            <Link
+              href="/tools"
+              className="hidden font-mono text-sm font-medium transition-colors sm:inline"
+              style={{ color: "var(--color-accent-text, var(--color-accent))" }}
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {toolList.map((tool) => (
+              <EtsyToolCard key={tool.slug} tool={tool} />
+            ))}
+          </div>
+          <div className="mt-6 sm:hidden">
+            <Link
+              href="/tools"
+              className="font-mono text-sm font-medium transition-colors"
+              style={{ color: "var(--color-accent-text, var(--color-accent))" }}
+            >
+              View all tools →
+            </Link>
           </div>
         </section>
 

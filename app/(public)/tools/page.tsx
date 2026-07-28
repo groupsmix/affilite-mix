@@ -9,6 +9,8 @@ import { JsonLd, organizationJsonLd, breadcrumbJsonLd } from "../components/json
 import { CalmShell } from "../components/calmroutine/shell";
 import { CalmToolsPage } from "../components/calmroutine/tools-view";
 import { getCalmConfig } from "@/lib/calm-config";
+import { etsyTools } from "@/lib/etsy-product-data";
+import { EtsyToolCard } from "../components/etsy-tool-card";
 
 export const revalidate = 60;
 
@@ -136,49 +138,49 @@ function EtsyToolsIndex({ site }: { site: SiteDefinition }) {
     { name: "Tools", path: "/tools" },
   ]);
 
-  const tools = [
-    {
-      href: "/tools/etsy-profit-calculator",
-      title: "Etsy Profit & Break-Even Calculator",
-      description:
-        "Estimate listing, transaction, and payment fees per sale. See profit per unit, monthly profit, and break-even units.",
-      cta: "Calculate profit",
-    },
-  ];
+  const toolList = Object.values(etsyTools);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:py-12">
       <JsonLd data={breadcrumbs} />
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-          Free Etsy Seller Tools
+          Etsy Seller Tools
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-          Practical tools built for print-on-demand and digital-product sellers: profit calculators,
-          workflow checklists, and AI tool comparisons.
+          The tools we cover for product research, design, listing optimization, and POD
+          fulfillment. Every card links to the official site; affiliate links are added once
+          approved.
         </p>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {tools.map((tool) => (
-          <Link
-            key={tool.href}
-            href={tool.href}
-            className="group flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-            style={{
-              borderInlineStartWidth: "3px",
-              borderInlineStartColor: "var(--color-accent, #2D6BF0)",
-            }}
-          >
-            <h2 className="text-lg font-semibold text-gray-900">{tool.title}</h2>
-            <p className="mt-4 flex-1 text-gray-600">{tool.description}</p>
-            <span className="mt-auto inline-flex items-center pt-3 text-sm font-semibold text-[color:var(--color-accent,#2D6BF0)] group-hover:underline">
-              {tool.cta}
-              <ArrowRight className="ml-1 size-4" aria-hidden="true" />
-            </span>
-          </Link>
+      <section className="mb-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {toolList.map((tool) => (
+          <EtsyToolCard key={tool.slug} tool={tool} />
         ))}
-      </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Free Etsy Profit & Break-Even Calculator
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Estimate listing, transaction, and payment fees per sale. See profit per unit, monthly
+              profit, and break-even units before you list.
+            </p>
+          </div>
+          <Link
+            href="/tools/etsy-profit-calculator"
+            className="inline-flex items-center rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
+          >
+            Calculate profit
+            <ArrowRight className="ml-1 size-4" aria-hidden="true" />
+          </Link>
+        </div>
+      </section>
 
       <JsonLd data={jsonLd} />
     </main>

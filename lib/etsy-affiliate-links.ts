@@ -12,6 +12,7 @@ export const ETSY_AFFILIATE_LINKS: Record<string, string | null> = {
   alura: null,
   kittl: null,
   canva: null,
+  printful: null,
 };
 
 export function getAffiliateLink(toolSlug: string): string | null {

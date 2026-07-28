@@ -55,6 +55,15 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "tkqlhce.com",
   // Impact Radius
   "impact.com",
+  // Impact Radius tracking redirect subdomains (merchant-specific)
+  "sjv.io",
+  "pxf.io",
+  "7eer.net",
+  "ojrq.net",
+  "audw.net",
+  "pvxt.net",
+  "snlv.net",
+  "eqjw.net",
   // ShareASale
   "shareasale.com",
   "shareasale-analytics.com",
@@ -70,6 +79,12 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "admitad.global",
   // PartnerStack
   "partnerstack.com",
+  "grsm.io",
+  // Rewardful
+  "getrewardful.com",
+  "rewardful.com",
+  // FirstPromoter
+  "firstpromoter.com",
   // Avangate / 2Checkout
   "avangate.com",
   // ClickBank

@@ -14,6 +14,7 @@ import { CalmShell } from "../../components/calmroutine/shell";
 import { CalmCategoryPage as CalmCategoryView } from "../../components/calmroutine/category-view";
 import { type CalmCategorySlug } from "@/lib/calmroutine";
 import { getCalmConfig } from "@/lib/calm-config";
+import { isExcludedCompareaiCategory } from "@/lib/compareai-cleanup";
 
 /** Revalidate category pages every 60 seconds (ISR) */
 export const revalidate = 60;
@@ -28,6 +29,11 @@ interface CategoryPageProps {
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
+
+  // Hide leftover generic-AI categories on compareai.site.
+  if ((site.slug ?? site.id) === "ai-compared" && isExcludedCompareaiCategory(slug)) {
+    return { title: "Not Found" };
+  }
 
   if (site.slug === "calm-routine") {
     const calmConfig = await getCalmConfig(site.id);
@@ -89,6 +95,11 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const { page: pageParam } = await searchParams;
   const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const site = await getCurrentSite();
+
+  // Hide leftover generic-AI categories on compareai.site.
+  if ((site.slug ?? site.id) === "ai-compared" && isExcludedCompareaiCategory(slug)) {
+    notFound();
+  }
 
   if (site.slug === "calm-routine") {
     const calmConfig = await getCalmConfig(site.id);
