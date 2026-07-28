@@ -41,6 +41,7 @@ import {
 import { notFound, redirect } from "next/navigation";
 import { unstable_noStore } from "next/cache";
 import type { Metadata } from "next";
+import { isExcludedCompareaiSlug } from "@/lib/compareai-cleanup";
 
 /** Revalidate content detail pages every 60 seconds (ISR) */
 export const revalidate = 60;
@@ -57,6 +58,11 @@ export async function generateMetadata({
   const { nestedSlug: slug } = await params;
   const { preview, token } = await searchParams;
   const site = await getCurrentSite();
+
+  // Hide leftover generic-AI content on compareai.site.
+  if ((site.slug ?? site.id) === "ai-compared" && isExcludedCompareaiSlug(slug)) {
+    notFound();
+  }
 
   // Support preview mode in metadata generation
   let isPreview = false;
@@ -127,6 +133,12 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   }
 
   const site = await getCurrentSite();
+
+  // Hide leftover generic-AI content on compareai.site.
+  if ((site.slug ?? site.id) === "ai-compared" && isExcludedCompareaiSlug(slug)) {
+    notFound();
+  }
+
   let isPreview = false;
 
   // Preview mode: authenticate via admin session or preview token

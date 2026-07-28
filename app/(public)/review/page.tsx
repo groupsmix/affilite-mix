@@ -60,6 +60,18 @@ const REVIEWS = [
     status: "Planned",
   },
   { slug: "kittl-review", name: "Kittl", focus: "AI design and POD mockups", status: "Planned" },
+  {
+    slug: "canva-review",
+    name: "Canva",
+    focus: "General-purpose design and marketing assets for Etsy",
+    status: "Planned",
+  },
+  {
+    slug: "printful-review",
+    name: "Printful",
+    focus: "Print-on-demand fulfillment and mockups for Etsy",
+    status: "Planned",
+  },
 ];
 
 export default async function ReviewHubPage({

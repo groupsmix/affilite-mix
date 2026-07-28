@@ -12,6 +12,7 @@ import Link from "next/link";
 import ContentPage, {
   generateMetadata as generateContentMetadata,
 } from "../../[slug]/[nestedSlug]/page";
+import { isExcludedCompareaiSlug } from "@/lib/compareai-cleanup";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,9 @@ export async function generateMetadata({
   }
   const guide = getSiteGuide(site.slug ?? site.id, slug);
   if (!guide) {
+    if ((site.slug ?? site.id) === "ai-compared" && isExcludedCompareaiSlug(slug)) {
+      notFound();
+    }
     return generateContentMetadata({
       params: Promise.resolve({ slug: "guide", nestedSlug: slug }),
       searchParams: Promise.resolve({}),
@@ -93,6 +97,9 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
   const guide = getSiteGuide(site.slug ?? site.id, slug);
   if (!guide) {
+    if ((site.slug ?? site.id) === "ai-compared" && isExcludedCompareaiSlug(slug)) {
+      notFound();
+    }
     return (
       <ContentPage
         params={Promise.resolve({ slug: "guide", nestedSlug: slug })}

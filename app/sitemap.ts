@@ -8,6 +8,7 @@ import { canonicalizeVsSlug } from "@/lib/vs-slug";
 import { logger } from "@/lib/logger";
 import { captureException, captureMessage } from "@/lib/sentry";
 import { getAllSyncGuideParams } from "@/lib/crypto-tax-au-tools";
+import { isExcludedCompareaiSlug, isExcludedCompareaiCategory } from "@/lib/compareai-cleanup";
 
 /**
  * audit5-#21: when the last-good cache is older than this, the fallback
@@ -250,6 +251,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const slug = item.type === "comparison" ? canonicalizeVsSlug(item.slug) : item.slug;
         const url = `${baseUrl}/${item.type}/${slug}`;
         if (seenContentUrls.has(url)) continue;
+        // Hide leftover generic-AI content from the compareai sitemap.
+        if ((site.slug ?? site.id) === "ai-compared" && isExcludedCompareaiSlug(slug)) continue;
         seenContentUrls.add(url);
         contentEntries.push({
           url,
@@ -263,13 +266,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         });
       }
 
-      const categoryEntries: MetadataRoute.Sitemap = categories.map((cat) => ({
-        url: `${baseUrl}/category/${cat.slug}`,
-        // P2-2: categories don't carry updated_at; use stable constant
-        lastModified: STATIC_LAST_MODIFIED,
-        changeFrequency: "weekly" as const,
-        priority: 0.6,
-      }));
+      const categoryEntries: MetadataRoute.Sitemap = categories
+        .filter(
+          (cat) =>
+            (site.slug ?? site.id) !== "ai-compared" || !isExcludedCompareaiCategory(cat.slug),
+        )
+        .map((cat) => ({
+          url: `${baseUrl}/category/${cat.slug}`,
+          // P2-2: categories don't carry updated_at; use stable constant
+          lastModified: STATIC_LAST_MODIFIED,
+          changeFrequency: "weekly" as const,
+          priority: 0.6,
+        }));
 
       // NOTE: /products/[slug] does not exist as a public route — product cards
       // link directly to affiliate_url. Product URLs are intentionally excluded
