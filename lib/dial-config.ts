@@ -277,7 +277,7 @@ export const defaultDialConfig: DialHomepageConfig = {
       "No fluff, no paid rankings. We buy, wear, and rate affordable watches so you can spend with confidence — organized by exactly how much you want to spend.",
     ctaPrimary: { label: "Explore top picks", href: "#top-picks" },
     ctaSecondary: { label: "Shop by budget", href: "#tier-under-200" },
-    heroImage: "/images/wristnerd/wristnerd-hero-home.png",
+    heroImage: "/images/wristnerd/wristnerd-hero-home-v2.png",
     heroImageAlt: "Curated collection of affordable watches tested by WristNerd",
     trustRating: "",
     trustReviews: "",
