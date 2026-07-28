@@ -5,6 +5,11 @@ import { useMemo, useState } from "react";
 import { ArrowRight, BadgeCheck, Calculator, Check } from "lucide-react";
 import { ProductCardCta } from "./product-card-client";
 import { ProductLogo } from "./product-logo";
+import {
+  CRYPTO_ACCOUNTANT_SLUG,
+  CRYPTO_ACCOUNTANT_HREF,
+  CRYPTO_ACCOUNTANT_CTA,
+} from "@/lib/crypto-tax-au-tools";
 
 /**
  * A tool the finder can send the visitor to. `slug`/`affiliateUrl` come from the
@@ -189,21 +194,32 @@ export function TaxFinder({
                   }
                   className="block w-full rounded-lg border border-slate-900 bg-slate-900 px-4 py-3 text-center text-base font-semibold text-white shadow-sm transition-all hover:bg-slate-800 active:scale-[0.98]"
                 />
-                {accountant && (
-                  <ProductCardCta
-                    href={accountant.affiliateUrl}
-                    slug={accountant.slug}
-                    sourceType={sourceType}
-                    productName={accountant.name}
-                    label={
+                {accountant &&
+                  (accountant.slug === CRYPTO_ACCOUNTANT_SLUG ? (
+                    <Link
+                      href={CRYPTO_ACCOUNTANT_HREF}
+                      className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-all hover:bg-gray-50 active:scale-[0.98]"
+                    >
                       <span className="inline-flex items-center justify-center gap-2">
-                        Find an accountant
+                        {CRYPTO_ACCOUNTANT_CTA}
                         <ArrowRight className="size-4" aria-hidden="true" />
                       </span>
-                    }
-                    className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-all hover:bg-gray-50 active:scale-[0.98]"
-                  />
-                )}
+                    </Link>
+                  ) : (
+                    <ProductCardCta
+                      href={accountant.affiliateUrl}
+                      slug={accountant.slug}
+                      sourceType={sourceType}
+                      productName={accountant.name}
+                      label={
+                        <span className="inline-flex items-center justify-center gap-2">
+                          Find an accountant
+                          <ArrowRight className="size-4" aria-hidden="true" />
+                        </span>
+                      }
+                      className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-all hover:bg-gray-50 active:scale-[0.98]"
+                    />
+                  ))}
               </div>
             </div>
           )}

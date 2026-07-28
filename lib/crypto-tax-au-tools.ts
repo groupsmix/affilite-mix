@@ -6,6 +6,14 @@
  * one place makes the tools easy to update without touching UI code.
  */
 
+export const CRYPTO_ACCOUNTANT_SLUG = "crypto-accountant-au";
+export const CRYPTO_ACCOUNTANT_HREF = "/find-crypto-tax-accountant";
+export const CRYPTO_ACCOUNTANT_CTA = "Get matched";
+
+export function isCryptoAccountantProduct(slug: string): boolean {
+  return slug === CRYPTO_ACCOUNTANT_SLUG;
+}
+
 export interface CryptoTaxProductFeatures {
   pricing: string;
   atoReport: string;

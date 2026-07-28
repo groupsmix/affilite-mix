@@ -1,8 +1,14 @@
 import type { ProductRow } from "@/types/database";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
 import { highlightText } from "./highlight-text";
 import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
+import {
+  CRYPTO_ACCOUNTANT_HREF,
+  CRYPTO_ACCOUNTANT_CTA,
+  isCryptoAccountantProduct,
+} from "@/lib/crypto-tax-au-tools";
 import { ProductCardCta, ProductCardImage, ProductCardDealBadge } from "./product-card-client";
 
 export interface ProductCardProps {
@@ -76,7 +82,15 @@ export function ProductCard({
               <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
             )}
           </div>
-          {hasUsableAffiliateUrl(product.affiliate_url) && (
+          {isCryptoAccountantProduct(product.slug) ? (
+            <Link
+              href={CRYPTO_ACCOUNTANT_HREF}
+              className="mt-2 inline-block rounded px-3 py-1 text-xs font-medium text-white transition-colors hover:opacity-90"
+              style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+            >
+              {buttonLabel || CRYPTO_ACCOUNTANT_CTA}
+            </Link>
+          ) : hasUsableAffiliateUrl(product.affiliate_url) ? (
             <ProductCardCta
               href={product.affiliate_url}
               slug={product.slug}
@@ -86,7 +100,7 @@ export function ProductCard({
               className="mt-2 inline-block rounded px-3 py-1 text-xs font-medium text-white transition-colors hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #10B981)" }}
             />
-          )}
+          ) : null}
         </div>
       </div>
     );
@@ -198,7 +212,15 @@ export function ProductCard({
             </div>
           )}
 
-          {hasUsableAffiliateUrl(product.affiliate_url) && (
+          {isCryptoAccountantProduct(product.slug) ? (
+            <Link
+              href={CRYPTO_ACCOUNTANT_HREF}
+              className="block w-full rounded-md px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
+              style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+            >
+              {buttonLabel || CRYPTO_ACCOUNTANT_CTA}
+            </Link>
+          ) : hasUsableAffiliateUrl(product.affiliate_url) ? (
             <ProductCardCta
               href={product.affiliate_url}
               slug={product.slug}
@@ -208,7 +230,7 @@ export function ProductCard({
               className="block w-full rounded-md px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #10B981)" }}
             />
-          )}
+          ) : null}
           {relatedContentHref && (
             <a
               href={relatedContentHref}
@@ -262,7 +284,15 @@ export function ProductCard({
           <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
         )}
       </div>
-      {hasUsableAffiliateUrl(product.affiliate_url) && (
+      {isCryptoAccountantProduct(product.slug) ? (
+        <Link
+          href={CRYPTO_ACCOUNTANT_HREF}
+          className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
+          style={{ backgroundColor: "var(--color-accent, #16A34A)" }}
+        >
+          {buttonLabel || CRYPTO_ACCOUNTANT_CTA}
+        </Link>
+      ) : hasUsableAffiliateUrl(product.affiliate_url) ? (
         <ProductCardCta
           href={product.affiliate_url}
           slug={product.slug}
@@ -272,7 +302,7 @@ export function ProductCard({
           className="inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
           style={{ backgroundColor: "var(--color-accent, #16A34A)" }}
         />
-      )}
+      ) : null}
       {relatedContentHref && (
         <a
           href={relatedContentHref}

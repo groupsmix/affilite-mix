@@ -23,7 +23,12 @@ import { TaxFinder, type TaxFinderTool, type TopicKey } from "./tax-finder";
 import { TrustSignals } from "./trust-signals";
 import { ScoreRing } from "./score-ring";
 import { StarRating } from "./star-rating";
-import { CRYPTO_TAX_PRODUCT_FEATURES } from "@/lib/crypto-tax-au-tools";
+import {
+  CRYPTO_TAX_PRODUCT_FEATURES,
+  CRYPTO_ACCOUNTANT_HREF,
+  CRYPTO_ACCOUNTANT_CTA,
+  isCryptoAccountantProduct,
+} from "@/lib/crypto-tax-au-tools";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
 
@@ -453,7 +458,14 @@ function ToolRow({
           </div>
         )}
 
-        {hasUsableAffiliateUrl(product.affiliate_url) && (
+        {isCryptoAccountantProduct(product.slug) ? (
+          <Link
+            href={CRYPTO_ACCOUNTANT_HREF}
+            className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-3 text-base font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow active:scale-[0.98]"
+          >
+            {CRYPTO_ACCOUNTANT_CTA} <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        ) : hasUsableAffiliateUrl(product.affiliate_url) ? (
           <ProductCardCta
             href={product.affiliate_url}
             slug={product.slug}
@@ -466,7 +478,7 @@ function ToolRow({
             }
             className="mt-auto inline-flex w-full items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-4 py-3 text-base font-semibold text-white shadow-sm transition-all hover:bg-slate-800 hover:shadow active:scale-[0.98]"
           />
-        )}
+        ) : null}
       </div>
     </div>
   );
