@@ -8,7 +8,7 @@
 
 export const CRYPTO_ACCOUNTANT_SLUG = "crypto-accountant-au";
 export const CRYPTO_ACCOUNTANT_HREF = "/find-crypto-tax-accountant";
-export const CRYPTO_ACCOUNTANT_CTA = "Get matched";
+export const CRYPTO_ACCOUNTANT_CTA = "Find an accountant";
 
 export function isCryptoAccountantProduct(slug: string): boolean {
   return slug === CRYPTO_ACCOUNTANT_SLUG;

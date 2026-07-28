@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd, organizationJsonLd } from "../components/json-ld";
-import { AccountantLeadForm } from "../components/accountant-lead-form";
 import { SponsoredAccountants } from "../components/sponsored-accountants";
 
 export const revalidate = 3600;
@@ -15,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const title = "Find a Crypto Tax Accountant (AU)";
-  const description = `Get matched with an Australian registered tax agent who specialises in crypto — DeFi, staking, airdrops, NFTs, ATO reviews and overdue returns on ${site.name}.`;
+  const description = `Compare Australian crypto-tax accountants who sponsor this directory. Pick a firm and contact them directly on ${site.name}.`;
 
   return {
     metadataBase: new URL(`https://${site.domain}`),
@@ -55,8 +54,8 @@ export default async function FindCryptoTaxAccountantPage() {
             Find a Crypto Tax Accountant (AU)
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-300">
-            Get introduced to an Australian registered tax agent who understands DeFi, staking,
-            airdrops, NFTs and ATO reviews. Free matching — you only pay the accountant.
+            Browse sponsored Australian registered tax agents who understand DeFi, staking,
+            airdrops, NFTs and ATO reviews. Contact the firm that fits your situation directly.
           </p>
         </div>
       </section>
@@ -65,13 +64,12 @@ export default async function FindCryptoTaxAccountantPage() {
         <Breadcrumbs
           items={[{ label: site.name, href: "/" }, { label: "Find a Crypto Tax Accountant" }]}
         />
-        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="mb-2 text-xl font-bold text-gray-900">Request a match</h2>
-          <p className="mb-6 text-sm text-gray-600">
-            Tell us your state, situation and transaction volume. We will pass your details to one
-            or more crypto-specialist accountants and cc you on the introduction.
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+          <p className="font-semibold">Sponsored directory</p>
+          <p className="mt-1">
+            The listings below are paid placements. We do not handle enquiries or bookings for them
+            — click through and deal directly with each firm.
           </p>
-          <AccountantLeadForm siteName={site.name} />
         </div>
       </section>
 
@@ -79,12 +77,17 @@ export default async function FindCryptoTaxAccountantPage() {
 
       <section className="mx-auto max-w-3xl px-4 pb-12">
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-sm text-gray-600">
-          <p className="font-semibold text-gray-900">How it works</p>
-          <ol className="mt-3 list-decimal space-y-1.5 pl-5">
-            <li>Fill in the form above with your state and crypto-tax situation.</li>
-            <li>We review your details and match you with a registered tax agent.</li>
-            <li>The accountant contacts you directly to discuss fees and next steps.</li>
-          </ol>
+          <p className="font-semibold text-gray-900">Are you a crypto-tax accountant?</p>
+          <p className="mt-2">
+            Get your firm in front of Australian crypto investors. Listings are paid placements that
+            run for a fixed term — no per-lead invoices, no daily management.
+          </p>
+          <a
+            href={`mailto:contact@${site.domain}?subject=Sponsored accountant listing on ${site.name}`}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+          >
+            Get listed
+          </a>
           <p className="mt-4">{site.affiliateDisclosure}</p>
         </div>
       </section>

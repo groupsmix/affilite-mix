@@ -1,11 +1,12 @@
-import { Star, MapPin, BadgeCheck } from "lucide-react";
-import Link from "next/link";
+import { Star, MapPin, BadgeCheck, ExternalLink } from "lucide-react";
 
 interface Listing {
   name: string;
   location: string;
   specialties: string[];
   highlight: string;
+  href: string;
+  cta: string;
   sponsored: boolean;
 }
 
@@ -15,6 +16,8 @@ const ACCOUNTANTS: Listing[] = [
     location: "Sydney, NSW",
     specialties: ["DeFi", "NFTs", "ATO audits"],
     highlight: "ATO review specialists",
+    href: "https://example.com/sydney-crypto-tax",
+    cta: "Visit website",
     sponsored: true,
   },
   {
@@ -22,6 +25,8 @@ const ACCOUNTANTS: Listing[] = [
     location: "Melbourne, VIC",
     specialties: ["Yield farming", "Staking", "Complex CGT"],
     highlight: "Book a free 15-minute call",
+    href: "https://example.com/melbourne-defi-tax",
+    cta: "Book a call",
     sponsored: true,
   },
   {
@@ -29,6 +34,8 @@ const ACCOUNTANTS: Listing[] = [
     location: "Brisbane, QLD",
     specialties: ["Airdrops", "Multiple years", "SMSF crypto"],
     highlight: "Registered tax agents",
+    href: "https://example.com/brisbane-web3-tax",
+    cta: "Visit website",
     sponsored: true,
   },
 ];
@@ -45,8 +52,8 @@ export function SponsoredAccountants() {
         </span>
       </div>
       <p className="mb-6 max-w-3xl text-gray-600">
-        These firms understand crypto tax and have asked us to feature them. We do not endorse any
-        single firm — compare and choose the one that fits your situation.
+        These firms understand crypto tax and pay to be featured. We do not endorse any single firm
+        — compare them and contact the one that fits your situation directly.
       </p>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -84,12 +91,14 @@ export function SponsoredAccountants() {
               {firm.highlight}
             </p>
 
-            <Link
-              href="#lead-form"
-              className="mt-5 block w-full rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+            <a
+              href={firm.href}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
             >
-              Request an introduction
-            </Link>
+              {firm.cta} <ExternalLink className="size-3.5" aria-hidden="true" />
+            </a>
           </div>
         ))}
       </div>
