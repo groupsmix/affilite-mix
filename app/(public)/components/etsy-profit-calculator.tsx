@@ -8,10 +8,16 @@ import { getProductUrl, isAffiliateLinkReady } from "@/lib/etsy-affiliate-links"
 
 interface EtsyProfitCalculatorProps {
   siteLanguage?: string;
+  newsletterEnabled?: boolean;
 }
 
 function formatCurrency(n: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
 }
 
 function percentOrZero(v: string): number {
@@ -19,7 +25,10 @@ function percentOrZero(v: string): number {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
-export function EtsyProfitCalculator({ siteLanguage = "en" }: EtsyProfitCalculatorProps) {
+export function EtsyProfitCalculator({
+  siteLanguage = "en",
+  newsletterEnabled = false,
+}: EtsyProfitCalculatorProps) {
   const [salePrice, setSalePrice] = useState<string>("15.00");
   const [itemCost, setItemCost] = useState<string>("5.00");
   const [listingFee, setListingFee] = useState<string>("0.20");
@@ -424,37 +433,41 @@ export function EtsyProfitCalculator({ siteLanguage = "en" }: EtsyProfitCalculat
       </div>
 
       {/* Email gate */}
-      <div className="mt-10 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
-        {!showEmailGate ? (
-          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {newsletterEnabled && (
+        <div className="mt-10 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
+          {!showEmailGate ? (
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Get the full cost worksheet</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  A downloadable spreadsheet with these formulas, fee inputs, and a monthly profit
+                  tracker.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEmailGate(true)}
+                className="inline-flex items-center rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
+              >
+                Send me the worksheet
+              </button>
+            </div>
+          ) : (
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Get the full cost worksheet</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Send the worksheet to my inbox
+              </h3>
               <p className="mt-1 text-sm text-gray-600">
-                A downloadable spreadsheet with these formulas, fee inputs, and a monthly profit
-                tracker.
+                You&apos;ll also get the Etsy AI Workflow Checklist.
               </p>
+              <div className="mt-4 max-w-xl">
+                <NewsletterSignup siteLanguage={siteLanguage} />
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowEmailGate(true)}
-              className="inline-flex items-center rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-              style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
-            >
-              Send me the worksheet
-            </button>
-          </div>
-        ) : (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Send the worksheet to my inbox</h3>
-            <p className="mt-1 text-sm text-gray-600">
-              You&apos;ll also get the Etsy AI Workflow Checklist.
-            </p>
-            <div className="mt-4 max-w-xl">
-              <NewsletterSignup siteLanguage={siteLanguage} />
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       <p className="mt-6 text-xs text-gray-500">
         This calculator is an estimator. It does not account for Etsy Ads, Offsite Ads, shipping,

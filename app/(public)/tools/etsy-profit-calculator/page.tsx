@@ -85,7 +85,10 @@ export default async function EtsyProfitCalculatorPage() {
         </p>
       </div>
 
-      <EtsyProfitCalculator siteLanguage={site.language} />
+      <EtsyProfitCalculator
+        siteLanguage={site.language}
+        newsletterEnabled={site.features.newsletter}
+      />
 
       <JsonLd data={orgJsonLd} />
       <JsonLd data={appJsonLd} />

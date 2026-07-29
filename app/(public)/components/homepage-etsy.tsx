@@ -352,7 +352,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                     <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                     {content.type}
                   </div>
-                  <h3 className="mt-2 text-lg font-semibold text-slate-900 group-hover:underline">
+                  <h3 className="mt-2 text-lg font-semibold text-slate-900 transition-colors group-hover:[color:var(--color-accent-text,var(--color-accent))]">
                     {content.title}
                   </h3>
                   {content.excerpt && (
@@ -364,43 +364,53 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
           </section>
         )}
 
-        {/* Email capture + disclosure */}
-        <section className="border-t border-slate-100 py-16">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 lg:grid lg:grid-cols-2 lg:gap-8">
-            <div>
-              <p
-                className="font-mono text-xs uppercase tracking-[0.2em]"
-                style={{ color: "var(--color-accent-text, var(--color-accent))" }}
-              >
-                Free lead magnet
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                Get the Etsy AI Workflow Checklist
-              </h2>
-              <p className="mt-2 text-base text-slate-600">
-                A printable checklist covering research, design, listing, and disclosure — plus a
-                list of the first tools to test.
-              </p>
-              <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-slate-600">
-                <li>Product-research routine you can repeat weekly</li>
-                <li>AI disclosure and mockup compliance checks</li>
-                <li>Title/tag optimization before publishing</li>
-              </ul>
-            </div>
-            <div className="mt-6 flex flex-col justify-center lg:mt-0">
-              <Link
-                href="/newsletter"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-accent,#2D6BF0)] px-6 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
-              >
-                <Mail className="h-5 w-5" aria-hidden="true" />
-                Get the checklist
-              </Link>
-              <p className="mt-3 text-center text-xs text-slate-500 lg:text-left">
-                We&apos;ll email you the checklist and occasional updates. Unsubscribe anytime.
-              </p>
-            </div>
-          </div>
-        </section>
+        {site.features.newsletter && (
+          <>
+            {/* Email capture + disclosure */}
+            <section className="border-t border-slate-100 py-16">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 lg:grid lg:grid-cols-2 lg:gap-8">
+                <div>
+                  <p
+                    className="font-mono text-xs uppercase tracking-[0.2em]"
+                    style={{ color: "var(--color-accent-text, var(--color-accent))" }}
+                  >
+                    Free lead magnet
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                    Get the Etsy AI Workflow Checklist
+                  </h2>
+                  <p className="mt-2 text-base text-slate-600">
+                    A printable checklist covering research, design, listing, and disclosure — plus
+                    a list of the first tools to test.
+                  </p>
+                  <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                    <li>Product-research routine you can repeat weekly</li>
+                    <li>AI disclosure and mockup compliance checks</li>
+                    <li>Title/tag optimization before publishing</li>
+                  </ul>
+                </div>
+                <div className="mt-6 flex flex-col justify-center lg:mt-0">
+                  <Link
+                    href="/newsletter"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-accent,#2D6BF0)] px-6 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                  >
+                    <Mail className="h-5 w-5" aria-hidden="true" />
+                    Get the checklist
+                  </Link>
+                  <p className="mt-3 text-center text-xs text-slate-500 lg:text-left">
+                    We&apos;ll email you the checklist and occasional updates. Unsubscribe anytime.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Affiliate transparency */}
+          </>
+        )}
+
+        {!site.features.newsletter && (
+          <section className="border-t border-slate-100 py-16" aria-hidden="true" />
+        )}
 
         {/* Affiliate transparency */}
         <section className="pb-20 pt-6">
@@ -412,7 +422,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
               className="font-mono text-xs uppercase tracking-[0.2em]"
               style={{ color: "var(--color-accent-text, var(--color-accent))" }}
             >
-              Disclosure
+              Editorial disclosure
             </p>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
               How we make money

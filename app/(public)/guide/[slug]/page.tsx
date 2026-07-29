@@ -193,18 +193,20 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
           </section>
         )}
 
-        <section className="mt-12 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Get the latest {site.productLabelPlural.toLowerCase()} guides
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            A weekly roundup of new {site.productLabelPlural.toLowerCase()} buying guides, deals,
-            and comparison updates.
-          </p>
-          <div className="mt-4 max-w-xl">
-            <NewsletterSignup siteLanguage={site.language} />
-          </div>
-        </section>
+        {site.features.newsletter && (
+          <section className="mt-12 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Get the latest {site.productLabelPlural.toLowerCase()} guides
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              A weekly roundup of new {site.productLabelPlural.toLowerCase()} buying guides, deals,
+              and comparison updates.
+            </p>
+            <div className="mt-4 max-w-xl">
+              <NewsletterSignup siteLanguage={site.language} />
+            </div>
+          </section>
+        )}
       </article>
     </main>
   );
