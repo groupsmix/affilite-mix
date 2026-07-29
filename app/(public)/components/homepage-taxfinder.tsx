@@ -22,8 +22,6 @@ import { hasUsableAffiliateUrl } from "@/lib/affiliate-url";
 import { TaxFinder, type TaxFinderTool, type TopicKey } from "./tax-finder";
 import { TrustSignals } from "./trust-signals";
 import { ScoreRing } from "./score-ring";
-import { StarRating } from "./star-rating";
-import { CRYPTO_TAX_PRODUCT_FEATURES } from "@/lib/crypto-tax-au-tools";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
 
@@ -85,13 +83,6 @@ function parseBulletList(raw: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
-const subScoreLabel: Record<string, string> = {
-  features: "Features",
-  pricing: "Pricing",
-  support: "Support",
-  ato: "ATO report",
-};
-
 export function TaxFinderHomepage({
   site,
   recentContent,
@@ -104,6 +95,7 @@ export function TaxFinderHomepage({
     site.contentTypes.find((c) => c.value === "guide")?.value ??
     site.contentTypes[0]?.value ??
     "guide";
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
   const usable = featuredProducts.filter((p) => hasUsableAffiliateUrl(p.affiliate_url));
 
   const softwareProducts = usable.filter((p) => SOFTWARE_SLUGS.has(p.slug));
@@ -185,9 +177,6 @@ export function TaxFinderHomepage({
 
       {/* Trust signals */}
       <TrustSignals
-        affiliateDisclosure={site.affiliateDisclosure}
-        contentDisclosure={site.contentDisclosure}
-        contactEmail={site.brand.contactEmail}
         stats={{
           tools: productCount,
           guides: recentContent.length,
@@ -240,9 +229,7 @@ export function TaxFinderHomepage({
                     <Link
                       key={cat.id}
                       href={`/category/${cat.slug}`}
-                      className={`group flex flex-col rounded-2xl border border-slate-200 bg-[#F8F9FA] p-5 transition-all hover:-translate-y-1 hover:border-slate-300 hover:bg-white hover:shadow-lg ${
-                        i === 0 ? "sm:col-span-2" : ""
-                      }`}
+                      className="group flex flex-col rounded-2xl border border-slate-200 bg-[#F8F9FA] p-5 transition-all hover:-translate-y-1 hover:border-slate-300 hover:bg-white hover:shadow-lg"
                     >
                       <span
                         className={`inline-flex size-10 items-center justify-center rounded-lg ${iconBg} ${iconText} ring-1 ${iconRing} transition-colors ${hoverBg} ${hoverText}`}
@@ -290,7 +277,16 @@ export function TaxFinderHomepage({
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {recentContent.map((content) => (
-                <ContentCard key={content.id} content={content} locale="en-AU" priority={false} />
+                <ContentCard
+                  key={content.id}
+                  content={content}
+                  locale="en-AU"
+                  priority={false}
+                  categorySlug={
+                    content.category_id ? categoryById.get(content.category_id)?.slug : undefined
+                  }
+                  variant="flat"
+                />
               ))}
             </div>
           </section>
@@ -338,8 +334,6 @@ function ToolRow({
   sourceType: string;
 }) {
   const isTop = index === 0;
-  const slugData = CRYPTO_TAX_PRODUCT_FEATURES[product.slug];
-  const subScores = slugData?.subScores;
   const pros = parseBulletList(product.pros);
   const cons = parseBulletList(product.cons);
 
@@ -362,8 +356,9 @@ function ToolRow({
         <ProductLogo
           name={product.name}
           src={product.image_url}
-          size={48}
-          className="rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-100"
+          fill
+          sizes="120px"
+          className="relative h-12 w-[120px] rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-100"
           priority={index < 3}
         />
       </div>
@@ -426,31 +421,7 @@ function ToolRow({
 
       <div className="flex w-full flex-col gap-4 sm:w-56">
         {product.score !== null && (
-          <div className="flex flex-col gap-1">
-            <ScoreRing score={product.score} size="md" label="Editorial score" />
-            <StarRating score={product.score / 2} size="sm" />
-          </div>
-        )}
-
-        {subScores && (
-          <div className="w-full space-y-1.5">
-            {Object.entries(subScores).map(([key, value]) => (
-              <div key={key} className="flex items-center gap-2 text-xs">
-                <span className="w-14 shrink-0 font-medium text-slate-500">
-                  {subScoreLabel[key] ?? key}
-                </span>
-                <div className="h-1.5 flex-1 rounded-full bg-slate-100">
-                  <div
-                    className="h-1.5 rounded-full bg-emerald-500"
-                    style={{ width: `${Math.min(10, value) * 10}%` }}
-                  />
-                </div>
-                <span className="w-5 shrink-0 text-right font-semibold text-slate-700">
-                  {value.toFixed(1)}
-                </span>
-              </div>
-            ))}
-          </div>
+          <ScoreRing score={product.score} size="md" label="Editorial score" />
         )}
 
         {hasUsableAffiliateUrl(product.affiliate_url) && (
@@ -464,7 +435,7 @@ function ToolRow({
                 Visit site <ArrowRight className="size-4" aria-hidden="true" />
               </span>
             }
-            className="mt-auto inline-flex w-full items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-4 py-3 text-base font-semibold text-white shadow-sm transition-all hover:bg-slate-800 hover:shadow active:scale-[0.98]"
+            className="mt-auto inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-4 py-3 text-base font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow active:scale-[0.98]"
           />
         )}
       </div>
@@ -485,66 +456,66 @@ type CategoryStyle = {
 const CATEGORY_STYLES: Record<string, CategoryStyle> = {
   "crypto-tax-basics": {
     Icon: BookOpen,
-    iconBg: "bg-blue-50",
-    iconText: "text-blue-700",
-    iconRing: "ring-blue-100",
-    hoverBg: "group-hover:bg-blue-600",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-700",
+    iconRing: "ring-slate-200",
+    hoverBg: "group-hover:bg-emerald-600",
     hoverText: "group-hover:text-white",
-    labelColor: "text-blue-700",
+    labelColor: "text-emerald-700",
   },
   "defi-tax": {
     Icon: Network,
-    iconBg: "bg-violet-50",
-    iconText: "text-violet-700",
-    iconRing: "ring-violet-100",
-    hoverBg: "group-hover:bg-violet-600",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-700",
+    iconRing: "ring-slate-200",
+    hoverBg: "group-hover:bg-emerald-600",
     hoverText: "group-hover:text-white",
-    labelColor: "text-violet-700",
+    labelColor: "text-emerald-700",
   },
   "staking-tax": {
     Icon: Coins,
-    iconBg: "bg-amber-50",
-    iconText: "text-amber-700",
-    iconRing: "ring-amber-100",
-    hoverBg: "group-hover:bg-amber-600",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-700",
+    iconRing: "ring-slate-200",
+    hoverBg: "group-hover:bg-emerald-600",
     hoverText: "group-hover:text-white",
-    labelColor: "text-amber-700",
+    labelColor: "text-emerald-700",
   },
   "airdrop-tax": {
     Icon: Gift,
-    iconBg: "bg-sky-50",
-    iconText: "text-sky-700",
-    iconRing: "ring-sky-100",
-    hoverBg: "group-hover:bg-sky-600",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-700",
+    iconRing: "ring-slate-200",
+    hoverBg: "group-hover:bg-emerald-600",
     hoverText: "group-hover:text-white",
-    labelColor: "text-sky-700",
+    labelColor: "text-emerald-700",
   },
   "nft-tax": {
     Icon: ImageIcon,
-    iconBg: "bg-pink-50",
-    iconText: "text-pink-700",
-    iconRing: "ring-pink-100",
-    hoverBg: "group-hover:bg-pink-600",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-700",
+    iconRing: "ring-slate-200",
+    hoverBg: "group-hover:bg-emerald-600",
     hoverText: "group-hover:text-white",
-    labelColor: "text-pink-700",
+    labelColor: "text-emerald-700",
   },
   "crypto-tax-software": {
     Icon: Calculator,
-    iconBg: "bg-emerald-50",
-    iconText: "text-emerald-700",
-    iconRing: "ring-emerald-100",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-700",
+    iconRing: "ring-slate-200",
     hoverBg: "group-hover:bg-emerald-600",
     hoverText: "group-hover:text-white",
     labelColor: "text-emerald-700",
   },
   "crypto-accountants": {
     Icon: UserCheck,
-    iconBg: "bg-indigo-50",
-    iconText: "text-indigo-700",
-    iconRing: "ring-indigo-100",
-    hoverBg: "group-hover:bg-indigo-600",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-700",
+    iconRing: "ring-slate-200",
+    hoverBg: "group-hover:bg-emerald-600",
     hoverText: "group-hover:text-white",
-    labelColor: "text-indigo-700",
+    labelColor: "text-emerald-700",
   },
 };
 

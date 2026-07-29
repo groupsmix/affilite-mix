@@ -59,7 +59,7 @@ export function CryptoTaxComparisonMatrix({ products }: CryptoTaxComparisonMatri
                 href={getTrackingUrl(p.slug, "comparison-matrix", p.affiliate_url, hasConsent)}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
-                className="mt-4 block rounded-md border border-slate-900 bg-white px-4 py-2 text-center text-sm font-medium text-slate-900 transition-colors hover:bg-slate-900 hover:text-white"
+                className="mt-4 block rounded-md bg-emerald-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
               >
                 {p.cta_text || `Visit ${p.name}`}
               </a>
@@ -150,7 +150,7 @@ export function CryptoTaxComparisonMatrix({ products }: CryptoTaxComparisonMatri
                       )}
                       target="_blank"
                       rel="noopener noreferrer nofollow"
-                      className="inline-block rounded-md border border-slate-900 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-900 hover:text-white"
+                      className="inline-block rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
                     >
                       {p.cta_text || `Visit ${p.name}`}
                     </a>

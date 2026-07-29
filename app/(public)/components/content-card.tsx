@@ -11,6 +11,10 @@ interface ContentCardProps {
   searchQuery?: string;
   /** Mark as above-the-fold for LCP optimisation */
   priority?: boolean;
+  /** Category slug used for a distinct fallback icon when no featured image is set */
+  categorySlug?: string;
+  /** Flat variant removes shadow/raise so the card recedes behind primary CTAs */
+  variant?: "default" | "flat";
 }
 
 export function ContentCard({
@@ -18,16 +22,24 @@ export function ContentCard({
   locale = "en-US",
   searchQuery,
   priority = false,
+  categorySlug,
+  variant = "default",
 }: ContentCardProps) {
   const href = `/${content.type}/${content.slug}`;
+  const flat = variant === "flat";
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <article
+      className={`group flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground transition-all ${
+        flat ? "shadow-none hover:shadow-none" : "shadow-sm hover:-translate-y-0.5 hover:shadow-md"
+      }`}
+    >
       <ContentCardImage
         href={href}
         src={content.featured_image}
         alt={content.title}
-        title={content.title}
+        type={content.type}
+        categorySlug={categorySlug}
         priority={priority}
       />
       <div className="flex flex-1 flex-col p-5">
