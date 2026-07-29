@@ -24,7 +24,7 @@ export const aiComparedSite = defineSite({
   homepage: "etsy",
   layout: "compare",
   headerConfig: {
-    logoMode: "image",
+    logoMode: "wordmark",
     showCta: true,
     ctaLabel: "Compare tools",
     ctaHref: "/tools",
