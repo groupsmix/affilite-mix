@@ -13,6 +13,7 @@
 
 import type { SiteDefinition } from "@/config/site-definition";
 import Link from "next/link";
+import Image from "next/image";
 import { NewsletterSignup } from "./newsletter-signup";
 import { CookieSettingsButton } from "./cookie-settings-button";
 
@@ -43,6 +44,20 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
         style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
         aria-hidden="true"
       />
+
+      {site.slug === "ai-compared" && (
+        <div className="relative h-32 w-full">
+          <Image
+            src="/images/compareai/compareai-footer-banner.jpg"
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover opacity-80"
+            aria-hidden="true"
+            priority={false}
+          />
+        </div>
+      )}
 
       <div className="mx-auto max-w-6xl px-4 pt-12 pb-0">
         {/* Brand block + trust tagline */}

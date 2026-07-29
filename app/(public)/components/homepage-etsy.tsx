@@ -7,6 +7,7 @@ import { etsyTools } from "@/lib/etsy-product-data";
 import { EtsyToolCard } from "./etsy-tool-card";
 import { getAllSiteGuides } from "@/lib/site-guides";
 import { filterExcludedCompareaiContent } from "@/lib/compareai-cleanup";
+import { cn } from "@/lib/utils";
 
 interface EtsyHomepageProps {
   site: SiteDefinition;
@@ -48,6 +49,8 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
       title: "Tutorials & Workflows",
       body: "Step-by-step guides for product research, listing optimization, AI mockups, and POD workflows.",
       cta: "Browse guides",
+      image: "/images/compareai/compareai-tools-card.jpg",
+      imageAlt: "A folded t-shirt and printed mug next to a laptop on a dark concrete desk.",
     },
     {
       href: "/comparison",
@@ -99,17 +102,13 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
 
       {/* Hero: one specific promise */}
       <section
-        className="relative overflow-hidden"
-        style={{ backgroundColor: "var(--color-primary, #0B1120)" }}
+        className="relative overflow-hidden bg-cover bg-center"
+        style={{
+          backgroundColor: "var(--color-primary, #0B1120)",
+          backgroundImage:
+            "linear-gradient(to right, rgba(11,17,32,0.95) 0%, rgba(11,17,32,0.80) 45%, rgba(11,17,32,0.40) 100%), url(/images/compareai/compareai-hero-home.jpg)",
+        }}
       >
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)",
-            backgroundSize: "22px 22px",
-          }}
-        />
         <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28 lg:px-8">
           <p
             className="mb-5 font-mono text-xs uppercase tracking-[0.2em]"
@@ -244,22 +243,65 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
             Pick the resource that matches your current goal.
           </p>
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {hubs.map((hub) => (
-              <Link
-                key={hub.href}
-                href={hub.href}
-                className="group flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-              >
-                <h3 className="text-lg font-semibold text-gray-900">{hub.title}</h3>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-gray-600">{hub.body}</p>
-                <span
-                  className="mt-5 inline-flex items-center text-sm font-semibold transition-colors group-hover:underline"
-                  style={{ color: "var(--color-accent-text, var(--color-accent))" }}
+            {hubs.map((hub) => {
+              const hasImage = !!hub.image;
+              return (
+                <Link
+                  key={hub.href}
+                  href={hub.href}
+                  className={cn(
+                    "group relative flex flex-col overflow-hidden rounded-2xl p-6 shadow-sm transition-shadow hover:shadow-md",
+                    hasImage ? "bg-gray-900 text-white" : "border border-gray-200 bg-white",
+                  )}
                 >
-                  {hub.cta} →
-                </span>
-              </Link>
-            ))}
+                  {hasImage && (
+                    <>
+                      <div
+                        className="absolute inset-0 bg-cover bg-center"
+                        style={{ backgroundImage: `url(${hub.image})` }}
+                        role="img"
+                        aria-label={hub.imageAlt}
+                      />
+                      <div
+                        className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20"
+                        aria-hidden="true"
+                      />
+                    </>
+                  )}
+                  <div className="relative z-10 flex flex-1 flex-col">
+                    <h3
+                      className={cn(
+                        "text-lg font-semibold",
+                        hasImage ? "text-white" : "text-gray-900",
+                      )}
+                    >
+                      {hub.title}
+                    </h3>
+                    <p
+                      className={cn(
+                        "mt-2 flex-1 text-sm leading-relaxed",
+                        hasImage ? "text-white/80" : "text-gray-600",
+                      )}
+                    >
+                      {hub.body}
+                    </p>
+                    <span
+                      className={cn(
+                        "mt-5 inline-flex items-center text-sm font-semibold transition-colors group-hover:underline",
+                        hasImage ? "text-white" : "",
+                      )}
+                      style={
+                        hasImage
+                          ? undefined
+                          : { color: "var(--color-accent-text, var(--color-accent))" }
+                      }
+                    >
+                      {hub.cta} →
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
 

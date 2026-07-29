@@ -11,6 +11,7 @@ import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { CalmShell } from "../components/calmroutine/shell";
 import { CalmAboutPage } from "../components/calmroutine/about-view";
 import { getCalmConfig } from "@/lib/calm-config";
+import Image from "next/image";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -138,6 +139,18 @@ export default async function AboutPage() {
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12">
       <JsonLd data={breadcrumbs} />
+      {site.slug === "ai-compared" && (
+        <div className="mb-8 overflow-hidden rounded-2xl">
+          <Image
+            src="/images/compareai/compareai-about.jpg"
+            alt=""
+            width={1200}
+            height={675}
+            className="h-auto w-full"
+            priority
+          />
+        </div>
+      )}
       <h1 className="mb-8 text-3xl font-bold" style={{ color: "var(--ink)" }}>
         {isArabic ? "من نحن" : "About Us"}
       </h1>
