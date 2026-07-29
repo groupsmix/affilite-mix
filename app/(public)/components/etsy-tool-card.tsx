@@ -38,7 +38,6 @@ export function EtsyToolCard({ tool }: EtsyToolCardProps) {
               width={40}
               height={40}
               className="h-8 w-auto max-w-[2.25rem] object-contain"
-              unoptimized
             />
           ) : (
             <span className="text-lg font-bold text-slate-300">

@@ -118,6 +118,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
           alt=""
           fill
           priority
+          fetchPriority="high"
           sizes="100vw"
           className="object-cover"
         />
