@@ -33,16 +33,7 @@ export const aiComparedSite = defineSite({
   productLabel: "Tool",
   productLabelPlural: "Tools",
 
-  features: [
-    "blog",
-    "newsletter",
-    "rssFeed",
-    "search",
-    "scheduling",
-    "comparisons",
-    "deals",
-    "cookieConsent",
-  ],
+  features: ["blog", "rssFeed", "search", "scheduling", "comparisons", "deals", "cookieConsent"],
 
   contentDisclosure:
     "This page contains affiliate links. We may earn a commission if you sign up through our links.",

@@ -141,7 +141,11 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
 
         {/* Disclaimer / contact */}
         <div className="mt-10 rounded-xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-slate-300 sm:p-6">
-          <p className="font-semibold text-white">Important legal notice</p>
+          <p className="font-semibold text-white">
+            {site.monetizationType === "affiliate"
+              ? "Affiliate disclosure"
+              : "Important legal notice"}
+          </p>
           <p className="mt-2">
             {site.contentDisclosure || site.affiliateDisclosure}
             {site.brand.contactEmail && (
