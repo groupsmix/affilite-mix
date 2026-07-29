@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   Search,
@@ -109,13 +110,25 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
 
       {/* Hero: one specific promise */}
       <section
-        className="relative overflow-hidden bg-cover bg-center"
-        style={{
-          backgroundColor: "var(--color-primary, #0B1120)",
-          backgroundImage:
-            "linear-gradient(to right, rgba(11,17,32,0.95) 0%, rgba(11,17,32,0.80) 45%, rgba(11,17,32,0.40) 100%), url(/images/compareai/compareai-hero-home.jpg)",
-        }}
+        className="relative overflow-hidden"
+        style={{ backgroundColor: "var(--color-primary, #0B1120)" }}
       >
+        <Image
+          src="/images/compareai/compareai-hero-home.jpg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, rgba(11,17,32,0.95) 0%, rgba(11,17,32,0.80) 45%, rgba(11,17,32,0.40) 100%)",
+          }}
+          aria-hidden="true"
+        />
         <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28 lg:px-8">
           <p
             className="mb-5 font-mono text-xs uppercase tracking-[0.2em]"

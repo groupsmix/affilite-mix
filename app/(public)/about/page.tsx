@@ -146,6 +146,7 @@ export default async function AboutPage() {
             alt=""
             width={1200}
             height={675}
+            sizes="(max-width: 768px) 100vw, 800px"
             className="h-auto w-full"
             priority
           />
