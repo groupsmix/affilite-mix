@@ -9,25 +9,6 @@ function getInitials(name: string) {
   return chars.join("") || name.charAt(0).toUpperCase();
 }
 
-export function InitialAvatar({
-  name,
-  size = 40,
-  className,
-}: {
-  name: string;
-  size?: number;
-  className?: string;
-}) {
-  return (
-    <span
-      style={{ width: size, height: size }}
-      className={`inline-flex shrink-0 items-center justify-center rounded-lg bg-[color:var(--color-accent,#16A34A)]/10 text-sm font-bold text-[color:var(--color-accent-text,#15803D)] ${className ?? ""}`}
-    >
-      {getInitials(name)}
-    </span>
-  );
-}
-
 interface ProductLogoProps {
   name: string;
   src?: string | null;
