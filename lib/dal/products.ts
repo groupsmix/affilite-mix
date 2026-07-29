@@ -389,6 +389,9 @@ export async function searchProducts(
   query: string,
   limit = 20,
 ): Promise<ProductRow[]> {
+  if (shouldSkipDbCall()) {
+    return [];
+  }
   // A73-F2: Truncate overly long search queries to prevent expensive DB plans
   const trimmedQuery = query.slice(0, MAX_SEARCH_QUERY_LENGTH);
   const sb = await getTenantClient();

@@ -338,6 +338,9 @@ export async function searchContent(
   query: string,
   limit = 20,
 ): Promise<ContentRow[]> {
+  if (shouldSkipDbCall()) {
+    return [];
+  }
   const sb = await getTenantClient();
   const tsq = toTsquery(query);
 
