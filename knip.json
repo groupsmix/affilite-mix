@@ -7,6 +7,7 @@
     "tests/load/load-test.js",
     "open-next.config.ts",
     "scripts/check-db-types.mjs",
+    "scripts/generate-deploy-wrangler.cjs",
     "scripts/seed-crypto-tax-au-content-v2.ts",
     "scripts/seed-crypto-tax-au-extras.ts",
     "scripts/squash-migrations.mjs",

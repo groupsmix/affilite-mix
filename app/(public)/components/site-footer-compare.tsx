@@ -140,19 +140,22 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
         {/* Disclaimer / contact */}
         <div className="mt-10 rounded-xl border border-white/10 bg-white/5 p-5 text-xs leading-relaxed text-slate-300 sm:p-6">
           <p className="font-semibold text-white">Important legal notice</p>
-          <p className="mt-2">{site.affiliateDisclosure}</p>
-          <p className="mt-2">{site.contentDisclosure}</p>
-          {site.brand.contactEmail && (
-            <p className="mt-2">
-              Contact:{" "}
-              <a
-                href={`mailto:${site.brand.contactEmail}`}
-                className="text-slate-200 underline hover:text-white"
-              >
-                {site.brand.contactEmail}
-              </a>
-            </p>
-          )}
+          <p className="mt-2">
+            {site.contentDisclosure || site.affiliateDisclosure}
+            {site.brand.contactEmail && (
+              <>
+                {" "}
+                Contact:{" "}
+                <a
+                  href={`mailto:${site.brand.contactEmail}`}
+                  className="text-slate-200 underline hover:text-white"
+                >
+                  {site.brand.contactEmail}
+                </a>
+                .
+              </>
+            )}
+          </p>
         </div>
 
         {/* Bottom bar */}

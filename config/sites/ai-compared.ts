@@ -8,6 +8,9 @@ export const aiComparedSite = defineSite({
   niche: "AI-Powered Etsy Growth Tools & Workflows",
   description:
     "Honest reviews, side-by-side comparisons, and practical AI workflows for Etsy print-on-demand and digital-product sellers.",
+  tagline: "Honest reviews, side-by-side comparisons, and no AI hype.",
+  logo: "/images/compareai/compareai-icon.png",
+  faviconUrl: "/images/compareai/compareai-favicon.png",
 
   // Trust-first palette (replaces the old purple "AI hype" scheme).
   // Cool ink canvas for dark sections + Trust Cobalt for actions.
@@ -20,6 +23,12 @@ export const aiComparedSite = defineSite({
   fonts: "modern",
   homepage: "etsy",
   layout: "compare",
+  headerConfig: {
+    logoMode: "wordmark",
+    showCta: true,
+    ctaLabel: "Compare tools",
+    ctaHref: "/tools",
+  },
 
   productLabel: "Tool",
   productLabelPlural: "Tools",

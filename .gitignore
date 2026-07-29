@@ -49,6 +49,7 @@ cf-snapshot-*/
 /blob-report/
 /playwright/.cache/
 wrangler.preview.json
+wrangler.deploy.json
 
 # terraform
 infra/**/*.tfstate

@@ -42,6 +42,10 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: false,
     contentDispositionType: "attachment",
     qualities: [75],
+    // Add breakpoints near the Lighthouse desktop viewport so full-bleed
+    // hero images can serve a source close to the rendered width and avoid
+    // `uses-responsive-images` waste on the LCP image.
+    deviceSizes: [640, 750, 828, 1080, 1200, 1344, 1350, 1440, 1920, 2048, 3840],
     // F-006: bound upstream re-fetch amplification. Every distinct
     // /_next/image request that misses cache forces the Worker to fetch the
     // full source image from the upstream host (incl. the still-allowlisted

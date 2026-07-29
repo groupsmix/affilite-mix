@@ -28,6 +28,8 @@ export interface EtsyTool {
   lastVerified: string;
   /** Optional brand-asset image for tool cards and directory. */
   imageUrl?: string;
+  /** Optional brand logo for tool cards and directory. */
+  logoUrl?: string;
   /** Optional brand color (hex) used for image fallbacks and accents. */
   brandColor?: string;
 }
@@ -108,6 +110,7 @@ export const etsyTools: Record<string, EtsyTool> = {
       },
     ],
     lastVerified: "2026-07-18",
+    logoUrl: "/images/tool-logos/everbee-logo.png",
     brandColor: "#10B981",
   },
   alura: {
@@ -202,6 +205,7 @@ export const etsyTools: Record<string, EtsyTool> = {
       { label: "Alura Plans Feature Table", url: "https://www.alura.io/pricing" },
     ],
     lastVerified: "2026-07-18",
+    logoUrl: "/images/tool-logos/alura-logo.png",
     brandColor: "#F59E0B",
   },
   kittl: {
@@ -280,6 +284,7 @@ export const etsyTools: Record<string, EtsyTool> = {
       { label: "Kittl Pricing Page", url: "https://www.kittl.com/pricing" },
     ],
     lastVerified: "2026-07-18",
+    logoUrl: "/images/tool-logos/kittl-logo.png",
     brandColor: "#EC4899",
   },
   canva: {
@@ -358,6 +363,7 @@ export const etsyTools: Record<string, EtsyTool> = {
       },
     ],
     lastVerified: "2026-07-18",
+    logoUrl: "/images/tool-logos/canva-logo.png",
     brandColor: "#7D2AE8",
   },
   printful: {
@@ -422,6 +428,7 @@ export const etsyTools: Record<string, EtsyTool> = {
       { label: "Printful Growth Plan Details", url: "https://www.printful.com/plans" },
     ],
     lastVerified: "2026-07-26",
+    logoUrl: "/images/tool-logos/printful-logo.png",
     brandColor: "#43B02A",
   },
 };
@@ -578,6 +585,123 @@ export const etsyReviews: Record<string, EtsyReview> = {
         question: "Can EverBee guarantee Etsy sales?",
         answer:
           "No. EverBee shows demand signals and competitor data, but sales depend on your design, niche, pricing, mockups, reviews and marketing. We never promise guaranteed income.",
+      },
+    ],
+    datePublished: "2026-07-18",
+    dateModified: "2026-07-18",
+  },
+  "is-alura-worth-it-for-etsy-sellers": {
+    slug: "is-alura-worth-it-for-etsy-sellers",
+    title: "Is Alura Worth It for Etsy Sellers? (2026)",
+    metaTitle: "Is Alura Worth It for Etsy Sellers? (2026 Review)",
+    metaDescription:
+      "Honest Alura review for Etsy sellers. We break down the free plan, Basic/Growth pricing, listing optimization, and whether it beats EverBee for research + automation.",
+    primaryKeyword: "is alura worth it for etsy sellers",
+    toolSlug: "alura",
+    verdictHeadline:
+      "Alura's free plan is worth using from day one; the Basic plan is the best value for sellers under 100 listings.",
+    verdictBody:
+      "Alura combines keyword research, listing optimization and customer follow-ups in one dashboard. Start with the free plan to test the workflow, then upgrade to Basic ($7.99/mo annually) when you are listing regularly and need more daily searches and AI-generated copy.",
+    breakEvenAssumptions: {
+      pricePerUnit: 22,
+      productionCost: 8,
+      monthlyOverhead: 30,
+      etsyFeesPercent: 15,
+      note: "Assumes a $22 POD t-shirt, $8 production cost, and ~15% Etsy fees and payment processing. Use the calculator to enter your exact numbers.",
+    },
+    faq: [
+      {
+        question: "Does Alura have a free plan?",
+        answer:
+          "Yes. Alura's free plan gives 5 daily searches per tool, 10 listing optimizations, and limited research database access. No credit card is required.",
+      },
+      {
+        question: "How much is Alura per month?",
+        answer:
+          "Basic is $9.99 per month or $7.99 per month when billed annually ($95.88/year). Growth is $29.99 per month or $14.99 per month when billed annually ($179.88/year). Professional is $69.99 per month or $29.99 per month when billed annually ($359.88/year).",
+      },
+      {
+        question: "Can Alura guarantee Etsy sales?",
+        answer:
+          "No. Alura helps with research, listing optimization and follow-ups, but actual sales depend on your niche, designs, pricing, reviews and marketing. We never promise guaranteed income.",
+      },
+    ],
+    datePublished: "2026-07-18",
+    dateModified: "2026-07-18",
+  },
+  "is-kittl-worth-it-for-etsy-pod": {
+    slug: "is-kittl-worth-it-for-etsy-pod",
+    title: "Is Kittl Worth It for Etsy Print-on-Demand? (2026)",
+    metaTitle: "Is Kittl Worth It for Etsy Print-on-Demand? (2026 Review)",
+    metaDescription:
+      "Honest Kittl review for Etsy POD sellers. We look at AI design tools, typography controls, mockups, commercial licensing and when Pro is worth the price.",
+    primaryKeyword: "is kittl worth it for etsy pod",
+    toolSlug: "kittl",
+    verdictHeadline:
+      "Kittl Pro is worth it if your designs rely on typography, vector text effects or built-in POD mockups; the free plan is too limited for commercial use.",
+    verdictBody:
+      "Kittl is purpose-built for merchandise graphics and POD mockups. The free plan is good for experimenting, but you need Pro or Expert for commercial licensing, vector exports and meaningful AI credits. Budget the subscription as a design cost and make sure each design can sell enough units to cover it.",
+    breakEvenAssumptions: {
+      pricePerUnit: 22,
+      productionCost: 8,
+      monthlyOverhead: 30,
+      etsyFeesPercent: 15,
+      note: "Assumes a $22 POD t-shirt, $8 production cost, and ~15% Etsy fees and payment processing. Use the calculator to enter your exact numbers.",
+    },
+    faq: [
+      {
+        question: "Can I use Kittl designs commercially on Etsy?",
+        answer:
+          "Only Pro and Expert plans include a commercial license. The free plan is for personal use, so you cannot sell designs made with the free plan on Etsy.",
+      },
+      {
+        question: "How much is Kittl per month?",
+        answer:
+          "Pro is $19 per month or $14 per month when billed annually ($168/year). Expert is $45 per month or $34 per month when billed annually ($408/year).",
+      },
+      {
+        question: "Is Kittl better than Canva for POD?",
+        answer:
+          "Kittl is usually stronger for typography, vector exports and POD-specific mockups. Canva is stronger for social graphics, templates and stock assets. Many sellers use both for different tasks.",
+      },
+    ],
+    datePublished: "2026-07-18",
+    dateModified: "2026-07-18",
+  },
+  "is-canva-pro-worth-it-for-etsy": {
+    slug: "is-canva-pro-worth-it-for-etsy",
+    title: "Is Canva Pro Worth It for Etsy Sellers? (2026)",
+    metaTitle: "Is Canva Pro Worth It for Etsy Sellers? (2026 Review)",
+    metaDescription:
+      "Honest Canva Pro review for Etsy sellers. We compare templates, AI credits, mockups, Brand Kits and whether it makes sense alongside a POD design tool.",
+    primaryKeyword: "is canva pro worth it for etsy",
+    toolSlug: "canva",
+    verdictHeadline:
+      "Canva Pro is a good all-rounder for marketing graphics and simple designs; pair it with Kittl if typography and vector POD mockups matter.",
+    verdictBody:
+      "Canva's strength is speed: thousands of templates, stock assets and a social scheduler. For most Etsy shops it covers social posts, flyers and simple product graphics. If your niche depends on detailed typography or print-ready vector mockups, Kittl is usually the better primary design tool.",
+    breakEvenAssumptions: {
+      pricePerUnit: 22,
+      productionCost: 8,
+      monthlyOverhead: 30,
+      etsyFeesPercent: 15,
+      note: "Assumes a $22 POD t-shirt, $8 production cost, and ~15% Etsy fees and payment processing. Use the calculator to enter your exact numbers.",
+    },
+    faq: [
+      {
+        question: "Does Canva have a free plan for Etsy?",
+        answer:
+          "Yes. Canva Free includes drag-and-drop editing, 1,000+ design types and a limited Brand Kit. For most sellers, Canva Pro unlocks background remover, resize, premium templates and more AI credits.",
+      },
+      {
+        question: "How much is Canva Pro per month?",
+        answer:
+          "Pro is $12.99 per month or $9.99 per month when billed annually ($119.99/year). Business is $20.99 per month or $16.99 per month when billed annually ($203.88/year).",
+      },
+      {
+        question: "Can I use Canva for POD mockups?",
+        answer:
+          "Canva has some mockup options, but its POD mockup library is more limited than Kittl. Many sellers design in Kittl and create social graphics in Canva.",
       },
     ],
     datePublished: "2026-07-18",

@@ -319,46 +319,46 @@ h6 {
   background-color: var(--color-accent-text, #059669);
 }
 
-/* Cookie consent modal — explicit background and text colors so the
- * modal has WCAG AA contrast regardless of page background (e.g. the
- * dark hero section on ai-compared). */
-#cc-main .cm {
-  background-color: #fff !important;
-  color: #1f2937 !important;
+/* Cookie consent modal — brand-aligned palette and typography.
+ * Uses the CompareAI navy/cobalt palette so the banner matches the
+ * site instead of the library default black/white theme. */
+#cc-main {
+  --cc-bg: #fff;
+  --cc-primary-color: #0b1120;
+  --cc-secondary-color: #475569;
+  --cc-btn-primary-bg: #2d6bf0;
+  --cc-btn-primary-color: #fff;
+  --cc-btn-primary-border-color: #2d6bf0;
+  --cc-btn-primary-hover-bg: #1b49c7;
+  --cc-btn-primary-hover-color: #fff;
+  --cc-btn-primary-hover-border-color: #1b49c7;
+  --cc-btn-secondary-bg: #fff;
+  --cc-btn-secondary-color: #2d6bf0;
+  --cc-btn-secondary-border-color: #2d6bf0;
+  --cc-btn-secondary-hover-bg: #eff6ff;
+  --cc-btn-secondary-hover-color: #1b49c7;
+  --cc-btn-secondary-hover-border-color: #1b49c7;
+  --cc-separator-border-color: #e2e8f0;
+  --cc-toggle-on-bg: #2d6bf0;
+  --cc-toggle-on-knob-bg: #fff;
+  --cc-toggle-off-bg: #94a3b8;
+  --cc-cookie-category-block-bg: #f8fafc;
+  --cc-cookie-category-block-border: #e2e8f0;
+  --cc-cookie-category-block-hover-bg: #f1f5f9;
+  --cc-cookie-category-block-hover-border: #cbd5e1;
+  --cc-overlay-bg: rgba(11, 17, 32, 0.5);
 }
 
-#cc-main .cm__title {
-  color: #111827 !important;
+#cc-main .cm,
+#cc-main .pm {
+  box-shadow: 0 10px 30px rgba(11, 17, 32, 0.12) !important;
 }
 
-#cc-main .cm__desc {
-  color: #374151 !important;
-}
-
-/* A69-F1: Cookie consent reject button equal prominence (EDPB/CNIL).
- * Ensures the "Reject Non-Essential" button has equal visual weight
- * (same size, font, padding, and contrast) as the "Accept All" button
- * so users are not nudged toward accepting. */
-#cc-main .cm__btn {
+#cc-main .cm__btn,
+#cc-main .pm__btn {
   font-size: 0.875rem !important;
   font-weight: 600 !important;
-  padding: 0.625rem 1.25rem !important;
-  border-radius: 0.375rem !important;
-  cursor: pointer;
-  min-width: 140px;
-  text-align: center;
-}
-
-#cc-main .cm__btn--accept-all {
-  background-color: var(--color-accent, #2563eb) !important;
-  color: #fff !important;
-  border: 2px solid var(--color-accent, #2563eb) !important;
-}
-
-#cc-main .cm__btn--accept-necessary {
-  background-color: var(--color-accent, #2563eb) !important;
-  color: #fff !important;
-  border: 2px solid var(--color-accent, #2563eb) !important;
+  border-radius: 0.5rem !important;
 }
 
 /* ─── WCAG 2.4.7: Focus ring consistency ──────────────────────────── *

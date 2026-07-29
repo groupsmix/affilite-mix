@@ -220,12 +220,8 @@ describe("audit5-#27 — wrangler placeholder guard", () => {
       return { exit: 0, stderr: "" };
     } catch (err) {
       const e = err as { status: number | null; stderr?: Buffer | string };
-      const stderr =
-        typeof e.stderr === "string"
-          ? e.stderr
-          : e.stderr instanceof Buffer
-            ? e.stderr.toString("utf8")
-            : "";
+      const rawStderr = e.stderr ?? "";
+      const stderr = typeof rawStderr === "string" ? rawStderr : rawStderr.toString("utf8");
       return { exit: e.status ?? 1, stderr };
     }
   }
