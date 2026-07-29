@@ -3,23 +3,73 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ImageIcon } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  Scale,
+  Star,
+  Newspaper,
+  Network,
+  Coins,
+  Gift,
+  Image as ImageIcon,
+  Calculator,
+  UserCheck,
+} from "lucide-react";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
+import type { ContentRow } from "@/types/database";
 
 interface ContentCardImageProps {
   href: string;
   src?: string | null;
   alt: string;
-  title?: string;
   priority?: boolean;
+  type?: ContentRow["type"];
+  categorySlug?: string;
+}
+
+const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  guide: BookOpen,
+  article: FileText,
+  comparison: Scale,
+  review: Star,
+  blog: Newspaper,
+};
+
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  "crypto-tax-basics": BookOpen,
+  "defi-tax": Network,
+  "staking-tax": Coins,
+  "airdrop-tax": Gift,
+  "nft-tax": ImageIcon,
+  "crypto-tax-software": Calculator,
+  "crypto-accountants": UserCheck,
+};
+
+function FallbackIcon({
+  type,
+  categorySlug,
+}: {
+  type?: ContentRow["type"];
+  categorySlug?: string;
+}) {
+  const Icon =
+    (categorySlug && CATEGORY_ICONS[categorySlug]) || (type && TYPE_ICONS[type]) || BookOpen;
+
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center bg-slate-100 text-slate-500">
+      <Icon className="size-10" aria-hidden="true" />
+    </div>
+  );
 }
 
 export function ContentCardImage({
   href,
   src,
   alt,
-  title,
   priority = false,
+  type,
+  categorySlug,
 }: ContentCardImageProps) {
   const [imgError, setImgError] = useState(false);
 
@@ -39,14 +89,7 @@ export function ContentCardImage({
       />
     ) : null;
 
-  const fallback = !image && (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-muted p-4 text-center">
-      <ImageIcon className="size-10 text-muted-foreground" aria-hidden="true" />
-      {title && (
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{title}</p>
-      )}
-    </div>
-  );
+  const fallback = !image && <FallbackIcon type={type} categorySlug={categorySlug} />;
 
   return (
     <Link

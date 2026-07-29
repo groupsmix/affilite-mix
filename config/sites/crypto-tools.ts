@@ -34,7 +34,7 @@ export const cryptoToolsSite = defineSite({
   faviconUrl: "/images/cryptoranked-icon.png",
 
   colors: { primary: "#0B2540", accent: "#16A34A", accentText: "#15803D" },
-  fonts: { heading: "Geist", body: "Geist" },
+  fonts: { heading: "Playfair Display", body: "Geist" },
 
   // Branded dark header/footer with a green accent stripe and a clear CTA.
   layout: "compare",

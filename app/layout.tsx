@@ -122,7 +122,7 @@ const ibmPlexArabic = IBM_Plex_Sans_Arabic({
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   display: "swap",
   variable: "--font-playfair",
   // preload: false — only used by sites that select Playfair as their heading

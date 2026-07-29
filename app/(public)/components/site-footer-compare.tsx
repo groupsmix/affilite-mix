@@ -37,12 +37,14 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
 
   return (
     <footer style={{ backgroundColor: "var(--color-primary, #0B1120)" }}>
-      {/* Cobalt top accent stripe */}
-      <div
-        className="h-0.5 w-full"
-        style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
-        aria-hidden="true"
-      />
+      {/* Cobalt top accent stripe — hidden on crypto site to avoid decorative green divider */}
+      {site.slug !== "crypto-tools" && (
+        <div
+          className="h-0.5 w-full"
+          style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
+          aria-hidden="true"
+        />
+      )}
 
       <div className="mx-auto max-w-6xl px-4 pt-12 pb-0">
         {/* Brand block + trust tagline */}

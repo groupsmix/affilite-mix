@@ -102,7 +102,6 @@ export function TaxFinder({
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-7">
-      <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500" aria-hidden="true" />
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="flex items-center gap-2">
           <Calculator className="size-6 text-emerald-700" aria-hidden="true" />
@@ -187,7 +186,7 @@ export function TaxFinder({
                       Get started <ArrowRight className="size-4" aria-hidden="true" />
                     </span>
                   }
-                  className="block w-full rounded-lg border border-slate-900 bg-slate-900 px-4 py-3 text-center text-base font-semibold text-white shadow-sm transition-all hover:bg-slate-800 active:scale-[0.98]"
+                  className="block w-full rounded-lg bg-emerald-600 px-4 py-3 text-center text-base font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98]"
                 />
                 {accountant && (
                   <ProductCardCta
@@ -201,7 +200,7 @@ export function TaxFinder({
                         <ArrowRight className="size-4" aria-hidden="true" />
                       </span>
                     }
-                    className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-all hover:bg-gray-50 active:scale-[0.98]"
+                    className="block w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.98]"
                   />
                 )}
               </div>
