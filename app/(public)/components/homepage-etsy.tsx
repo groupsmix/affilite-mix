@@ -1,17 +1,95 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Calculator, BookOpen, ArrowLeftRight, ArrowRight, Mail } from "lucide-react";
+import { Calculator, BookOpen, ArrowLeftRight, ArrowRight } from "lucide-react";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow } from "@/types/database";
+import type { EtsyTool } from "@/lib/etsy-product-data";
+import {
+  etsyTools,
+  formatCurrencyUSD,
+  getEtsyComparisonsByToolSlug,
+  getEtsyReviewByToolSlug,
+  getEtsyToolStartingPrice,
+} from "@/lib/etsy-product-data";
+import { getProductUrl, isAffiliateLinkReady } from "@/lib/etsy-affiliate-links";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
-import { etsyTools } from "@/lib/etsy-product-data";
-import { EtsyToolCard } from "./etsy-tool-card";
+import { ProductCardCta } from "./product-card-client";
 import { getAllSiteGuides } from "@/lib/site-guides";
 import { filterExcludedCompareaiContent } from "@/lib/compareai-cleanup";
 
 interface EtsyHomepageProps {
   site: SiteDefinition;
   recentContent: ContentRow[];
+}
+
+function ToolRow({ tool }: { tool: EtsyTool }) {
+  const review = getEtsyReviewByToolSlug(tool.slug);
+  const comparisons = getEtsyComparisonsByToolSlug(tool.slug);
+  const startingPrice = getEtsyToolStartingPrice(tool);
+  const href = getProductUrl(tool.slug);
+  const affiliateReady = isAffiliateLinkReady(tool.slug);
+
+  const priceText =
+    startingPrice.monthlyUsd > 0
+      ? `${formatCurrencyUSD(startingPrice.monthlyUsd)}/mo · ${startingPrice.name}`
+      : "Free";
+
+  return (
+    <div className="group flex flex-col gap-4 border-b border-slate-800/50 py-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-900/50">
+          {tool.logoUrl ? (
+            <Image
+              src={tool.logoUrl}
+              alt=""
+              width={40}
+              height={40}
+              className="h-6 w-auto object-contain"
+            />
+          ) : (
+            <span className="text-sm font-bold text-slate-600">
+              {tool.name.charAt(0).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div>
+          <h3 className="text-base font-medium text-white">{tool.name}</h3>
+          <p className="text-sm text-slate-500">{tool.tagline}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8">
+        <span className="text-sm text-slate-400">{priceText}</span>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <ProductCardCta
+            href={href}
+            slug={tool.slug}
+            sourceType="tool-directory"
+            placement="homepage"
+            productName={tool.name}
+            label={`${affiliateReady ? "Get" : "Visit"} ${tool.name} →`}
+            className="text-sm font-medium text-[var(--color-accent-light,#3B82F6)] transition-colors hover:text-white"
+          />
+          {review && (
+            <Link
+              href={`/review/${review.slug}`}
+              className="text-sm text-slate-500 transition-colors hover:text-white"
+            >
+              Review
+            </Link>
+          )}
+          {comparisons[0] && (
+            <Link
+              href={`/comparison/${comparisons[0].slug}`}
+              className="text-sm text-slate-500 transition-colors hover:text-white"
+            >
+              Compare
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
@@ -90,98 +168,57 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
   }
 
   return (
-    <div>
+    <div
+      className="min-h-screen text-slate-300"
+      style={{ backgroundColor: "var(--color-primary, #0B1120)" }}
+    >
       <JsonLd data={organizationJsonLd(site)} />
       <JsonLd data={webSiteJsonLd(site)} />
 
-      {/* Hero: one specific promise */}
-      <section
-        className="relative overflow-hidden"
-        style={{ backgroundColor: "var(--color-primary, #0B1120)" }}
-      >
-        <Image
-          src="/images/compareai/compareai-hero-home.jpg"
-          alt=""
-          fill
-          priority
-          fetchPriority="high"
-          sizes="100vw"
-          className="object-cover"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(11,17,32,0.95) 0%, rgba(11,17,32,0.80) 45%, rgba(11,17,32,0.40) 100%)",
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28 lg:px-8">
-          <p
-            className="mb-5 text-xs font-medium uppercase tracking-widest"
-            style={{ color: "var(--color-accent-light, #3B82F6)" }}
+      <section className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
+        <p
+          className="mb-5 text-xs font-medium uppercase tracking-widest"
+          style={{ color: "var(--color-accent-light, #3B82F6)" }}
+        >
+          AI-powered Etsy workflows
+        </p>
+        <h1 className="max-w-4xl text-5xl font-semibold leading-[1.05] tracking-tighter text-white sm:text-6xl md:text-7xl">
+          Find the right AI stack for your Etsy shop.
+        </h1>
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-400">
+          Honest reviews, side-by-side comparisons, and practical workflows for print-on-demand and
+          digital-product sellers. No AI hype. No guaranteed-income promises.
+        </p>
+
+        <div className="mt-9 flex flex-wrap items-center gap-4">
+          <Link
+            href="/tools/etsy-profit-calculator"
+            className="inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
           >
-            AI-POWERED ETSY WORKFLOWS
-          </p>
-          <h1 className="max-w-3xl text-4xl font-semibold leading-[1.08] tracking-tight text-white md:text-5xl lg:text-6xl">
-            Find the right AI stack for your Etsy shop.
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-gray-300">
-            Honest reviews, side-by-side comparisons, and practical workflows for print-on-demand
-            and digital-product sellers. No AI hype. No guaranteed-income promises.
-          </p>
-
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link
-              href="/tools/etsy-profit-calculator"
-              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-[var(--color-accent,#2D6BF0)] px-6 text-base font-semibold text-white shadow-sm transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/40"
-            >
-              <Calculator className="h-5 w-5" aria-hidden="true" />
-              Free profit calculator
-            </Link>
-            <Link
-              href="/guide"
-              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg border border-white/15 px-6 text-base font-semibold text-white transition-colors hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/40"
-            >
-              <BookOpen className="h-5 w-5" aria-hidden="true" />
-              Browse tutorials
-            </Link>
-          </div>
-
-          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-gray-400">
-            <span className="text-white/80">Hand-tested tools</span>
-            <span className="inline-flex items-center gap-1.5 text-emerald-400">
-              <svg
-                className="h-3.5 w-3.5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Official policy citations
-            </span>
-            <span>No pay-for-rank</span>
-          </div>
+            <Calculator className="h-4 w-4" aria-hidden="true" />
+            Free profit calculator
+          </Link>
+          <Link
+            href="/tools"
+            className="group inline-flex items-center gap-1 text-sm font-medium text-slate-400 transition-colors hover:text-white"
+          >
+            Compare tools
+            <ArrowRight
+              className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
+          </Link>
         </div>
+
+        <p className="mt-12 text-xs text-slate-600">
+          Hand-tested tools · Official policy citations · No pay-for-rank
+        </p>
       </section>
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* Workflow */}
-        <section className="border-b border-slate-100 py-16">
-          <div className="max-w-2xl">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-              The workflow we cover
-            </h2>
-            <p className="mt-2 text-base text-slate-600">
-              Every guide and comparison is organized around the same three-step loop.
-            </p>
-          </div>
-          <div className="mt-10 grid gap-8 md:grid-cols-3">
+      <section className="border-t border-slate-800/50">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="grid gap-8 md:grid-cols-3">
             {workflow.map((step, i) => (
               <div key={step.title} className="flex gap-4">
                 <span
@@ -191,166 +228,117 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div>
-                  <h3 className="text-base font-semibold text-slate-900">{step.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600">{step.body}</p>
+                  <h3 className="text-sm font-medium text-white">{step.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-500">{step.body}</p>
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Featured tools */}
-        <section className="border-t border-slate-100 py-16">
-          <div className="mb-8 flex items-baseline justify-between">
+      <section className="border-t border-slate-800/50">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-                Tools we cover
-              </h2>
-              <p className="mt-1 text-base text-slate-600">
+              <h2 className="text-2xl font-semibold tracking-tight text-white">Tools we cover</h2>
+              <p className="mt-1 text-sm text-slate-500">
                 Research, design, listing, and POD tools we test and compare.
               </p>
             </div>
             <Link
               href="/tools"
-              className="hidden items-center gap-1 text-sm font-semibold transition-colors hover:underline sm:inline-flex"
-              style={{ color: "var(--color-accent-text, var(--color-accent))" }}
+              className="hidden items-center gap-1 text-sm font-medium text-slate-400 transition-colors hover:text-white sm:inline-flex"
             >
               View all
               <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+          <div className="mt-8 border-t border-slate-800/50">
             {toolList.map((tool) => (
-              <EtsyToolCard key={tool.slug} tool={tool} />
+              <ToolRow key={tool.slug} tool={tool} />
             ))}
           </div>
+
           <div className="mt-6 sm:hidden">
             <Link
               href="/tools"
-              className="inline-flex items-center gap-1 text-sm font-semibold transition-colors hover:underline"
-              style={{ color: "var(--color-accent-text, var(--color-accent))" }}
+              className="inline-flex items-center gap-1 text-sm font-medium text-slate-400 transition-colors hover:text-white"
             >
               View all tools
               <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Hub links */}
-        <section className="border-t border-slate-100 py-16">
-          <div className="max-w-2xl">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Start here</h2>
-            <p className="mt-2 text-base text-slate-600">
-              Pick the resource that matches your current goal.
-            </p>
+      {latestGuides.length > 0 && (
+        <section className="border-t border-slate-800/50">
+          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-semibold tracking-tight text-white">Latest guides</h2>
+            <div className="mt-8 divide-y divide-slate-800/50 border-t border-slate-800/50">
+              {latestGuides.map((content) => (
+                <Link
+                  key={content.id}
+                  href={`/${content.type}/${content.slug}`}
+                  className="group flex flex-col gap-1 py-5"
+                >
+                  <h3 className="text-base font-medium text-white transition-colors group-hover:text-[var(--color-accent-light,#3B82F6)]">
+                    {content.title}
+                  </h3>
+                  {content.excerpt && (
+                    <p className="text-sm text-slate-600 line-clamp-2">{content.excerpt}</p>
+                  )}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-6">
+              <Link
+                href="/guide"
+                className="inline-flex items-center gap-1 text-sm font-medium text-slate-400 transition-colors hover:text-white"
+              >
+                View all guides
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </div>
           </div>
-          <div className="mt-8 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        </section>
+      )}
+
+      <section className="border-t border-slate-800/50">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-semibold tracking-tight text-white">Start here</h2>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {hubs.map((hub) => {
               const Icon = hub.icon;
               return (
                 <Link
                   key={hub.href}
                   href={hub.href}
-                  className="group flex items-start gap-4 rounded-xl p-4 transition-colors hover:bg-slate-50"
+                  className="group block rounded-lg border border-slate-800/50 p-5 transition-colors hover:border-slate-700"
                 >
-                  <Icon className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900">{hub.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-slate-600">{hub.body}</p>
-                    <span
-                      className="mt-2 inline-flex items-center gap-1 text-sm font-semibold transition-colors group-hover:underline"
-                      style={{ color: "var(--color-accent-text, var(--color-accent))" }}
-                    >
-                      {hub.cta}
-                      <ArrowRight
-                        className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
-                        aria-hidden="true"
-                      />
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                    <h3 className="text-sm font-medium text-white">{hub.title}</h3>
                   </div>
+                  <p className="mt-2 text-sm text-slate-500">{hub.body}</p>
+                  <span
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium transition-colors group-hover:underline"
+                    style={{ color: "var(--color-accent-light, #3B82F6)" }}
+                  >
+                    {hub.cta}
+                    <ArrowRight
+                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
+                  </span>
                 </Link>
               );
             })}
           </div>
-        </section>
-
-        {/* Latest guides (DB-driven) */}
-        {latestGuides.length > 0 && (
-          <section className="border-t border-slate-100 py-16">
-            <div className="mb-8 flex items-center justify-between">
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-                Latest guides
-              </h2>
-              <Link
-                href="/guide"
-                className="inline-flex items-center gap-1 text-sm font-semibold transition-colors hover:underline"
-                style={{ color: "var(--color-accent-text, var(--color-accent))" }}
-              >
-                View all
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {latestGuides.map((content) => (
-                <Link
-                  key={content.id}
-                  href={`/${content.type}/${content.slug}`}
-                  className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300"
-                >
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    {content.type}
-                  </span>
-                  <h3 className="mt-2 text-base font-semibold leading-snug text-slate-900 transition-colors group-hover:text-[var(--color-accent-text,var(--color-accent))]">
-                    {content.title}
-                  </h3>
-                  {content.excerpt && (
-                    <p className="mt-2 text-sm text-slate-600 line-clamp-3">{content.excerpt}</p>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {site.features.newsletter && (
-          <section className="border-t border-slate-100 py-16">
-            <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 lg:grid lg:grid-cols-2 lg:gap-8">
-              <div>
-                <p
-                  className="text-xs font-medium uppercase tracking-widest"
-                  style={{ color: "var(--color-accent-text, var(--color-accent))" }}
-                >
-                  Free lead magnet
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                  Get the Etsy AI Workflow Checklist
-                </h2>
-                <p className="mt-2 text-base text-slate-600">
-                  A printable checklist covering research, design, listing, and disclosure — plus a
-                  list of the first tools to test.
-                </p>
-                <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-slate-600">
-                  <li>Product-research routine you can repeat weekly</li>
-                  <li>AI disclosure and mockup compliance checks</li>
-                  <li>Title/tag optimization before publishing</li>
-                </ul>
-              </div>
-              <div className="mt-6 flex flex-col justify-center lg:mt-0">
-                <Link
-                  href="/newsletter"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-accent,#2D6BF0)] px-6 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
-                >
-                  <Mail className="h-5 w-5" aria-hidden="true" />
-                  Get the checklist
-                </Link>
-                <p className="mt-3 text-center text-xs text-slate-500 lg:text-left">
-                  We&apos;ll email you the checklist and occasional updates. Unsubscribe anytime.
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
-      </div>
+        </div>
+      </section>
     </div>
   );
 }

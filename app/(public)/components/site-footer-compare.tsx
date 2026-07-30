@@ -22,14 +22,6 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
 
   return (
     <footer style={{ backgroundColor: "var(--color-primary, #0B1120)" }}>
-      {site.slug !== "crypto-tools" && (
-        <div
-          className="h-0.5 w-full"
-          style={{ backgroundColor: "var(--color-accent, #2D6BF0)" }}
-          aria-hidden="true"
-        />
-      )}
-
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <span className="text-lg font-semibold text-white">{site.name}</span>
@@ -69,7 +61,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
 
         <div className="mt-10 flex flex-col gap-4 border-t border-white/10 pt-8 text-xs text-slate-300 sm:flex-row sm:items-start sm:justify-between">
           <p className="max-w-2xl">
-            &copy; {year} {site.name}. {site.affiliateDisclosure || site.contentDisclosure}
+            &copy; {year}&nbsp;{site.name}. {site.affiliateDisclosure || site.contentDisclosure}
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             <Link href="/privacy" className="transition-colors hover:text-white">
