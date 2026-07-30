@@ -73,7 +73,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             <Link href="/privacy" className="transition-colors hover:text-white">
-              Privacy
+              Privacy Policy
             </Link>
             <Link href="/terms" className="transition-colors hover:text-white">
               Terms
