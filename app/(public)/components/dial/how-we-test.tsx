@@ -40,11 +40,7 @@ export function HowWeTest({ config }: HowWeTestProps) {
             {howWeTest.steps.map(({ icon, title, description }, i) => {
               const Icon = iconMap[icon];
               return (
-                <Reveal
-                  key={title}
-                  delay={(i % 2) * 90}
-                  className="border border-border p-6"
-                >
+                <Reveal key={title} delay={(i % 2) * 90} className="border border-border p-6">
                   <Icon className="h-5 w-5 text-primary" />
                   <h3 className="mt-4 font-serif text-lg font-semibold">{title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
