@@ -22,7 +22,7 @@ export function RecentReviews({ content, locale = "en-US" }: RecentReviewsProps)
         </div>
         <Link
           href="/blog"
-          className="hidden text-sm font-medium text-primary hover:underline sm:block"
+          className="hidden text-sm font-medium text-foreground underline underline-offset-[6px] transition-colors hover:text-primary sm:block"
         >
           See all &rarr;
         </Link>

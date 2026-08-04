@@ -26,10 +26,10 @@ export function ComparisonTable({ config }: ComparisonTableProps) {
         </p>
       </Reveal>
 
-      <Reveal className="mt-10 overflow-hidden rounded-xl border border-border">
+      <Reveal className="mt-10 border-t border-border">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-secondary/60 text-xs uppercase tracking-wider text-muted-foreground">
+            <thead className="border-b border-border text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
                 <th className="px-5 py-4 font-medium">Watch</th>
                 <th className="px-5 py-4 font-medium">Price</th>

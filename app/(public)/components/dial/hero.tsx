@@ -18,8 +18,7 @@ export function Hero({ config }: HeroProps) {
           </p>
 
           <h1 className="mt-5 text-balance font-serif text-5xl font-semibold leading-[1.02] tracking-tight text-foreground md:text-6xl lg:text-7xl">
-            {hero.title}{" "}
-            <span className="italic">{hero.highlight}</span>.
+            {hero.title} {hero.highlight}.
           </h1>
 
           <p className="mt-6 max-w-md text-pretty leading-relaxed text-muted-foreground">
@@ -64,7 +63,7 @@ export function Hero({ config }: HeroProps) {
           )}
         </div>
 
-        <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border bg-secondary/40">
+        <div className="relative aspect-[4/3] overflow-hidden">
           <Image
             src={hero.heroImage}
             alt={hero.heroImageAlt}

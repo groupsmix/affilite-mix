@@ -21,7 +21,7 @@ export function CategoryChips({ categories }: CategoryChipsProps) {
             <Link
               key={c.id}
               href={`/category/${c.slug}`}
-              className="shrink-0 rounded-md border border-border bg-transparent px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+              className="shrink-0 border border-border bg-transparent px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
             >
               {c.name}
             </Link>

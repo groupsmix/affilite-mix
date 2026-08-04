@@ -22,14 +22,13 @@ export function PriceTiers({ config }: PriceTiersProps) {
       <div className="mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
         {priceTiers.map((tier, i) => {
           const tierWatches = watches.filter((w) => w.tier === tier.id);
-          const count = tier.count ?? tierWatches.length;
           const coverImage = tierWatches.find((w) => w.image)?.image;
           const href = `/${tier.guideSlug ?? `best-watches-${tier.id}`}`;
 
           return (
             <Reveal key={tier.id} delay={i * 90}>
               <a href={href} className="group block">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border bg-secondary/40">
+                <div className="relative aspect-[4/3] overflow-hidden bg-secondary/40">
                   {coverImage ? (
                     <Image
                       src={coverImage}
@@ -56,7 +55,6 @@ export function PriceTiers({ config }: PriceTiersProps) {
                     &rarr;
                   </span>
                 </span>
-                <span className="ml-3 text-xs text-muted-foreground">{count} ranked</span>
               </a>
             </Reveal>
           );

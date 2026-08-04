@@ -10,7 +10,7 @@ export function TopPicks({ config }: TopPicksProps) {
   const { topPicks, watches } = config;
 
   return (
-    <section id="top-picks" className="border-t border-border bg-secondary/20">
+    <section id="top-picks" className="border-t border-border">
       <div className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
         <Reveal className="max-w-2xl">
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">

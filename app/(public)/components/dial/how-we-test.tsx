@@ -21,7 +21,7 @@ export function HowWeTest({ config }: HowWeTestProps) {
   const { howWeTest } = config;
 
   return (
-    <section id="how-we-test" className="scroll-mt-20 border-t border-border bg-secondary/20">
+    <section id="how-we-test" className="scroll-mt-20 border-t border-border">
       <div className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
         <div className="grid gap-12 md:grid-cols-[1fr_1.3fr] md:gap-16">
           <Reveal>
@@ -43,11 +43,9 @@ export function HowWeTest({ config }: HowWeTestProps) {
                 <Reveal
                   key={title}
                   delay={(i % 2) * 90}
-                  className="rounded-xl border border-border bg-card p-6"
+                  className="border border-border p-6"
                 >
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
-                  </span>
+                  <Icon className="h-5 w-5 text-primary" />
                   <h3 className="mt-4 font-serif text-lg font-semibold">{title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     {description}

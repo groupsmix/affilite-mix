@@ -31,7 +31,7 @@ export function TierSections({ config }: TierSectionsProps) {
                 </h2>
                 <p className="mt-2 text-muted-foreground">{tier.tagline}</p>
               </div>
-              <span className="rounded-full border border-border px-3 py-1 text-sm text-muted-foreground">
+              <span className="border border-border px-3 py-1 text-sm text-muted-foreground">
                 {tierWatches.length} ranked
               </span>
             </Reveal>

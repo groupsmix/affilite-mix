@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -73,16 +73,8 @@ function deriveCta(
 }
 
 export function SiteHeader({ site, config }: SiteHeaderProps) {
-  const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   const navLinks = config.navLinks;
   const tiers = config.priceTiers;
@@ -96,14 +88,7 @@ export function SiteHeader({ site, config }: SiteHeaderProps) {
     hasBlog && !hasBlogLink ? [...navLinks, { label: "Blog", href: "/blog" }] : navLinks;
 
   return (
-    <header
-      className={cn(
-        "fixed inset-x-0 top-0 z-50 transition-all duration-300",
-        scrolled
-          ? "border-b border-border/60 bg-background/90 backdrop-blur-md"
-          : "border-b border-transparent bg-transparent",
-      )}
-    >
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex items-center gap-2">
           {site.brand.mark ? (

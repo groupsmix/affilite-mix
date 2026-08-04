@@ -12,7 +12,7 @@ export function SiteFooter({ site }: SiteFooterProps) {
   const footerNav = site.footerNav as Record<string, { title: string; href: string }[]> | undefined;
 
   return (
-    <footer className="border-t border-border bg-secondary/20">
+    <footer className="border-t border-border">
       {/* Affiliate disclosure — an essential trust signal for affiliate sites */}
       <div id="disclosure" className="border-b border-border">
         <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
@@ -28,25 +28,18 @@ export function SiteFooter({ site }: SiteFooterProps) {
           <div>
             <Link href="/" className="flex items-center gap-2">
               {site.brand.logo ? (
-                <span className="inline-flex rounded-md bg-primary p-2">
-                  <Image
-                    src={site.brand.logo}
-                    alt={site.name}
-                    width={96}
-                    height={64}
-                    sizes="96px"
-                    className="h-16 w-auto object-contain"
-                  />
-                </span>
+                <Image
+                  src={site.brand.logo}
+                  alt={site.name}
+                  width={96}
+                  height={64}
+                  sizes="96px"
+                  className="h-12 w-auto object-contain"
+                />
               ) : (
-                <>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full border border-primary/60">
-                    <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                  </span>
-                  <span className="font-serif text-lg font-semibold tracking-tight">
-                    {site.name}
-                  </span>
-                </>
+                <span className="font-serif text-lg font-semibold tracking-tight">
+                  {site.name}
+                </span>
               )}
             </Link>
             <p className="mt-4 max-w-xs text-pretty text-sm leading-relaxed text-muted-foreground">
@@ -57,7 +50,7 @@ export function SiteFooter({ site }: SiteFooterProps) {
           {footerNav &&
             Object.entries(footerNav).map(([section, items]) => (
               <div key={section}>
-                <h3 className="text-sm font-semibold">
+                <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   {section.replace(/([A-Z])/g, " $1").replace(/^\w/, (c) => c.toUpperCase())}
                 </h3>
                 <ul className="mt-4 space-y-3">
