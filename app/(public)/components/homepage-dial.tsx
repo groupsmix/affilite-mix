@@ -1,38 +1,30 @@
 import type { SiteDefinition } from "@/config/site-definition";
 import type { DialHomepageConfig } from "@/lib/dial-config";
-import type { ContentRow } from "@/types/database";
-import type { CategoryRow } from "@/types/database";
+import type { CategoryRow, ContentRow } from "@/types/database";
 import { Hero } from "./dial/hero";
-import { TrustBar } from "./dial/trust-bar";
-import { CategoryChips } from "./dial/category-chips";
+import { FilterBar } from "./dial/filter-bar";
 import { PriceTiers } from "./dial/price-tiers";
-import { TopPicks } from "./dial/top-picks";
-import { TierSections } from "./dial/tier-sections";
-import { ComparisonTable } from "./dial/comparison-table";
-import { HowWeTest } from "./dial/how-we-test";
-import { RecentReviews } from "./dial/recent-reviews";
-import { Newsletter } from "./dial/newsletter";
+import { FeaturedReview } from "./dial/featured-review";
+import { LatestReviews } from "./dial/latest-reviews";
+import { TrustBar } from "./dial/trust-bar";
 
 interface DialHomepageProps {
   site: SiteDefinition;
   config: DialHomepageConfig;
+  /** Unused in the reference-matched layout; accepted for caller compatibility. */
   categories?: (CategoryRow & { product_count: number })[];
   recentContent?: ContentRow[];
 }
 
-export function DialHomepage({ site, config, categories, recentContent }: DialHomepageProps) {
+export function DialHomepage({ config }: DialHomepageProps) {
   return (
     <div className="min-h-screen">
       <Hero config={config} />
-      <CategoryChips categories={categories ?? []} />
+      <FilterBar config={config} />
       <PriceTiers config={config} />
-      <TopPicks config={config} />
-      <RecentReviews content={recentContent ?? []} locale={site.locale} />
-      <TierSections config={config} />
-      <ComparisonTable config={config} />
-      <HowWeTest config={config} />
+      <FeaturedReview config={config} />
+      <LatestReviews config={config} />
       <TrustBar config={config} />
-      <Newsletter config={config} />
     </div>
   );
 }

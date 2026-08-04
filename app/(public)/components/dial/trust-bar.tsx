@@ -13,12 +13,9 @@ export function TrustBar({ config }: TrustBarProps) {
         Independently tested &nbsp;&middot;&nbsp; No paid placements &nbsp;&middot;&nbsp; Affiliate
         links disclosed on every page
       </p>
-      <div className="mx-auto grid max-w-6xl grid-cols-3 gap-px px-4 py-10 md:px-6">
+      <div className="mx-auto grid max-w-6xl grid-cols-3 gap-6 px-4 py-12 md:gap-10 md:px-6">
         {stats.map(({ value, label }) => (
-          <div
-            key={label}
-            className="flex flex-col border-l border-border/60 pl-4 first:border-l-0 md:items-center md:pl-0 md:text-center"
-          >
+          <div key={label} className="border-t border-border pt-5">
             <div className="font-serif text-3xl font-semibold leading-none text-foreground md:text-4xl">
               {value}
             </div>

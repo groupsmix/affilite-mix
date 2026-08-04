@@ -28,6 +28,14 @@ export interface DialPriceTier {
   id: WatchTier;
   label: string;
   tagline: string;
+  /** Editorial card title (e.g. "The $300 Shortlist"). Falls back to "Best Watches {label}". */
+  title?: string;
+  /** Editorial card description. Falls back to tagline. */
+  description?: string;
+  /** Explicit cover image. Falls back to first watch image in the tier. */
+  image?: string;
+  /** Explicit href override for the card. */
+  href?: string;
   /** Optional guide slug to route to from the fixed header on non-homepage pages. */
   guideSlug?: string;
   /** Computed from the watches array when the config is loaded. */
@@ -59,8 +67,33 @@ export interface DialMethodologyStep {
   description: string;
 }
 
+export interface DialFeaturedReview {
+  brand: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  image: string;
+  imageAlt: string;
+  href: string;
+  editorsChoice?: boolean;
+}
+
+export interface DialLatestReview {
+  brand: string;
+  title: string;
+  description: string;
+  price: number;
+  image: string;
+  imageAlt: string;
+  href: string;
+}
+
 export interface DialHomepageConfig {
   navLinks: DialNavLink[];
+  /** Small tagline shown next to the site name in the header. */
+  headerTagline?: string;
+  featuredReview?: DialFeaturedReview;
+  latestReviews?: DialLatestReview[];
   hero: {
     badge: string;
     title: string;
@@ -265,47 +298,104 @@ export const defaultDialConfig: DialHomepageConfig = {
   navLinks: [
     { label: "Under $300", href: "/best-watches-under-300" },
     { label: "Under $500", href: "/best-watches-under-500" },
-    { label: "Best Dress", href: "/best-dress-watch-under-500" },
-    { label: "Top Picks", href: "/#top-picks" },
-    { label: "How We Test", href: "/#how-we-test" },
+    { label: "Under $1,000", href: "/guide" },
+    { label: "Reviews", href: "/review" },
+    { label: "About", href: "/about" },
+  ],
+  headerTagline: "Honest Watch Picks for Every Budget",
+  featuredReview: {
+    brand: "Seiko",
+    title: "Seiko SPB143:",
+    subtitle: "The Best $400 Watch You Can Buy",
+    description:
+      "A no-compromise field watch with an in-house calibre and a leather strap that breaks in beautifully. Here is why it earns its spot at the top of every sub-$500 shortlist.",
+    image: "/images/wristnerd/ref/featured.png",
+    imageAlt: "Seiko SPB143 dive watch on a wrist in a dimly lit bar",
+    href: "/review",
+    editorsChoice: true,
+  },
+  latestReviews: [
+    {
+      brand: "Casio",
+      title: "G-Shock DW-5600: Indestructible Classic",
+      description:
+        "Forty years on, the square G-Shock remains the default answer for anyone who needs a watch that simply will not break.",
+      price: 89,
+      image: "/images/wristnerd/ref/review-gshock.png",
+      imageAlt: "Casio G-Shock DW-5600 on the roof of a car",
+      href: "/review",
+    },
+    {
+      brand: "Orient",
+      title: "Bambino: The Entry Auto King",
+      description:
+        "Domed mineral crystal, in-house automatic movement, full-grain leather strap — all under $150. There is no rational argument against it.",
+      price: 120,
+      image: "/images/wristnerd/ref/review-bambino.png",
+      imageAlt: "Orient Bambino gold dress watch under a shirt cuff",
+      href: "/review",
+    },
+    {
+      brand: "Citizen",
+      title: "Eco-Drive Promaster: Solar Workhorse",
+      description:
+        "You will never change a battery. Solar-powered with a 26-year track record of reliability — the most practical dive watch at this price.",
+      price: 299,
+      image: "/images/wristnerd/ref/review-citizen.png",
+      imageAlt: "Citizen Eco-Drive Promaster on a wooden dock",
+      href: "/review",
+    },
   ],
   hero: {
-    badge: "Independent reviews · Reader-supported",
-    title: "The best watches under $500,",
-    highlight: "actually tested",
+    badge: "The independent watch guide",
+    title: "The Best Watches",
+    highlight: "for Every Budget",
     subtitle:
-      "No fluff, no paid rankings. We buy, wear, and rate affordable watches so you can spend with confidence — organized by exactly how much you want to spend.",
-    ctaPrimary: { label: "Explore top picks", href: "#top-picks" },
-    ctaSecondary: { label: "Shop by budget", href: "#tier-under-200" },
-    heroImage: "/images/wristnerd/wristnerd-hero-home-v2.png",
-    heroImageAlt: "Curated collection of affordable watches tested by WristNerd",
+      "We test and rank watches across every price point so you don’t have to guess. Affiliate-supported, opinion-led, no fluff.",
+    ctaPrimary: { label: "See Our Top Picks", href: "#featured-review" },
+    ctaSecondary: { label: "", href: "" },
+    heroImage: "/images/wristnerd/ref/hero.png",
+    heroImageAlt: "Rose gold chronograph watch resting on sunlit rocks",
     trustRating: "",
     trustReviews: "",
   },
   trustBar: {
     stats: [
-      { icon: "gem", value: "0", label: "Watches reviewed" },
-      { icon: "banknote", value: "$0", label: "Paid placements" },
+      { icon: "gem", value: "300+", label: "Watches tested since 2019" },
+      { icon: "banknote", value: "$50–$1,000", label: "Price range covered" },
+      { icon: "clock", value: "4 weeks", label: "Minimum wrist time per review" },
     ],
   },
   priceTiers: [
     {
-      id: "under-200",
-      label: "Under $200",
-      tagline: "Best value entry points",
-      guideSlug: "best-watches-under-200",
-    },
-    {
       id: "under-300",
       label: "Under $300",
       tagline: "The everyday sweet spot",
+      title: "The $300 Shortlist",
+      description:
+        "12 watches that genuinely earn their price — from the Casio Duro to the Seiko 5 Sports.",
+      image: "/images/wristnerd/ref/guide-300.png",
       guideSlug: "best-watches-under-300",
     },
     {
       id: "under-500",
       label: "Under $500",
       tagline: "Step-up quality picks",
+      title: "The $500 Shortlist",
+      description:
+        "Where value meets real craft — automatic movements, sapphire glass, and straps you’ll keep.",
+      image: "/images/wristnerd/ref/guide-500.png",
       guideSlug: "best-watches-under-500",
+    },
+    {
+      id: "under-200",
+      label: "Under $1,000",
+      tagline: "Long-term keepers",
+      title: "The $1,000 Shortlist",
+      description:
+        "In-house movements, exhibition casebacks, and watches you’ll own for twenty years.",
+      image: "/images/wristnerd/ref/guide-1000.png",
+      href: "/guide",
     },
   ],
   topPicks: {
@@ -569,6 +659,10 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
                 id,
                 label,
                 tagline,
+                title: isString(t.title) ? t.title : undefined,
+                description: isString(t.description) ? t.description : undefined,
+                image: isString(t.image) ? t.image : undefined,
+                href: isString(t.href) ? t.href : undefined,
                 guideSlug: isString(guideSlug) ? guideSlug : undefined,
                 count: watches.filter((w) => w.tier === id).length,
               }
@@ -664,33 +758,34 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
       }
     : defaultDialConfig.trustBar;
 
-  // Replace any hardcoded/inflated marketing numbers with values derived from
-  // the actual watch inventory so the homepage never overstates what the tier
-  // pages actually contain.
+  // Derive fallback marketing numbers from the actual watch inventory so the
+  // homepage never overstates what the tier pages actually contain. Configured
+  // values (from the DB or defaults) always win; derivation only fills gaps.
   const watchCount = watches.length;
   const brandCount = new Set(watches.map((w) => w.brand)).size;
-  const tierCount = priceTiers.length;
 
   hero = {
     ...hero,
-    trustReviews: `${watchCount} watch${watchCount === 1 ? "" : "es"} reviewed`,
+    trustReviews: hero.trustReviews.trim().length > 0 ? hero.trustReviews : "",
   };
 
-  trustBar = {
-    stats: [
-      {
-        icon: "gem",
-        value: String(watchCount),
-        label: `Watch${watchCount === 1 ? "" : "es"} reviewed`,
-      },
-      {
-        icon: "users",
-        value: String(brandCount),
-        label: `Brand${brandCount === 1 ? "" : "s"} covered`,
-      },
-      { icon: "clock", value: String(tierCount), label: "Price tiers" },
-    ],
-  };
+  if (trustBar.stats.length === 0) {
+    trustBar = {
+      stats: [
+        {
+          icon: "gem",
+          value: String(watchCount),
+          label: `Watch${watchCount === 1 ? "" : "es"} reviewed`,
+        },
+        {
+          icon: "users",
+          value: String(brandCount),
+          label: `Brand${brandCount === 1 ? "" : "s"} covered`,
+        },
+        { icon: "clock", value: "0", label: "Price tiers" },
+      ],
+    };
+  }
 
   const topPicks = isObject(source.topPicks)
     ? {
@@ -793,8 +888,68 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
       }
     : defaultDialConfig.newsletter;
 
+  const headerTagline = isString(source.headerTagline)
+    ? source.headerTagline
+    : defaultDialConfig.headerTagline;
+
+  const featuredReview = isObject(source.featuredReview)
+    ? {
+        brand: isString(source.featuredReview.brand)
+          ? source.featuredReview.brand
+          : (defaultDialConfig.featuredReview?.brand ?? ""),
+        title: isString(source.featuredReview.title)
+          ? source.featuredReview.title
+          : (defaultDialConfig.featuredReview?.title ?? ""),
+        subtitle: isString(source.featuredReview.subtitle)
+          ? source.featuredReview.subtitle
+          : (defaultDialConfig.featuredReview?.subtitle ?? ""),
+        description: isString(source.featuredReview.description)
+          ? source.featuredReview.description
+          : (defaultDialConfig.featuredReview?.description ?? ""),
+        image: isString(source.featuredReview.image)
+          ? source.featuredReview.image
+          : (defaultDialConfig.featuredReview?.image ?? ""),
+        imageAlt: isString(source.featuredReview.imageAlt)
+          ? source.featuredReview.imageAlt
+          : (defaultDialConfig.featuredReview?.imageAlt ?? ""),
+        href: isString(source.featuredReview.href)
+          ? source.featuredReview.href
+          : (defaultDialConfig.featuredReview?.href ?? "/review"),
+        editorsChoice: isOptionalBoolean(source.featuredReview.editorsChoice)
+          ? source.featuredReview.editorsChoice
+          : defaultDialConfig.featuredReview?.editorsChoice,
+      }
+    : defaultDialConfig.featuredReview;
+
+  const latestReviews = Array.isArray(source.latestReviews)
+    ? source.latestReviews
+        .map((r: unknown): DialLatestReview | null => {
+          if (!isObject(r)) return null;
+          return isString(r.brand) &&
+            isString(r.title) &&
+            isString(r.description) &&
+            isNumber(r.price) &&
+            isString(r.image) &&
+            isString(r.href)
+            ? {
+                brand: r.brand,
+                title: r.title,
+                description: r.description,
+                price: r.price,
+                image: r.image,
+                imageAlt: isString(r.imageAlt) ? r.imageAlt : "",
+                href: r.href,
+              }
+            : null;
+        })
+        .filter((r): r is DialLatestReview => r !== null)
+    : defaultDialConfig.latestReviews;
+
   return {
     navLinks,
+    headerTagline,
+    featuredReview,
+    latestReviews,
     hero,
     trustBar,
     priceTiers,

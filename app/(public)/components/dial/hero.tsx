@@ -17,8 +17,10 @@ export function Hero({ config }: HeroProps) {
             {hero.badge}
           </p>
 
-          <h1 className="mt-5 text-balance font-serif text-5xl font-semibold leading-[1.02] tracking-tight text-foreground md:text-6xl lg:text-7xl">
-            {hero.title} {hero.highlight}.
+          <h1 className="mt-5 text-balance font-serif text-5xl font-semibold leading-[1.05] tracking-tight text-foreground md:text-6xl">
+            {hero.title}
+            <br />
+            <span className="italic">{hero.highlight}.</span>
           </h1>
 
           <p className="mt-6 max-w-md text-pretty leading-relaxed text-muted-foreground">
@@ -31,16 +33,21 @@ export function Hero({ config }: HeroProps) {
               className="group inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline underline-offset-[6px] transition-colors hover:text-primary"
             >
               {hero.ctaPrimary.label}
-              <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5">
+              <span
+                aria-hidden
+                className="transition-transform duration-300 group-hover:translate-x-0.5"
+              >
                 &rarr;
               </span>
             </a>
-            <a
-              href={hero.ctaSecondary.href}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {hero.ctaSecondary.label}
-            </a>
+            {hero.ctaSecondary.label && (
+              <a
+                href={hero.ctaSecondary.href}
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {hero.ctaSecondary.label}
+              </a>
+            )}
           </div>
 
           {(hero.trustRating || hero.trustReviews) && (
