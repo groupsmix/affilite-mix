@@ -20,6 +20,17 @@ export function ScrollReveal({ children, className, delay = 0 }: ScrollRevealPro
     const el = ref.current;
     if (!el) return;
 
+    // Rendered visible by default (is-visible in SSR HTML) so no-JS clients
+    // and failed hydrations always show content. Only hide below-the-fold
+    // elements, after mount, so they can animate in on scroll.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!("IntersectionObserver" in window)) return;
+
+    const rect = el.getBoundingClientRect();
+    const inView = rect.top < window.innerHeight && rect.bottom > 0;
+    if (inView) return;
+
+    el.classList.remove("is-visible");
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -39,7 +50,7 @@ export function ScrollReveal({ children, className, delay = 0 }: ScrollRevealPro
   return (
     <div
       ref={ref}
-      className={cn("showcase-reveal", className)}
+      className={cn("showcase-reveal is-visible", className)}
       style={delay ? { transitionDelay: `${delay}ms` } : undefined}
     >
       {children}

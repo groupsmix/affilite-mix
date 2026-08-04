@@ -56,8 +56,21 @@ export function Reveal({
   className?: string;
 }) {
   const reduced = usePrefersReducedMotion();
-  const [shown, setShown] = useState(false);
+  // Shown by default so SSR HTML, no-JS clients, and failed hydrations
+  // always render content. Below-the-fold elements are hidden after mount
+  // (off-screen, so no visible flash) and revealed on scroll.
+  const [shown, setShown] = useState(true);
   const ref = useInView<HTMLDivElement>(() => setShown(true), "-40px");
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reduced) return;
+    if (!("IntersectionObserver" in window)) return;
+    const rect = el.getBoundingClientRect();
+    const inView = rect.top < window.innerHeight && rect.bottom > 0;
+    if (!inView) setShown(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduced]);
 
   const visible = reduced || shown;
   return (

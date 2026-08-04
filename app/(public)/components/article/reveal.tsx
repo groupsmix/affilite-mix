@@ -13,17 +13,24 @@ type RevealProps = {
 
 export function Reveal({ children, className, delay = 0, as = "div", id }: RevealProps) {
   const ref = useRef<HTMLElement>(null);
-  const [visible, setVisible] = useState(false);
+  // Visible by default so SSR HTML, no-JS clients, and failed hydrations
+  // always render content. The hidden state is only applied client-side,
+  // after mount, for below-the-fold elements that can animate in on scroll.
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setVisible(true);
-      return;
-    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!("IntersectionObserver" in window)) return;
 
+    const rect = el.getBoundingClientRect();
+    const inView = rect.top < window.innerHeight && rect.bottom > 0;
+    if (inView) return; // already on screen: stay visible, no animation
+
+    // Below the fold: hide (off-screen, so no visible flash) and reveal on scroll.
+    setVisible(false);
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
