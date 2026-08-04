@@ -15,10 +15,10 @@ export function TrustBar({ config }: TrustBarProps) {
             key={label}
             className="flex flex-col border-l border-border/60 py-6 pl-4 first:border-l-0 md:items-center md:pl-0 md:text-center"
           >
-            <div className="font-serif text-2xl font-semibold leading-none text-primary">
+            <div className="font-serif text-3xl font-semibold leading-none text-foreground md:text-4xl">
               {value}
             </div>
-            <div className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="mt-2 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               {label}
             </div>
           </div>

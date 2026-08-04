@@ -14,17 +14,19 @@ export function CategoryChips({ categories }: CategoryChipsProps) {
   if (chips.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 pb-8 md:px-6">
-      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-2">
-        {chips.map((c) => (
-          <Link
-            key={c.id}
-            href={`/category/${c.slug}`}
-            className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
-          >
-            {c.name}
-          </Link>
-        ))}
+    <section className="border-b border-border">
+      <div className="mx-auto max-w-6xl px-4 py-5 md:px-6">
+        <div className="no-scrollbar flex gap-2 overflow-x-auto">
+          {chips.map((c) => (
+            <Link
+              key={c.id}
+              href={`/category/${c.slug}`}
+              className="shrink-0 rounded-md border border-border bg-transparent px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+            >
+              {c.name}
+            </Link>
+          ))}
+        </div>
       </div>
     </section>
   );

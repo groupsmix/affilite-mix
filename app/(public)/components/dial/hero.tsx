@@ -1,6 +1,5 @@
 import Image from "next/image";
-import { ShieldCheck, Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Star } from "lucide-react";
 import type { DialHomepageConfig } from "@/lib/dial-config";
 
 interface HeroProps {
@@ -11,72 +10,69 @@ export function Hero({ config }: HeroProps) {
   const { hero } = config;
 
   return (
-    <section className="relative h-[60vh] min-h-[480px] overflow-hidden md:h-[70vh] md:min-h-[560px]">
-      <Image
-        src={hero.heroImage}
-        alt={hero.heroImageAlt}
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover"
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-gradient-to-r from-[#0B0F13]/95 via-[#0B0F13]/70 to-[#0B0F13]/20"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F13]/60 via-transparent to-[#0B0F13]/30" />
+    <section className="border-b border-border">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-16 pt-28 md:grid-cols-2 md:gap-14 md:px-6 md:pb-24 md:pt-36">
+        <div className="animate-fade-up">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+            {hero.badge}
+          </p>
 
-      <div className="relative z-10 flex h-full items-center px-4 pt-16 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-6xl">
-          <div className="max-w-2xl animate-fade-up">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white/90 backdrop-blur-sm">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#2A9D8F]" />
-              {hero.badge}
-            </div>
+          <h1 className="mt-5 text-balance font-serif text-5xl font-semibold leading-[1.02] tracking-tight text-foreground md:text-6xl lg:text-7xl">
+            {hero.title}{" "}
+            <span className="italic">{hero.highlight}</span>.
+          </h1>
 
-            <h1 className="text-balance font-serif text-4xl font-semibold leading-[1.05] tracking-tight text-white md:text-6xl lg:text-7xl">
-              {hero.title} <span className="text-[#2A9D8F]">{hero.highlight}</span>.
-            </h1>
+          <p className="mt-6 max-w-md text-pretty leading-relaxed text-muted-foreground">
+            {hero.subtitle}
+          </p>
 
-            <p className="mt-5 max-w-lg text-pretty text-lg leading-relaxed text-white/80">
-              {hero.subtitle}
-            </p>
+          <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-3">
+            <a
+              href={hero.ctaPrimary.href}
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline underline-offset-[6px] transition-colors hover:text-primary"
+            >
+              {hero.ctaPrimary.label}
+              <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5">
+                &rarr;
+              </span>
+            </a>
+            <a
+              href={hero.ctaSecondary.href}
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {hero.ctaSecondary.label}
+            </a>
+          </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button
-                size="lg"
-                className="bg-white font-medium text-[#0B0F13] hover:bg-white/90"
-                asChild
-              >
-                <a href={hero.ctaPrimary.href}>{hero.ctaPrimary.label}</a>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white/30 font-medium text-white hover:bg-white/10"
-                asChild
-              >
-                <a href={hero.ctaSecondary.href}>{hero.ctaSecondary.label}</a>
-              </Button>
-            </div>
-
-            <div className="mt-8 flex items-center gap-6 text-sm text-white/70">
+          {(hero.trustRating || hero.trustReviews) && (
+            <div className="mt-8 flex items-center gap-6 text-sm text-muted-foreground">
               {hero.trustRating && (
                 <div className="flex items-center gap-1.5">
                   <div className="flex">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-[#2A9D8F] text-[#2A9D8F]" />
+                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
                     ))}
                   </div>
                   <span>{hero.trustRating}</span>
                 </div>
               )}
               {hero.trustRating && hero.trustReviews && (
-                <div className="hidden h-4 w-px bg-white/30 sm:block" aria-hidden="true" />
+                <div className="hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
               )}
               {hero.trustReviews && <span className="hidden sm:block">{hero.trustReviews}</span>}
             </div>
-          </div>
+          )}
+        </div>
+
+        <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border bg-secondary/40">
+          <Image
+            src={hero.heroImage}
+            alt={hero.heroImageAlt}
+            fill
+            priority
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
+          />
         </div>
       </div>
     </section>

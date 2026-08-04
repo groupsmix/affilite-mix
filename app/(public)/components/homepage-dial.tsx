@@ -24,14 +24,14 @@ export function DialHomepage({ site, config, categories, recentContent }: DialHo
   return (
     <div className="min-h-screen">
       <Hero config={config} />
-      <TrustBar config={config} />
       <CategoryChips categories={categories ?? []} />
-      <TopPicks config={config} />
       <PriceTiers config={config} />
+      <TopPicks config={config} />
       <RecentReviews content={recentContent ?? []} locale={site.locale} />
       <TierSections config={config} />
       <ComparisonTable config={config} />
       <HowWeTest config={config} />
+      <TrustBar config={config} />
       <Newsletter config={config} />
     </div>
   );

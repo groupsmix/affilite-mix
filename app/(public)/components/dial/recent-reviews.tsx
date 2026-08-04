@@ -15,7 +15,7 @@ export function RecentReviews({ content, locale = "en-US" }: RecentReviewsProps)
     <section className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
       <div className="mb-10 flex items-end justify-between">
         <div>
-          <p className="text-sm font-medium uppercase tracking-widest text-primary">Latest</p>
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">Latest</p>
           <h2 className="mt-3 font-serif text-2xl font-semibold tracking-tight md:text-3xl">
             Latest from WristNerd
           </h2>

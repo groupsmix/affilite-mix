@@ -25,7 +25,7 @@ export function HowWeTest({ config }: HowWeTestProps) {
       <div className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
         <div className="grid gap-12 md:grid-cols-[1fr_1.3fr] md:gap-16">
           <Reveal>
-            <p className="text-sm font-medium uppercase tracking-widest text-primary">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
               Our methodology
             </p>
             <h2 className="mt-3 text-balance font-serif text-3xl font-semibold tracking-tight md:text-4xl">
