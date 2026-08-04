@@ -22,8 +22,8 @@ export function PriceTiers({ config }: PriceTiersProps) {
       <div className="mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
         {priceTiers.map((tier, i) => {
           const tierWatches = watches.filter((w) => w.tier === tier.id);
-          const coverImage = tierWatches.find((w) => w.image)?.image;
-          const href = `/${tier.guideSlug ?? `best-watches-${tier.id}`}`;
+          const coverImage = tier.image ?? tierWatches.find((w) => w.image)?.image;
+          const href = tier.href ?? `/${tier.guideSlug ?? `best-watches-${tier.id}`}`;
 
           return (
             <Reveal key={tier.id} delay={i * 90}>
@@ -44,14 +44,17 @@ export function PriceTiers({ config }: PriceTiersProps) {
                   {tier.label}
                 </p>
                 <h3 className="mt-2 font-serif text-2xl font-semibold tracking-tight text-foreground">
-                  Best Watches {tier.label}
+                  {tier.title ?? `Best Watches ${tier.label}`}
                 </h3>
                 <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">
-                  {tier.tagline}
+                  {tier.description ?? tier.tagline}
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline underline-offset-[6px] transition-colors group-hover:text-primary">
-                  See the guide
-                  <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5">
+                  See the Guide
+                  <span
+                    aria-hidden
+                    className="transition-transform duration-300 group-hover:translate-x-0.5"
+                  >
                     &rarr;
                   </span>
                 </span>

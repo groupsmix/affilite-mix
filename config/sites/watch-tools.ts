@@ -6,8 +6,7 @@ export const watchToolsSite = defineSite({
   domain: "wristnerd.xyz",
   aliases: ["www.wristnerd.xyz", "watch.localhost"],
   niche: "Watch Buying Guides & Reviews",
-  description:
-    "Honest watch reviews and buying guides — from the best watches under $500 to vintage Seiko and Casio, leather straps, and minimalist picks for women.",
+  description: "Independent watch reviews since 2019. No press samples. No paid placement.",
   tagline: "Find the right watch without the hype.",
   logo: "/wristnerd-logo-wide.png",
   mark: "/wristnerd-icon.png",
@@ -88,24 +87,15 @@ export const watchToolsSite = defineSite({
   ],
 
   footerNav: {
-    guides: [
-      { title: "Best Under $300", href: "/best-watches-under-300" },
-      { title: "Best Under $500", href: "/best-watches-under-500" },
-      { title: "Best Dress Watch", href: "/best-dress-watch-under-500" },
-      { title: "Blog", href: "/blog" },
-      { title: "Top Picks", href: "/#top-picks" },
-      { title: "How We Test", href: "/#how-we-test" },
+    buyingGuides: [
+      { title: "Under $300", href: "/best-watches-under-300" },
+      { title: "Under $500", href: "/best-watches-under-500" },
+      { title: "Under $1,000", href: "/guide" },
     ],
-    about: [
-      { title: "How We Test", href: "/how-we-rank" },
-      { title: "Editorial Policy", href: "/about" },
-      { title: "Meet the Team", href: "/about" },
+    company: [
+      { title: "About Us", href: "/about" },
       { title: "Contact", href: "/contact" },
-    ],
-    legal: [
       { title: "Privacy Policy", href: "/privacy" },
-      { title: "Terms of Service", href: "/terms" },
-      { title: "Affiliate Disclosure", href: "/affiliate-disclosure" },
     ],
   },
 
