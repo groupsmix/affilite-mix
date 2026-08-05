@@ -352,7 +352,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
             <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Top Rated Tools</h2>
-            <p className="mt-2.5 text-base text-slate-500">
+            <p className="mt-2.5 text-base text-slate-600">
               Based on hundreds of hours of hands-on testing in real Etsy workflows.
             </p>
           </div>
@@ -527,8 +527,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   className="flex gap-4 whitespace-nowrap px-1.5 py-2.5"
                   style={{
                     borderBottom: i < TERMINAL_LINES.length - 1 ? "1px solid #141A3D" : "none",
-                    color: "#C6CBE8",
-                    opacity: line.kind === "wait" ? 0.45 : 1,
+                    color: line.kind === "wait" ? "#8A90BC" : "#C6CBE8",
                   }}
                 >
                   <span style={{ color: "#9D92FA" }}>[{line.ts}]</span>
