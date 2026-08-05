@@ -37,6 +37,8 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
             <img
               src="/images/compareai/compareai-logo-wide.png"
               alt={site.name}
+              width={127}
+              height={28}
               className="h-7 w-auto"
             />
           ) : (

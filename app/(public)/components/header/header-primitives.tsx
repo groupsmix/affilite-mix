@@ -106,6 +106,10 @@ export function HeaderWordmark({
         <img
           src={site.brand.logo}
           alt=""
+          // Explicit dimensions keep Lighthouse's unsized-images audit happy
+          // and prevent pre-load CLS; CSS height keeps the rendered size exact.
+          width={logoMode === "image" ? 40 : 32}
+          height={logoMode === "image" ? 40 : 32}
           className={`w-auto ${logoMode === "image" ? "h-10 rounded bg-white p-1 shadow-sm" : "h-8"}`}
           aria-hidden="true"
         />
