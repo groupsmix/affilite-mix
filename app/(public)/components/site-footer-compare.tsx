@@ -32,7 +32,16 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
 
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <span className="text-lg font-semibold text-white">{site.name}</span>
+          {site.slug === "ai-compared" ? (
+            // eslint-disable-next-line @next/next/no-img-element -- static brand asset; next/image adds no value for a small footer logo.
+            <img
+              src="/images/compareai/compareai-logo-wide.png"
+              alt={site.name}
+              className="h-7 w-auto"
+            />
+          ) : (
+            <span className="text-lg font-semibold text-white">{site.name}</span>
+          )}
           <nav
             className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-300"
             aria-label="Footer"
