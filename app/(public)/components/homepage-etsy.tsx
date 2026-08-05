@@ -1,19 +1,7 @@
 import Image from "next/image";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  BadgeCheck,
-  Star,
-  Zap,
-  Globe,
-  Search,
-  PenTool,
-  ClipboardCheck,
-  Package,
-  Target,
-  FileCheck,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { BadgeCheck, Star, Zap, Globe, Target, FileCheck, ShieldCheck, Users } from "lucide-react";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow } from "@/types/database";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
@@ -37,6 +25,56 @@ const ACCENT = "#6C5DF5";
 const ACCENT_TEXT = "#5A4AE3";
 const NAVY = "#0B0F2B";
 const GRADIENT = "linear-gradient(100deg,#8b5cf6 0%,#6366f1 55%,#4f46e5 100%)";
+
+/* Custom category icons — niche-flavored, not stock SaaS glyphs */
+function IconShell({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+const IconResearch = () => (
+  <IconShell>
+    <circle cx="10" cy="10" r="6.2" />
+    <path d="M15.1 15.1L21 21" />
+    <path d="M7.6 12.6v-2.2" />
+    <path d="M10 12.6V7.4" />
+    <path d="M12.4 12.6V9.3" />
+  </IconShell>
+);
+
+const IconDesign = () => (
+  <IconShell>
+    <path d="M8.2 3.5L3.5 6.2l2 3.6 2.5-1.3v11.5h8V8.5l2.5 1.3 2-3.6-4.7-2.7a3.9 3.9 0 01-7.6 0z" />
+  </IconShell>
+);
+
+const IconListing = () => (
+  <IconShell>
+    <path d="M19.8 12.2l-7.6-7.6a2 2 0 00-1.4-.6H5.4A1.4 1.4 0 004 5.4v5.4c0 .5.2 1 .6 1.4l7.6 7.6a2 2 0 002.8 0l4.8-4.8a2 2 0 000-2.8z" />
+    <circle cx="8.2" cy="8.2" r="1.1" />
+  </IconShell>
+);
+
+const IconPod = () => (
+  <IconShell>
+    <path d="M7 8V3.5h10V8" />
+    <path d="M7 17H4.5A2.5 2.5 0 012 14.5v-4A2.5 2.5 0 014.5 8h15a2.5 2.5 0 012.5 2.5v4A2.5 2.5 0 0119.5 17H17" />
+    <path d="M7 14.5h10v6H7z" />
+    <path d="M17.5 11h.01" />
+  </IconShell>
+);
 
 /* Benchmark scores from hands-on testing (see /methodology) */
 const VS_METRICS: { label: string; scores: [number, number] }[] = [
@@ -66,7 +104,7 @@ const CATEGORIES = [
     body: "Product research, keyword data, and niche validation tools.",
     count: "14 Tools",
     href: "/tools",
-    icon: Search,
+    icon: IconResearch,
     iconBg: "#EEF0FE",
     iconColor: ACCENT,
   },
@@ -75,7 +113,7 @@ const CATEGORIES = [
     body: "AI design, typography, mockups, and vector graphics for POD.",
     count: "22 Tools",
     href: "/tools",
-    icon: PenTool,
+    icon: IconDesign,
     iconBg: "#FDEEF6",
     iconColor: "#DB2777",
   },
@@ -84,7 +122,7 @@ const CATEGORIES = [
     body: "Titles, tags, descriptions, and disclosure-safe optimization.",
     count: "11 Tools",
     href: "/tools",
-    icon: ClipboardCheck,
+    icon: IconListing,
     iconBg: "#FDEEE0",
     iconColor: "#EA7C24",
   },
@@ -93,7 +131,7 @@ const CATEGORIES = [
     body: "POD fulfillment, production partners, and workflow automation.",
     count: "9 Tools",
     href: "/tools",
-    icon: Package,
+    icon: IconPod,
     iconBg: "#E7F9EE",
     iconColor: "#16A34A",
   },
@@ -325,7 +363,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                     className="mb-5 grid h-11 w-11 place-items-center rounded-xl"
                     style={{ backgroundColor: cat.iconBg, color: cat.iconColor }}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon />
                   </div>
                   <h3 className="text-lg font-semibold">{cat.title}</h3>
                   <p className="mt-2 min-h-[60px] text-sm leading-relaxed text-slate-500">
