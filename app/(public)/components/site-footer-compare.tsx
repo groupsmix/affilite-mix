@@ -35,7 +35,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
           {site.slug === "ai-compared" ? (
             // eslint-disable-next-line @next/next/no-img-element -- static brand asset; next/image adds no value for a small footer logo.
             <img
-              src="/images/compareai/compareai-logo-wide.png"
+              src="/images/compareai/compareai-logo-wide.webp"
               alt={site.name}
               width={127}
               height={28}
