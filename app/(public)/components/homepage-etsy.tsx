@@ -22,6 +22,7 @@ import {
   getEtsyReviewByToolSlug,
   getEtsyToolStartingPrice,
   formatCurrencyUSD,
+  type EtsyTool,
 } from "@/lib/etsy-product-data";
 import { getAllSiteGuides } from "@/lib/site-guides";
 import { filterExcludedCompareaiContent } from "@/lib/compareai-cleanup";
@@ -37,13 +38,11 @@ const NAVY = "#0B0F2B";
 const GRADIENT = "linear-gradient(100deg,#8b5cf6 0%,#6366f1 55%,#4f46e5 100%)";
 
 /* Benchmark scores from hands-on testing (see /methodology) */
-const VS_SCORES: Record<string, { label: string; scores: [number, number] }[]> = {
-  everbeeVsAlura: [
-    { label: "Research", scores: [9.4, 9.1] },
-    { label: "Ease of Use", scores: [8.6, 9.2] },
-    { label: "Value", scores: [8.1, 9.0] },
-  ],
-};
+const VS_METRICS: { label: string; scores: [number, number] }[] = [
+  { label: "Research", scores: [9.4, 9.1] },
+  { label: "Ease of Use", scores: [8.6, 9.2] },
+  { label: "Value", scores: [8.1, 9.0] },
+];
 
 const TRUST_SCORES: Record<
   string,
@@ -145,9 +144,9 @@ const TERMINAL_LINES: {
 ];
 
 export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
-  const everbee = etsyTools.everbee;
-  const alura = etsyTools.alura;
-  const topTools = [etsyTools.everbee, etsyTools.alura, etsyTools.kittl];
+  const topTools = [etsyTools.everbee, etsyTools.alura, etsyTools.kittl].filter(
+    (t): t is EtsyTool => Boolean(t),
+  );
 
   const filteredDb = filterExcludedCompareaiContent(recentContent).slice(0, 3);
   const latestGuides: ContentRow[] = [...filteredDb];
@@ -182,8 +181,8 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
     latestGuides.push(...staticGuides);
   }
 
-  const vsTools = [everbee, alura];
-  const vsMetrics = VS_SCORES.everbeeVsAlura;
+  const vsTools = topTools.slice(0, 2);
+  const vsMetrics = VS_METRICS;
 
   return (
     <div className="bg-white text-slate-900">
@@ -241,7 +240,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                     : "All-in-one Etsy growth suite"}
                 </p>
                 {vsMetrics.map((m) => {
-                  const score = m.scores[colIdx];
+                  const score = colIdx === 0 ? m.scores[0] : m.scores[1];
                   const win = score >= Math.max(...m.scores);
                   return (
                     <div key={m.label} className="mt-6">
