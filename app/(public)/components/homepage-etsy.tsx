@@ -34,6 +34,7 @@ interface EtsyHomepageProps {
 
 /* Reference-design palette (violet benchmark system) */
 const ACCENT = "#6C5DF5";
+const ACCENT_TEXT = "#5A4AE3";
 const NAVY = "#0B0F2B";
 const GRADIENT = "linear-gradient(100deg,#8b5cf6 0%,#6366f1 55%,#4f46e5 100%)";
 
@@ -244,7 +245,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   const win = score >= Math.max(...m.scores);
                   return (
                     <div key={m.label} className="mt-6">
-                      <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+                      <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
                         <span>{m.label}</span>
                         <b
                           className="text-sm normal-case tracking-normal"
@@ -332,7 +333,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   </p>
                   <span
                     className="mt-4 inline-block rounded-full px-3.5 py-1.5 text-xs font-bold"
-                    style={{ color: ACCENT, backgroundColor: "#EFEDFE" }}
+                    style={{ color: ACCENT_TEXT, backgroundColor: "#EFEDFE" }}
                   >
                     {cat.count}
                   </span>
@@ -404,13 +405,13 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                       {meta && (
                         <>
                           <div>
-                            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                               Trust Score
                             </div>
                             <div className="mt-1 text-[15px] font-black">{meta.trust}/100</div>
                           </div>
                           <div>
-                            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                               Best For
                             </div>
                             <div className="mt-1 text-[15px] font-black">{meta.bestFor}</div>
@@ -418,14 +419,14 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                         </>
                       )}
                       <div>
-                        <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                        <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                           Starting Price
                         </div>
                         <div className="mt-1 text-[15px] font-black">{priceText}</div>
                       </div>
                       {meta && (
                         <div>
-                          <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                          <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
                             Comparisons
                           </div>
                           <div className="mt-1 text-[15px] font-black">{meta.comparisons}</div>
@@ -514,7 +515,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
               />
               <span
                 className="ml-auto text-[10.5px] font-bold uppercase tracking-[0.16em]"
-                style={{ color: "#5B6190" }}
+                style={{ color: "#7B81B0" }}
               >
                 Real-Time Test Log
               </span>
@@ -530,11 +531,11 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                     opacity: line.kind === "wait" ? 0.45 : 1,
                   }}
                 >
-                  <span style={{ color: ACCENT }}>[{line.ts}]</span>
+                  <span style={{ color: "#9D92FA" }}>[{line.ts}]</span>
                   <span className="overflow-hidden text-ellipsis">{line.text}</span>
                   <span
                     className="ml-auto font-bold"
-                    style={{ color: line.kind === "wait" ? "#5B6190" : "#22C55E" }}
+                    style={{ color: line.kind === "wait" ? "#7B81B0" : "#22C55E" }}
                   >
                     {line.result}
                   </span>
@@ -588,7 +589,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                       />
                     )}
                   </div>
-                  <div className="mt-5 text-[11.5px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                  <div className="mt-5 text-[11.5px] font-bold uppercase tracking-[0.12em] text-slate-500">
                     {content.type}
                     {content.publish_at && (
                       <>
