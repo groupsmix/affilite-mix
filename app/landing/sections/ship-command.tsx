@@ -90,7 +90,7 @@ export function ShipCommandSection() {
             <div className="text-white/60">
               {lines[0]!.text.slice(0, cmdChars)}
               {cmdChars < lines[0]!.text.length && (
-                <span className="caret-blink ml-0.5 inline-block h-4 w-[7px] bg-tungsten align-text-bottom" />
+                <span className="caret-blink ml-0.5 inline-block h-4 w-[7px] bg-brand-light align-text-bottom" />
               )}
             </div>
 
@@ -101,7 +101,7 @@ export function ShipCommandSection() {
                 initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.2 }}
-                className="mt-1 text-isotope/80"
+                className="mt-1 text-signal/80"
               >
                 {line.text}
               </motion.div>
@@ -111,7 +111,7 @@ export function ShipCommandSection() {
             {visibleLines >= lines.length && (
               <div className="mt-2 text-white/40">
                 $
-                <span className="caret-blink ml-1 inline-block h-4 w-[7px] bg-tungsten align-text-bottom" />
+                <span className="caret-blink ml-1 inline-block h-4 w-[7px] bg-brand-light align-text-bottom" />
               </div>
             )}
           </div>

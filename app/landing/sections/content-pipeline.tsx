@@ -100,13 +100,13 @@ export function ContentPipelineSection() {
           {/* Prompt side */}
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
             <div className="mb-3 flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-tungsten" />
+              <div className="h-2 w-2 rounded-full bg-brand-light" />
               <span className="font-mono-accent text-xs text-white/30">Prompt</span>
             </div>
             <p className="min-h-[120px] text-sm leading-relaxed text-white/60">
               {promptText.slice(0, typedChars)}
               {typedChars < promptText.length && (
-                <span className="caret-blink inline-block w-[2px] h-4 bg-tungsten ml-0.5 align-text-bottom" />
+                <span className="caret-blink inline-block w-[2px] h-4 bg-brand-light ml-0.5 align-text-bottom" />
               )}
             </p>
           </div>
@@ -115,7 +115,7 @@ export function ContentPipelineSection() {
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-isotope" />
+                <div className="h-2 w-2 rounded-full bg-signal" />
                 <span className="font-mono-accent text-xs text-white/30">Output</span>
               </div>
               {/* Provider fallback indicator */}
@@ -124,7 +124,7 @@ export function ContentPipelineSection() {
                   <span
                     key={p}
                     className={`transition-colors ${
-                      i === activeProvider ? "text-tungsten" : "text-white/20"
+                      i === activeProvider ? "text-brand-light" : "text-white/20"
                     }`}
                   >
                     {p}
@@ -157,12 +157,12 @@ export function ContentPipelineSection() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2"
+                className="mt-4 flex items-center gap-2 rounded-lg bg-signal/10 px-3 py-2"
               >
-                <span className="inline-block h-4 w-4 rounded-full bg-isotope/80 text-center text-[10px] font-bold leading-4 text-black">
+                <span className="inline-block h-4 w-4 rounded-full bg-signal/80 text-center text-[10px] font-bold leading-4 text-black">
                   ✓
                 </span>
-                <span className="font-mono-accent text-xs text-isotope/80">
+                <span className="font-mono-accent text-xs text-signal/80">
                   Moderation passed · Ready for review
                 </span>
               </motion.div>

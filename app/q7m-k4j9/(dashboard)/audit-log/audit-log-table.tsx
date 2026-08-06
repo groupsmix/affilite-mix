@@ -68,8 +68,8 @@ const ACTION_BADGE_CLASSES: Record<string, string> = {
   deleted: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100",
   login: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100",
   logout: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100",
-  error: "bg-orange-100 text-orange-700 hover:bg-orange-100",
-  failed: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+  error: "bg-red-100 text-red-700 hover:bg-red-100",
+  failed: "bg-red-100 text-red-700 hover:bg-red-100",
 };
 
 const ACTION_FALLBACK_CLASS = "bg-slate-100 text-slate-700 hover:bg-slate-100";

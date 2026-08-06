@@ -18,7 +18,7 @@ export function FinalCtaSection() {
       <motion.div
         animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.7, 0.4] }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        className="mb-10 h-20 w-20 rounded-full bg-tungsten/10"
+        className="mb-10 h-20 w-20 rounded-full bg-brand-light/10"
         style={{
           boxShadow: "0 0 60px rgba(232,122,47,0.15), inset 0 0 30px rgba(232,122,47,0.1)",
         }}
@@ -42,7 +42,7 @@ export function FinalCtaSection() {
       >
         <a
           href="#ship-command"
-          className="cta-glow interactive-cursor inline-block rounded-lg bg-ultraviolet px-10 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
+          className="cta-glow interactive-cursor inline-block rounded-lg bg-brand px-10 py-4 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
         >
           Spin up a tenant →
         </a>

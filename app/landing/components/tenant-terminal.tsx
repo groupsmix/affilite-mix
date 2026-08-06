@@ -110,7 +110,7 @@ export function TenantTerminal() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-2">
               <div className="flex items-center gap-2">
-                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-isotope" />
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-signal" />
                 <span className="font-mono-accent text-[10px] text-white/25">tenant log</span>
               </div>
               <div className="flex gap-1">

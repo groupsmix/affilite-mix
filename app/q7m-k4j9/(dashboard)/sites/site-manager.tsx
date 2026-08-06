@@ -459,7 +459,7 @@ function SiteCardView({
           <MonetizationBadge type={site.monetization_type} />
 
           {site.homepage_template && site.homepage_template !== "standard" && (
-            <Badge variant="outline" className="border-purple-200 bg-purple-50 text-purple-700">
+            <Badge variant="outline" className="border-brand-200 bg-brand-50 text-brand-700">
               {site.homepage_template}
             </Badge>
           )}

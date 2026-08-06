@@ -85,12 +85,12 @@ export function PricingSection() {
               transition={{ delay: i * 0.1, duration: 0.6 }}
               className={`relative rounded-xl border p-8 ${
                 plan.highlighted
-                  ? "border-ultraviolet bg-white/[0.03]"
+                  ? "border-brand bg-white/[0.03]"
                   : "border-white/[0.06] bg-white/[0.02]"
               }`}
             >
               {plan.highlighted && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-ultraviolet px-4 py-1 font-mono-accent text-[10px] font-medium text-white">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand px-4 py-1 font-mono-accent text-[10px] font-medium text-white">
                   MOST POPULAR
                 </div>
               )}
@@ -114,7 +114,7 @@ export function PricingSection() {
               <button
                 className={`mt-8 w-full rounded-lg py-3 text-sm font-medium transition-transform hover:scale-[1.02] ${
                   plan.highlighted
-                    ? "cta-glow bg-ultraviolet text-white"
+                    ? "cta-glow bg-brand text-white"
                     : "border border-white/[0.1] bg-white/[0.03] text-white/60 hover:text-white"
                 }`}
               >

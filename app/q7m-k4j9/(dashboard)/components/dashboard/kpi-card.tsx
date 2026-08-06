@@ -59,7 +59,7 @@ export function KpiCard({
       : delta.valuePct > 0
         ? "text-emerald-600 dark:text-emerald-400"
         : delta.valuePct < 0
-          ? "text-rose-600 dark:text-rose-400"
+          ? "text-red-600 dark:text-red-400"
           : "text-muted-foreground";
 
   return (

@@ -580,7 +580,7 @@ export function RichEditor({ value, onChange, products }: RichEditorProps) {
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm max-w-none p-3 min-h-[300px] focus:outline-none prose-headings:font-semibold prose-a:text-emerald-600",
+          "prose prose-sm max-w-none p-3 min-h-[300px] focus:outline-none prose-headings:font-semibold prose-a:text-brand-600",
       },
     },
   });

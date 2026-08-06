@@ -78,7 +78,7 @@ export function HeroSection() {
       >
         <a
           href="#ship-command"
-          className="cta-glow interactive-cursor inline-block rounded-lg bg-ultraviolet px-8 py-3.5 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
+          className="cta-glow interactive-cursor inline-block rounded-lg bg-brand px-8 py-3.5 text-sm font-medium text-white transition-transform hover:scale-[1.03]"
         >
           Spin up a tenant →
         </a>

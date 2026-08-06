@@ -50,7 +50,7 @@ export function NeedsAttentionCard({ items }: NeedsAttentionCardProps) {
           const Icon = isWarning ? AlertTriangleIcon : InfoIcon;
           const badgeClass = isWarning
             ? "bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-200"
-            : "bg-sky-100 text-sky-800 hover:bg-sky-100 dark:bg-sky-900/30 dark:text-sky-200";
+            : "bg-brand-100 text-brand-800 hover:bg-brand-100 dark:bg-brand-900/30 dark:text-brand-200";
           return (
             <Link
               key={i}
@@ -59,12 +59,12 @@ export function NeedsAttentionCard({ items }: NeedsAttentionCardProps) {
                 "group flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors",
                 isWarning
                   ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
-                  : "border-sky-200 bg-sky-50/50 hover:bg-sky-50 dark:border-sky-900/50 dark:bg-sky-950/20 dark:hover:bg-sky-950/30",
+                  : "border-brand-200 bg-brand-50/50 hover:bg-brand-50 dark:border-brand-900/50 dark:bg-brand-950/20 dark:hover:bg-brand-950/30",
               )}
             >
               <div className="flex items-center gap-3">
                 <Icon
-                  className={cn("size-4 shrink-0", isWarning ? "text-amber-600" : "text-sky-600")}
+                  className={cn("size-4 shrink-0", isWarning ? "text-amber-600" : "text-brand-600")}
                 />
                 <span className="text-sm font-medium text-foreground">{item.message}</span>
               </div>

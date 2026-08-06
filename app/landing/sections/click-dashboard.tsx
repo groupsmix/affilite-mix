@@ -88,7 +88,7 @@ export function ClickDashboardSection() {
           {/* Click log stream */}
           <div className="lg:col-span-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 overflow-hidden">
             <div className="mb-3 flex items-center gap-2">
-              <div className="h-2 w-2 animate-pulse rounded-full bg-isotope" />
+              <div className="h-2 w-2 animate-pulse rounded-full bg-signal" />
               <span className="font-mono-accent text-xs text-white/30">Live click stream</span>
             </div>
             <div className="space-y-0.5 font-mono-accent text-[11px]">
@@ -101,11 +101,11 @@ export function ClickDashboardSection() {
                   className="flex items-center gap-3 rounded px-2 py-1 text-white/40 hover:bg-white/[0.03]"
                 >
                   <span className="text-white/20">{log.time}</span>
-                  <span className="text-tungsten">[{log.site}]</span>
+                  <span className="text-brand-light">[{log.site}]</span>
                   <span className="text-white/50">{log.path}</span>
                   <span className="text-white/20">→</span>
                   <span className="text-white/30">{log.edge}</span>
-                  <span className="text-isotope">{log.latency}</span>
+                  <span className="text-signal">{log.latency}</span>
                   <span
                     className="ml-auto hidden text-white/15 sm:inline"
                     title="24-hour dedup hash. No PII stored."
@@ -121,7 +121,7 @@ export function ClickDashboardSection() {
           <div className="space-y-4">
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
               <span className="font-mono-accent text-xs text-white/30">EPC (24h)</span>
-              <div className="mt-2 text-4xl font-semibold tabular-nums text-isotope">
+              <div className="mt-2 text-4xl font-semibold tabular-nums text-signal">
                 ${epc.toFixed(3)}
               </div>
               <div className="mt-3 flex h-16 items-end gap-[3px]">
@@ -130,7 +130,7 @@ export function ClickDashboardSection() {
                   return (
                     <div
                       key={i}
-                      className="flex-1 rounded-t bg-isotope/20"
+                      className="flex-1 rounded-t bg-signal/20"
                       style={{ height: `${h}%` }}
                     />
                   );

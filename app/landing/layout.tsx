@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`dark ${inter.variable} ${mono.variable}`} suppressHydrationWarning>
-      <body className="landing-body bg-[#0a0b0f] text-[#e2e4e9] antialiased selection:bg-violet-500/30">
+      <body className="landing-body bg-[#0a0b0f] text-[#e2e4e9] antialiased selection:bg-brand/30">
         <LandingMotionConfig>{children}</LandingMotionConfig>
       </body>
     </html>
