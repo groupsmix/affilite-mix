@@ -73,7 +73,7 @@ const PROVIDER_META: Record<AdProvider, { label: string; icon: LucideIcon; class
   ethicalads: {
     label: "EthicalAds",
     icon: HeartIcon,
-    className: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+    className: "bg-brand-100 text-brand-700 hover:bg-brand-100",
   },
   custom: {
     label: "Custom",
@@ -92,10 +92,10 @@ const SLOT_LABELS: Record<AdPlacementType, string> = {
 
 const SLOT_CLASSES: Record<AdPlacementType, string> = {
   header: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
-  sidebar: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+  sidebar: "bg-brand-100 text-brand-700 hover:bg-brand-100",
   in_content: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
   footer: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100",
-  between_posts: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+  between_posts: "bg-gray-100 text-gray-700 hover:bg-gray-100",
 };
 
 function formatUsd(value: number): string {

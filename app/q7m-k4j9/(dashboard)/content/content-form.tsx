@@ -507,10 +507,10 @@ export function ContentForm({
 
         {/* Scheduling Section — prominent */}
 
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+        <div className="rounded-lg border border-brand-200 bg-brand-50 p-4">
           <div className="mb-3 flex items-center gap-2">
             <svg
-              className="h-5 w-5 text-indigo-600"
+              className="h-5 w-5 text-brand-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -523,12 +523,12 @@ export function ContentForm({
               />
             </svg>
 
-            <h3 className="text-sm font-semibold text-indigo-900">Schedule Publishing</h3>
+            <h3 className="text-sm font-semibold text-brand-900">Schedule Publishing</h3>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-indigo-800">
+              <label className="mb-1 block text-sm font-medium text-brand-800">
                 Publish Date & Time (UTC)
               </label>
 
@@ -554,10 +554,10 @@ export function ContentForm({
                     setStatus("scheduled");
                   }
                 }}
-                className="w-full rounded border border-indigo-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded border border-brand-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
 
-              <p className="mt-1 text-xs text-indigo-600">
+              <p className="mt-1 text-xs text-brand-600">
                 {publishAt
                   ? `Scheduled for ${new Date(publishAt).toUTCString()}. Status will be set to "Scheduled" automatically.`
                   : "Set a date to schedule publishing. Status will auto-switch to Scheduled."}
@@ -569,7 +569,7 @@ export function ContentForm({
                 <button
                   type="button"
                   onClick={() => setPublishAt("")}
-                  className="rounded-md border border-indigo-300 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+                  className="rounded-md border border-brand-300 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
                 >
                   Clear Schedule
                 </button>

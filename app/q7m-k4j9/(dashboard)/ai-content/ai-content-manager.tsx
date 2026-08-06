@@ -168,7 +168,7 @@ export function AIContentManager({
       <div className="flex gap-3">
         <button
           onClick={() => setShowGenerator(!showGenerator)}
-          className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-purple-700"
+          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-brand-700"
         >
           {showGenerator ? "Cancel" : "Generate Article"}
         </button>
@@ -183,8 +183,8 @@ export function AIContentManager({
       </div>
 
       {showGenerator && (
-        <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 space-y-3">
-          <h3 className="font-semibold text-purple-900">Generate New Content</h3>
+        <div className="rounded-lg border border-brand-200 bg-brand-50 p-4 space-y-3">
+          <h3 className="font-semibold text-brand-900">Generate New Content</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -232,7 +232,7 @@ export function AIContentManager({
               void handleGenerate();
             }}
             disabled={generating || !topic.trim()}
-            className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-purple-700 disabled:opacity-50"
+            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-brand-700 disabled:opacity-50"
           >
             {generating ? "Generating..." : "Generate"}
           </button>

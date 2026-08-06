@@ -56,7 +56,7 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
   published: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
   draft: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
   review: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
-  scheduled: "bg-indigo-100 text-indigo-700 hover:bg-indigo-100",
+  scheduled: "bg-brand-100 text-brand-700 hover:bg-brand-100",
   archived: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100",
 };
 
@@ -263,7 +263,7 @@ const columns: ColumnDef<ContentTableRow>[] = [
       return (
         <span
           className={`inline-flex items-center gap-1 text-sm ${
-            isScheduled ? "text-indigo-600" : "text-muted-foreground"
+            isScheduled ? "text-brand-600" : "text-muted-foreground"
           }`}
         >
           {isScheduled && <CalendarClockIcon className="size-3.5" />}
@@ -324,10 +324,7 @@ export function ContentTable({
               <DataTableFacetedFilter column={typeColumn} title="Type" options={TYPE_OPTIONS} />
             )}
             {scheduledCount > 0 && (
-              <Badge
-                variant="secondary"
-                className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
-              >
+              <Badge variant="secondary" className="bg-brand-100 text-brand-700 hover:bg-brand-100">
                 <CalendarClockIcon className="size-3.5" />
                 Scheduled ({scheduledCount})
               </Badge>

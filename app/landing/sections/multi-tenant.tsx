@@ -5,9 +5,9 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
 const tenants = [
-  { name: "arabic-tools", color: "border-emerald-500/30", users: "2,841" },
-  { name: "crypto-tools", color: "border-amber-500/30", users: "5,124" },
-  { name: "watch-tools", color: "border-sky-500/30", users: "1,298" },
+  { name: "arabic-tools", color: "border-white/10", users: "2,841" },
+  { name: "crypto-tools", color: "border-white/10", users: "5,124" },
+  { name: "watch-tools", color: "border-white/10", users: "1,298" },
 ];
 
 export function MultiTenantSection() {

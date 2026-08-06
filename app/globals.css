@@ -36,11 +36,11 @@
   --input: oklch(0.929 0.013 255.508);
   --ring: var(--primary);
 
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --chart-1: #635bff;
+  --chart-2: #8f88ff;
+  --chart-3: #cdc9ff;
+  --chart-4: #6b7280;
+  --chart-5: #d1d5db;
 
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
@@ -72,11 +72,11 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
 
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --chart-1: #a5a0fb;
+  --chart-2: #736bff;
+  --chart-3: #4f47e0;
+  --chart-4: #9ca3af;
+  --chart-5: #4b5563;
 
   --sidebar: oklch(0.208 0.042 265.755);
   --sidebar-foreground: oklch(0.984 0.003 247.858);
@@ -86,6 +86,31 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+/* ---------------------------------------------------------------------- *
+ * Brand palette — single primary hue + neutrals (Stripe/Linear-style).
+ * One blurple primary, one muted success signal, everything else neutral.
+ * ---------------------------------------------------------------------- */
+@theme {
+  --color-brand-50: #f0efff;
+  --color-brand-100: #e4e2ff;
+  --color-brand-200: #cdc9ff;
+  --color-brand-300: #ada7ff;
+  --color-brand-400: #8f88ff;
+  --color-brand-500: #736bff;
+  --color-brand-600: #635bff;
+  --color-brand-700: #4f47e0;
+  --color-brand-800: #3f3ab0;
+  --color-brand-900: #322d7a;
+  --color-brand-950: #1e1b4b;
+
+  --color-brand: #635bff;
+  --color-brand-hover: #5148e5;
+  --color-brand-light: #a5a0fb;
+
+  /* Muted success signal (terminal status, positive metrics). */
+  --color-signal: #4cc38a;
 }
 
 /* Map shadcn raw tokens onto Tailwind v4 utility keys (bg-primary, text-muted-foreground, etc.). */

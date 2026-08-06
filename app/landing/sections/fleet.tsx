@@ -11,7 +11,7 @@ const sites = [
     dir: "rtl",
     mau: "28.1k",
     mrr: "$6.4k",
-    color: "from-emerald-500/20 to-teal-500/10",
+    color: "from-white/[0.06] to-white/[0.02]",
   },
   {
     name: "Crypto Tools",
@@ -20,7 +20,7 @@ const sites = [
     dir: "ltr",
     mau: "42.3k",
     mrr: "$11.2k",
-    color: "from-amber-500/20 to-orange-500/10",
+    color: "from-white/[0.06] to-white/[0.02]",
   },
   {
     name: "AI Compared",
@@ -29,7 +29,7 @@ const sites = [
     dir: "ltr",
     mau: "19.7k",
     mrr: "$4.8k",
-    color: "from-violet-500/20 to-purple-500/10",
+    color: "from-white/[0.06] to-white/[0.02]",
   },
   {
     name: "Watch Tools",
@@ -38,7 +38,7 @@ const sites = [
     dir: "ltr",
     mau: "12.4k",
     mrr: "$4.2k",
-    color: "from-sky-500/20 to-blue-500/10",
+    color: "from-white/[0.06] to-white/[0.02]",
   },
   {
     name: "Wrist Nerd",
@@ -47,7 +47,7 @@ const sites = [
     dir: "ltr",
     mau: "8.9k",
     mrr: "$2.1k",
-    color: "from-rose-500/20 to-pink-500/10",
+    color: "from-white/[0.06] to-white/[0.02]",
   },
   {
     name: "Compare AI",
@@ -56,7 +56,7 @@ const sites = [
     dir: "ltr",
     mau: "15.2k",
     mrr: "$3.7k",
-    color: "from-cyan-500/20 to-teal-500/10",
+    color: "from-white/[0.06] to-white/[0.02]",
   },
   {
     name: "Keyboard Hub",
@@ -65,7 +65,7 @@ const sites = [
     dir: "ltr",
     mau: "6.3k",
     mrr: "$1.9k",
-    color: "from-yellow-500/20 to-amber-500/10",
+    color: "from-white/[0.06] to-white/[0.02]",
   },
   {
     name: "Gadget Pick",
@@ -74,7 +74,7 @@ const sites = [
     dir: "ltr",
     mau: "11.8k",
     mrr: "$3.1k",
-    color: "from-indigo-500/20 to-violet-500/10",
+    color: "from-white/[0.06] to-white/[0.02]",
   },
 ];
 
@@ -150,7 +150,7 @@ export function FleetSection() {
                 <span className="text-white/15">·</span>
                 <span>{site.mau} MAU</span>
                 <span className="text-white/15">·</span>
-                <span className="text-isotope">{site.mrr} MRR</span>
+                <span className="text-signal">{site.mrr} MRR</span>
               </div>
             </div>
           </motion.div>
