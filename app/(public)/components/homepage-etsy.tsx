@@ -550,7 +550,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
               />
               <span
                 className="ml-auto text-[10.5px] font-bold uppercase tracking-[0.16em]"
-                style={{ color: "#64748B" }}
+                style={{ color: "#94A3B8" }}
               >
                 Real-Time Test Log
               </span>
@@ -569,7 +569,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   <span className="overflow-hidden text-ellipsis">{line.text}</span>
                   <span
                     className="ml-auto font-bold"
-                    style={{ color: line.kind === "wait" ? "#64748B" : "#22C55E" }}
+                    style={{ color: line.kind === "wait" ? "#94A3B8" : "#22C55E" }}
                   >
                     {line.result}
                   </span>
