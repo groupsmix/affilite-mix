@@ -324,10 +324,7 @@ export function ContentTable({
               <DataTableFacetedFilter column={typeColumn} title="Type" options={TYPE_OPTIONS} />
             )}
             {scheduledCount > 0 && (
-              <Badge
-                variant="secondary"
-                className="bg-brand-100 text-brand-700 hover:bg-brand-100"
-              >
+              <Badge variant="secondary" className="bg-brand-100 text-brand-700 hover:bg-brand-100">
                 <CalendarClockIcon className="size-3.5" />
                 Scheduled ({scheduledCount})
               </Badge>
