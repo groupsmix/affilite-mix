@@ -238,10 +238,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-[68px]">
-            Stop guessing.{" "}
-            <span style={{ color: ACCENT }}>
-              Compare First.
-            </span>
+            Stop guessing. <span style={{ color: ACCENT }}>Compare First.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-500">
             The definitive platform for Etsy seller tools. Honest reviews, side-by-side comparisons,
