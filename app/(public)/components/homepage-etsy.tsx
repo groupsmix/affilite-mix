@@ -20,11 +20,11 @@ interface EtsyHomepageProps {
   recentContent: ContentRow[];
 }
 
-/* Reference-design palette (violet benchmark system) */
-const ACCENT = "#6C5DF5";
-const ACCENT_TEXT = "#5A4AE3";
-const NAVY = "#0B0F2B";
-const GRADIENT = "linear-gradient(100deg,#8b5cf6 0%,#6366f1 55%,#4f46e5 100%)";
+/* Monochrome ink palette + single cobalt accent (matches site config) */
+const ACCENT = "#2D6BF0";
+const ACCENT_TEXT = "#1B49C7";
+const NAVY = "#0B1120";
+const INK = "#0B1120";
 
 /* Custom category icons — niche-flavored, not stock SaaS glyphs */
 function IconShell({ children }: { children: ReactNode }) {
@@ -105,8 +105,8 @@ const CATEGORIES = [
     count: "14 Tools",
     href: "/tools",
     icon: IconResearch,
-    iconBg: "#EEF0FE",
-    iconColor: ACCENT,
+    iconBg: "#EEF1F6",
+    iconColor: INK,
   },
   {
     title: "Design",
@@ -114,8 +114,8 @@ const CATEGORIES = [
     count: "22 Tools",
     href: "/tools",
     icon: IconDesign,
-    iconBg: "#FDEEF6",
-    iconColor: "#DB2777",
+    iconBg: "#EEF1F6",
+    iconColor: INK,
   },
   {
     title: "Listing & SEO",
@@ -123,8 +123,8 @@ const CATEGORIES = [
     count: "11 Tools",
     href: "/tools",
     icon: IconListing,
-    iconBg: "#FDEEE0",
-    iconColor: "#EA7C24",
+    iconBg: "#EEF1F6",
+    iconColor: INK,
   },
   {
     title: "Print-on-Demand",
@@ -132,8 +132,8 @@ const CATEGORIES = [
     count: "9 Tools",
     href: "/tools",
     icon: IconPod,
-    iconBg: "#E7F9EE",
-    iconColor: "#16A34A",
+    iconBg: "#EEF1F6",
+    iconColor: INK,
   },
 ];
 
@@ -233,13 +233,13 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
         className="relative overflow-hidden pt-20 text-center md:pt-24"
         style={{
           background:
-            "radial-gradient(1100px 480px at 50% -140px, rgba(108,93,245,0.09), transparent 70%)",
+            "radial-gradient(1100px 480px at 50% -140px, rgba(45,107,240,0.07), transparent 70%)",
         }}
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-[68px]">
             Stop guessing.{" "}
-            <span className="bg-clip-text text-transparent" style={{ backgroundImage: GRADIENT }}>
+            <span style={{ color: ACCENT }}>
               Compare First.
             </span>
           </h1>
@@ -252,7 +252,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
           <div className="relative mx-auto mt-14 grid max-w-4xl rounded-[28px] border border-slate-200 bg-white text-left shadow-[0_30px_80px_-20px_rgba(13,16,36,0.14)] md:grid-cols-2">
             <span
               className="absolute -top-4 right-9 rotate-[4deg] rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-white shadow-lg"
-              style={{ backgroundColor: ACCENT, boxShadow: "0 8px 20px rgba(108,93,245,0.4)" }}
+              style={{ backgroundColor: ACCENT, boxShadow: "0 8px 20px rgba(45,107,240,0.35)" }}
             >
               Best for Research
             </span>
@@ -266,8 +266,8 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   style={{
                     width: 52,
                     height: 52,
-                    backgroundColor: colIdx === 0 ? "#E7F9EE" : "#FDEEE0",
-                    color: colIdx === 0 ? "#16A34A" : "#EA7C24",
+                    backgroundColor: colIdx === 0 ? "#EAF1FE" : "#EEF1F6",
+                    color: colIdx === 0 ? ACCENT : INK,
                   }}
                 >
                   {colIdx === 0 ? <Zap className="h-6 w-6" /> : <Globe className="h-6 w-6" />}
@@ -287,7 +287,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                         <span>{m.label}</span>
                         <b
                           className="text-sm normal-case tracking-normal"
-                          style={{ color: win ? ACCENT : "#0D1024" }}
+                          style={{ color: win ? ACCENT : INK }}
                         >
                           {score.toFixed(1)}/10
                         </b>
@@ -297,7 +297,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                           className="h-full rounded-full"
                           style={{
                             width: `${score * 10}%`,
-                            background: win ? GRADIENT : "#0D1024",
+                            background: win ? ACCENT : INK,
                           }}
                         />
                       </div>
@@ -316,13 +316,13 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
             <Link
               href="/tools"
               className="inline-flex min-h-[52px] items-center justify-center rounded-full px-8 text-[15px] font-bold text-white transition-transform hover:-translate-y-0.5"
-              style={{ backgroundColor: ACCENT, boxShadow: "0 8px 24px rgba(108,93,245,0.35)" }}
+              style={{ backgroundColor: ACCENT, boxShadow: "0 8px 24px rgba(45,107,240,0.3)" }}
             >
               Explore Tool Leaderboard
             </Link>
             <Link
               href="/comparison"
-              className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-slate-200 bg-white px-8 text-[15px] font-bold text-slate-900 transition-colors hover:border-[#6C5DF5] hover:text-[#6C5DF5]"
+              className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-slate-200 bg-white px-8 text-[15px] font-bold text-slate-900 transition-colors hover:border-[#2D6BF0] hover:text-[#2D6BF0]"
             >
               Compare New Tools
             </Link>
@@ -357,7 +357,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                 <Link
                   key={cat.title}
                   href={cat.href}
-                  className="rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:border-[#DCD9F7] hover:shadow-[0_18px_40px_-14px_rgba(13,16,36,0.14)]"
+                  className="rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:border-[#C7DBFC] hover:shadow-[0_18px_40px_-14px_rgba(13,16,36,0.14)]"
                 >
                   <div
                     className="mb-5 grid h-11 w-11 place-items-center rounded-xl"
@@ -371,7 +371,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   </p>
                   <span
                     className="mt-4 inline-block rounded-full px-3.5 py-1.5 text-xs font-bold"
-                    style={{ color: ACCENT_TEXT, backgroundColor: "#EFEDFE" }}
+                    style={{ color: ACCENT_TEXT, backgroundColor: "#EAF1FE" }}
                   >
                     {cat.count}
                   </span>
@@ -473,7 +473,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                     </div>
                     <Link
                       href={reviewHref}
-                      className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-full border border-slate-200 text-[15px] font-bold transition-colors hover:border-[#6C5DF5] hover:text-[#6C5DF5]"
+                      className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-full border border-slate-200 text-[15px] font-bold transition-colors hover:border-[#2D6BF0] hover:text-[#2D6BF0]"
                     >
                       Read Full Review
                     </Link>
@@ -492,7 +492,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
             <h2 className="text-3xl font-semibold tracking-tight text-white md:text-[44px] md:leading-[1.1]">
               How we score tools.
             </h2>
-            <p className="mt-5 max-w-lg text-[17px] leading-relaxed" style={{ color: "#9AA0C3" }}>
+            <p className="mt-5 max-w-lg text-[17px] leading-relaxed" style={{ color: "#94A3B8" }}>
               No AI hype. No guaranteed-income promises. Every tool is installed, paid for, and run
               through the same Etsy workflow before it earns a score.
             </p>
@@ -504,8 +504,8 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                     <div
                       className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border"
                       style={{
-                        backgroundColor: "#11163A",
-                        borderColor: "#232A55",
+                        backgroundColor: "#151D2E",
+                        borderColor: "#26324A",
                         color: ACCENT,
                       }}
                     >
@@ -515,7 +515,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                       <h4 className="text-[15px] font-bold text-white">{f.title}</h4>
                       <p
                         className="mt-1 text-[13.5px] leading-relaxed"
-                        style={{ color: "#9AA0C3" }}
+                        style={{ color: "#94A3B8" }}
                       >
                         {f.body}
                       </p>
@@ -530,14 +530,14 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
           <div
             className="overflow-hidden rounded-2xl border"
             style={{
-              backgroundColor: "#0A0D24",
-              borderColor: "#20264D",
+              backgroundColor: "#080D1A",
+              borderColor: "#1E2A3F",
               boxShadow: "0 40px 90px -30px rgba(0,0,0,0.6)",
             }}
           >
             <div
               className="flex items-center gap-2 border-b px-5 py-3.5"
-              style={{ borderColor: "#1B2145" }}
+              style={{ borderColor: "#1E2A3F" }}
             >
               <span
                 className="h-[11px] w-[11px] rounded-full"
@@ -553,7 +553,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
               />
               <span
                 className="ml-auto text-[10.5px] font-bold uppercase tracking-[0.16em]"
-                style={{ color: "#7B81B0" }}
+                style={{ color: "#64748B" }}
               >
                 Real-Time Test Log
               </span>
@@ -564,15 +564,15 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   key={line.ts}
                   className="flex gap-4 whitespace-nowrap px-1.5 py-2.5"
                   style={{
-                    borderBottom: i < TERMINAL_LINES.length - 1 ? "1px solid #141A3D" : "none",
-                    color: line.kind === "wait" ? "#8A90BC" : "#C6CBE8",
+                    borderBottom: i < TERMINAL_LINES.length - 1 ? "1px solid #16202F" : "none",
+                    color: line.kind === "wait" ? "#7C8BA3" : "#CBD5E1",
                   }}
                 >
-                  <span style={{ color: "#9D92FA" }}>[{line.ts}]</span>
+                  <span style={{ color: "#7FA8F7" }}>[{line.ts}]</span>
                   <span className="overflow-hidden text-ellipsis">{line.text}</span>
                   <span
                     className="ml-auto font-bold"
-                    style={{ color: line.kind === "wait" ? "#7B81B0" : "#22C55E" }}
+                    style={{ color: line.kind === "wait" ? "#64748B" : "#22C55E" }}
                   >
                     {line.result}
                   </span>
@@ -639,7 +639,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                       </>
                     )}
                   </div>
-                  <h3 className="mt-2.5 text-[22px] font-semibold leading-snug tracking-tight transition-colors group-hover:text-[#6C5DF5]">
+                  <h3 className="mt-2.5 text-[22px] font-semibold leading-snug tracking-tight transition-colors group-hover:text-[#2D6BF0]">
                     {content.title}
                   </h3>
                   {content.excerpt && (
