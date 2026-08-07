@@ -18,7 +18,7 @@ const ACCENT = "#2D6BF0";
 const ACCENT_TEXT = "#1B49C7";
 const NAVY = "#0B1120";
 const INK = "#0B1120";
-const GREEN = "#16A34A";
+const GREEN = "#15803D";
 const AMBER = "#D97706";
 
 /* Benchmarks by category — systematic evaluation phases */
@@ -506,7 +506,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#22C55E" }} />
                 Active Audit Pipeline
               </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-slate-500">
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-slate-400">
                 v2.1.0-stable
               </span>
             </div>
