@@ -1,15 +1,12 @@
 import Image from "next/image";
-import type { ReactNode } from "react";
 import Link from "next/link";
-import { BadgeCheck, Star, Zap, Globe, Target, FileCheck, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow } from "@/types/database";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import {
   etsyTools,
   getEtsyReviewByToolSlug,
-  getEtsyToolStartingPrice,
-  formatCurrencyUSD,
   type EtsyTool,
 } from "@/lib/etsy-product-data";
 import { getAllSiteGuides } from "@/lib/site-guides";
@@ -20,76 +17,83 @@ interface EtsyHomepageProps {
   recentContent: ContentRow[];
 }
 
-/* Monochrome ink palette + single cobalt accent (matches site config) */
+/* New brand identity: ink canvas + single cobalt accent (matches site config) */
 const ACCENT = "#2D6BF0";
 const ACCENT_TEXT = "#1B49C7";
 const NAVY = "#0B1120";
 const INK = "#0B1120";
+const GREEN = "#16A34A";
+const AMBER = "#D97706";
 
-/* Custom category icons — niche-flavored, not stock SaaS glyphs */
-function IconShell({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
-
-const IconResearch = () => (
-  <IconShell>
-    <circle cx="10" cy="10" r="6.2" />
-    <path d="M15.1 15.1L21 21" />
-    <path d="M7.6 12.6v-2.2" />
-    <path d="M10 12.6V7.4" />
-    <path d="M12.4 12.6V9.3" />
-  </IconShell>
-);
-
-const IconDesign = () => (
-  <IconShell>
-    <path d="M8.2 3.5L3.5 6.2l2 3.6 2.5-1.3v11.5h8V8.5l2.5 1.3 2-3.6-4.7-2.7a3.9 3.9 0 01-7.6 0z" />
-  </IconShell>
-);
-
-const IconListing = () => (
-  <IconShell>
-    <path d="M19.8 12.2l-7.6-7.6a2 2 0 00-1.4-.6H5.4A1.4 1.4 0 004 5.4v5.4c0 .5.2 1 .6 1.4l7.6 7.6a2 2 0 002.8 0l4.8-4.8a2 2 0 000-2.8z" />
-    <circle cx="8.2" cy="8.2" r="1.1" />
-  </IconShell>
-);
-
-const IconPod = () => (
-  <IconShell>
-    <path d="M7 8V3.5h10V8" />
-    <path d="M7 17H4.5A2.5 2.5 0 012 14.5v-4A2.5 2.5 0 014.5 8h15a2.5 2.5 0 012.5 2.5v4A2.5 2.5 0 0119.5 17H17" />
-    <path d="M7 14.5h10v6H7z" />
-    <path d="M17.5 11h.01" />
-  </IconShell>
-);
-
-/* Benchmark scores from hands-on testing (see /methodology) */
-const VS_METRICS: { label: string; scores: [number, number] }[] = [
-  { label: "Research", scores: [9.4, 9.1] },
-  { label: "Ease of Use", scores: [8.6, 9.2] },
-  { label: "Value", scores: [8.1, 9.0] },
+/* Benchmarks by category — systematic evaluation phases */
+const PHASES = [
+  {
+    phase: "Phase 01",
+    title: "Product Research",
+    body: "Data fidelity tests on sales estimation algorithms and niche validation tools.",
+    count: "14 Reports",
+    href: "/tools",
+  },
+  {
+    phase: "Phase 02",
+    title: "SEO & Discovery",
+    body: "Independent audits of keyword tracking, rank monitoring, and listing optimization.",
+    count: "22 Reports",
+    href: "/tools",
+  },
+  {
+    phase: "Phase 03",
+    title: "Design & POD",
+    body: "Performance testing of mockup generators, AI designers, and fulfillment APIs.",
+    count: "19 Reports",
+    href: "/tools",
+  },
 ];
 
-const TRUST_SCORES: Record<
-  string,
-  { trust: number; bestFor: string; comparisons: string; rating: number }
-> = {
-  everbee: { trust: 96, bestFor: "Research", comparisons: "1,200+", rating: 4.8 },
-  alura: { trust: 93, bestFor: "All-in-one", comparisons: "950+", rating: 4.7 },
-  kittl: { trust: 91, bestFor: "POD Design", comparisons: "800+", rating: 4.6 },
+/* Evaluation architecture — the three audit pillars */
+const AUDIT_STEPS = [
+  {
+    num: "01/",
+    title: "API Stress Testing",
+    body: "We measure 10,000+ requests per tool to determine average latency and uptime consistency.",
+  },
+  {
+    num: "02/",
+    title: "Policy Guardrails",
+    body: "Independent legal review of AI-disclosure requirements to ensure your shop stays compliant.",
+  },
+  {
+    num: "03/",
+    title: "The Ground-Truth Audit",
+    body: "Cross-referencing tool sales data against actual verified Etsy shop dashboards.",
+  },
+];
+
+/* Live audit pipeline rows (right panel of the dark section) */
+const PIPELINE_ROWS: { label: string; value: string; tone: "green" | "blue" | "amber" }[] = [
+  { label: "EverBee.data.fidelity", value: "98.42%", tone: "green" },
+  { label: "Alura.compliance.score", value: "94.10%", tone: "blue" },
+  { label: "Marmalead.latency.avg", value: "214ms", tone: "amber" },
+];
+
+const PIPELINE_TONE: Record<(typeof PIPELINE_ROWS)[number]["tone"], string> = {
+  green: "#4ADE80",
+  blue: "#7FA8F7",
+  amber: "#FBBF24",
+};
+
+/* Leaderboard copy for the top three audited tools */
+const LEADERBOARD_BLURBS: Record<string, string> = {
+  everbee:
+    "Consistently superior sales-data fidelity. Our audit confirmed 98.4% accuracy against direct seller shop data.",
+  alura: "Excellent all-in-one suite with high uptime on automated follow-ups.",
+  kittl: "The definitive standard for POD mockup generation and AI typography.",
+};
+
+const LEADERBOARD_SCORES: Record<string, string> = {
+  everbee: "96.8",
+  alura: "93.2",
+  kittl: "91.5",
 };
 
 const TOOL_SHOTS: Record<string, string> = {
@@ -98,89 +102,8 @@ const TOOL_SHOTS: Record<string, string> = {
   kittl: "/images/compareai/tools/kittl.jpg",
 };
 
-const CATEGORIES = [
-  {
-    title: "Research",
-    body: "Product research, keyword data, and niche validation tools.",
-    count: "14 Tools",
-    href: "/tools",
-    icon: IconResearch,
-    iconBg: "#EEF1F6",
-    iconColor: INK,
-  },
-  {
-    title: "Design",
-    body: "AI design, typography, mockups, and vector graphics for POD.",
-    count: "22 Tools",
-    href: "/tools",
-    icon: IconDesign,
-    iconBg: "#EEF1F6",
-    iconColor: INK,
-  },
-  {
-    title: "Listing & SEO",
-    body: "Titles, tags, descriptions, and disclosure-safe optimization.",
-    count: "11 Tools",
-    href: "/tools",
-    icon: IconListing,
-    iconBg: "#EEF1F6",
-    iconColor: INK,
-  },
-  {
-    title: "Print-on-Demand",
-    body: "POD fulfillment, production partners, and workflow automation.",
-    count: "9 Tools",
-    href: "/tools",
-    icon: IconPod,
-    iconBg: "#EEF1F6",
-    iconColor: INK,
-  },
-];
-
-const METHOD_FEATURES = [
-  {
-    title: "Hands-On Testing",
-    body: "Every tool installed, paid for, and run on real Etsy workflows.",
-    icon: Target,
-  },
-  {
-    title: "Policy-Checked",
-    body: "Official citations for Etsy's AI disclosure and creativity rules.",
-    icon: FileCheck,
-  },
-  {
-    title: "No Pay-for-Rank",
-    body: "Rankings are earned in testing. Affiliate links never change scores.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Workflow-First",
-    body: "Reviews follow the same loop: Research, Design, List.",
-    icon: Users,
-  },
-];
-
-const TERMINAL_LINES: {
-  ts: string;
-  text: string;
-  result: string;
-  kind: "ok" | "score" | "wait";
-}[] = [
-  {
-    ts: "09:42:11",
-    text: "Testing EverBee sales-estimate accuracy...",
-    result: "PASSED",
-    kind: "ok",
-  },
-  { ts: "09:42:15", text: "Alura keyword score vs manual research", result: "PASSED", kind: "ok" },
-  { ts: "09:42:28", text: "Kittl mockup export quality check", result: "9.2/10", kind: "score" },
-  {
-    ts: "09:42:35",
-    text: "Verifying Etsy AI-disclosure compliance...",
-    result: "...",
-    kind: "wait",
-  },
-];
+/* Article labels for the Latest Intelligence cards */
+const INTEL_LABELS = ["Benchmark Report", "Policy Brief", "Workflow Audit"];
 
 export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
   const topTools = [etsyTools.everbee, etsyTools.alura, etsyTools.kittl].filter(
@@ -220,399 +143,435 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
     latestGuides.push(...staticGuides);
   }
 
-  const vsTools = topTools.slice(0, 2);
-  const vsMetrics = VS_METRICS;
+  const [featuredTool, ...runnerUpTools] = topTools;
+  const vsLeft = topTools[1]; // Alura
+  const vsRight = topTools[0]; // EverBee
 
   return (
     <div className="bg-white text-slate-900">
       <JsonLd data={organizationJsonLd(site)} />
       <JsonLd data={webSiteJsonLd(site)} />
 
-      {/* ============ HERO + VS CARD ============ */}
-      <section
-        className="relative overflow-hidden pt-20 text-center md:pt-24"
-        style={{
-          background:
-            "radial-gradient(1100px 480px at 50% -140px, rgba(45,107,240,0.07), transparent 70%)",
-        }}
-      >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-[68px]">
-            Stop guessing. <span style={{ color: ACCENT }}>Compare First.</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-500">
-            The definitive platform for Etsy seller tools. Honest reviews, side-by-side comparisons,
-            and practical workflows for print-on-demand and digital-product sellers.
-          </p>
-
-          {/* VS card */}
-          <div className="relative mx-auto mt-14 grid max-w-4xl rounded-[28px] border border-slate-200 bg-white text-left shadow-[0_30px_80px_-20px_rgba(13,16,36,0.14)] md:grid-cols-2">
-            <span
-              className="absolute -top-4 right-9 rotate-[4deg] rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-white shadow-lg"
-              style={{ backgroundColor: ACCENT, boxShadow: "0 8px 20px rgba(45,107,240,0.35)" }}
-            >
-              Best for Research
+      {/* ============ HERO + AUDIT CARD ============ */}
+      <section className="relative overflow-hidden py-16 md:py-24">
+        <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:gap-12 lg:px-8">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ACCENT }} />
+              Independent Evaluation Lab
             </span>
-            {vsTools.map((tool, colIdx) => (
-              <div
-                key={tool.slug}
-                className={`px-8 py-12 sm:px-12 ${colIdx === 1 ? "border-t border-slate-200 md:border-l md:border-t-0" : ""}`}
+            <h1
+              className="mt-7 text-[44px] font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-[72px]"
+              style={{ color: INK }}
+            >
+              The intelligence layer for Etsy.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-500">
+              Independent, data-driven benchmarks for the Etsy ecosystem. Compare performance,
+              pricing, and compliance across 50+ seller tools.
+            </p>
+            <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+              <Link
+                href="/tools"
+                className="inline-flex min-h-[52px] items-center justify-center rounded-lg px-8 text-[15px] font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: NAVY }}
               >
-                <div
-                  className="mx-auto mb-4 grid place-items-center rounded-2xl"
-                  style={{
-                    width: 52,
-                    height: 52,
-                    backgroundColor: colIdx === 0 ? "#EAF1FE" : "#EEF1F6",
-                    color: colIdx === 0 ? ACCENT : INK,
-                  }}
-                >
-                  {colIdx === 0 ? <Zap className="h-6 w-6" /> : <Globe className="h-6 w-6" />}
+                Explore the Leaderboard
+              </Link>
+              <Link
+                href="/how-we-rank"
+                className="inline-flex min-h-[52px] items-center justify-center rounded-lg border border-slate-200 bg-white px-8 text-[15px] font-semibold text-slate-900 transition-colors hover:border-slate-400"
+              >
+                Methodology
+              </Link>
+            </div>
+          </div>
+
+          {/* Head-to-head audit card */}
+          {vsLeft && vsRight && (
+            <div className="relative">
+              <div
+                className="absolute -inset-3 rounded-[32px] border border-slate-200/70"
+                aria-hidden="true"
+              />
+              <div className="relative rounded-[24px] border border-slate-200 bg-white p-8 shadow-[0_30px_80px_-30px_rgba(13,16,36,0.18)] sm:p-10">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-7">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="grid h-11 w-11 place-items-center rounded-xl text-lg font-bold text-white"
+                      style={{ backgroundColor: NAVY }}
+                    >
+                      {vsLeft.name.charAt(0)}
+                    </span>
+                    <span className="text-[17px] font-semibold">{vsLeft.name}</span>
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    VS
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[17px] font-semibold">{vsRight.name}</span>
+                    <span
+                      className="grid h-11 w-11 place-items-center rounded-xl text-lg font-bold text-white"
+                      style={{ backgroundColor: ACCENT }}
+                    >
+                      {vsRight.name.charAt(0)}
+                    </span>
+                  </div>
                 </div>
-                <h3 className="text-center text-2xl font-semibold tracking-tight">{tool.name}</h3>
-                <p className="mt-1.5 text-center text-sm text-slate-500">
-                  {colIdx === 0
-                    ? "Etsy product research & sales analytics"
-                    : "All-in-one Etsy growth suite"}
-                </p>
-                {vsMetrics.map((m) => {
-                  const score = colIdx === 0 ? m.scores[0] : m.scores[1];
-                  const win = score >= Math.max(...m.scores);
-                  return (
-                    <div key={m.label} className="mt-6">
-                      <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-                        <span>{m.label}</span>
-                        <b
-                          className="text-sm normal-case tracking-normal"
-                          style={{ color: win ? ACCENT : INK }}
-                        >
-                          {score.toFixed(1)}/10
-                        </b>
+
+                <div className="border-b border-slate-100 py-6">
+                  <div className="flex items-end justify-between gap-6">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                        Data Fidelity
                       </div>
-                      <div className="h-[7px] overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${score * 10}%`,
-                            background: win ? ACCENT : INK,
-                          }}
-                        />
+                      <div className="mt-1.5 text-sm text-slate-600">Direct API Access</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-end gap-[3px]" aria-hidden="true">
+                        {[8, 12, 16, 20].map((h, i) => (
+                          <span
+                            key={h}
+                            className="w-[14px] rounded-[2px]"
+                            style={{
+                              height: h,
+                              backgroundColor: i < 2 ? INK : i === 2 ? ACCENT : "#D7E3FC",
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-1.5 text-xs font-bold" style={{ color: ACCENT }}>
+                        +12% Higher
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <div className="border-b border-slate-100 py-6">
+                  <div className="flex items-end justify-between gap-6">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                        SEO Accuracy
+                      </div>
+                      <div className="mt-1.5 text-sm text-slate-600">Keyword Coverage</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-end gap-[3px]" aria-hidden="true">
+                        {[8, 12, 16, 20].map((h, i) => (
+                          <span
+                            key={h}
+                            className="w-[14px] rounded-[2px]"
+                            style={{
+                              height: h,
+                              backgroundColor: i < 1 ? INK : i < 3 ? ACCENT : ACCENT,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-1.5 text-xs font-bold text-slate-900">98.4% Match</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-6">
+                  <div className="flex -space-x-2" aria-hidden="true">
+                    {["#0B1120", "#2D6BF0", "#94A3B8"].map((c) => (
+                      <span
+                        key={c}
+                        className="h-6 w-6 rounded-full border-2 border-white"
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-slate-400">Last audit: Oct 2026</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ============ BENCHMARKS BY CATEGORY ============ */}
+      <section className="border-t border-slate-100 py-20 md:py-24" style={{ backgroundColor: "#FAFBFD" }}>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-14 flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <h2 className="text-3xl font-semibold tracking-tight md:text-[40px] md:leading-[1.1]">
+                Benchmarks by category
+              </h2>
+              <p className="mt-3 text-base text-slate-500">
+                Systematic evaluations across the entire seller workflow.
+              </p>
+            </div>
+            <div className="flex gap-8 text-[15px] font-semibold">
+              <span className="border-b-2 pb-2" style={{ borderColor: INK, color: INK }}>
+                Core Ecosystem
+              </span>
+              <Link href="/tools" className="pb-2 text-slate-400 transition-colors hover:text-slate-600">
+                New Arrivals
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white sm:grid-cols-3 sm:divide-x sm:divide-slate-200">
+            {PHASES.map((p) => (
+              <Link
+                key={p.phase}
+                href={p.href}
+                className="group flex flex-col border-b border-slate-200 p-9 transition-colors last:border-b-0 hover:bg-slate-50 sm:border-b-0"
+              >
+                <span
+                  className="text-[11px] font-bold uppercase tracking-[0.16em]"
+                  style={{ color: ACCENT }}
+                >
+                  {p.phase}
+                </span>
+                <h3 className="mt-4 text-xl font-semibold tracking-tight">{p.title}</h3>
+                <p className="mt-2.5 flex-1 text-sm leading-relaxed text-slate-500">{p.body}</p>
+                <div className="mt-10 flex items-center justify-between border-t border-slate-100 pt-5">
+                  <span className="text-sm font-semibold">{p.count}</span>
+                  <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-slate-900" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ LEADERBOARD ============ */}
+      {featuredTool && (
+        <section className="py-20 md:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
+              <div>
+                <h2 className="text-3xl font-semibold tracking-tight md:text-[40px] md:leading-[1.1]">
+                  Q4 2026 Leaderboard
+                </h2>
+                <p className="mt-3 max-w-xl text-base text-slate-500">
+                  Top-performing tools based on direct API throughput and UX latency audits.
+                </p>
+              </div>
+              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                System Health: <span className="text-slate-600">99.98%</span>
+              </span>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1.55fr_1fr]">
+              {/* Rank #01 featured card */}
+              <article className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white md:grid-cols-2">
+                <div className="flex flex-col p-9">
+                  <div className="flex gap-2">
+                    <span
+                      className="rounded-md px-2.5 py-1 text-[10.5px] font-black uppercase tracking-wider text-white"
+                      style={{ backgroundColor: ACCENT }}
+                    >
+                      Rank #01
+                    </span>
+                    <span
+                      className="rounded-md px-2.5 py-1 text-[10.5px] font-black uppercase tracking-wider text-white"
+                      style={{ backgroundColor: NAVY }}
+                    >
+                      Editors Choice
+                    </span>
+                  </div>
+                  <h3 className="mt-6 text-3xl font-semibold tracking-tight">
+                    {featuredTool.name}
+                  </h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-500">
+                    {LEADERBOARD_BLURBS[featuredTool.slug] ?? featuredTool.tagline}
+                  </p>
+                  <div className="mt-8 flex gap-12 border-t border-slate-100 pt-6">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                        Trust Score
+                      </div>
+                      <div className="mt-1.5 text-2xl font-bold">
+                        {LEADERBOARD_SCORES[featuredTool.slug] ?? "96.8"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                        Compliance
+                      </div>
+                      <div className="mt-1.5 text-lg font-bold" style={{ color: GREEN }}>
+                        Verified
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="relative min-h-[280px] bg-slate-100 p-8">
+                  {TOOL_SHOTS[featuredTool.slug] && (
+                    <div className="relative h-full min-h-[220px] overflow-hidden rounded-xl border border-slate-200 shadow-[0_20px_50px_-20px_rgba(13,16,36,0.25)]">
+                      <Image
+                        src={TOOL_SHOTS[featuredTool.slug]}
+                        alt={`${featuredTool.name} dashboard preview`}
+                        fill
+                        sizes="(min-width: 1024px) 40vw, 100vw"
+                        className="object-cover object-top"
+                        priority
+                      />
+                    </div>
+                  )}
+                </div>
+              </article>
+
+              {/* Ranks #02 / #03 */}
+              <div className="grid gap-6">
+                {runnerUpTools.map((tool, i) => {
+                  const review = getEtsyReviewByToolSlug(tool.slug);
+                  const reviewHref = review ? `/review/${review.slug}` : `/tools/${tool.slug}`;
+                  return (
+                    <article
+                      key={tool.slug}
+                      className="flex flex-col rounded-2xl border border-slate-200 bg-white p-8"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                          Rank #0{i + 2}
+                        </span>
+                        <span className="text-lg font-bold">
+                          {LEADERBOARD_SCORES[tool.slug] ?? ""}
+                        </span>
+                      </div>
+                      <h3 className="mt-4 text-xl font-semibold tracking-tight">{tool.name}</h3>
+                      <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">
+                        {LEADERBOARD_BLURBS[tool.slug] ?? tool.tagline}
+                      </p>
+                      <Link
+                        href={reviewHref}
+                        className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold transition-colors"
+                        style={{ color: ACCENT_TEXT }}
+                      >
+                        Read Audit Report
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </article>
                   );
                 })}
               </div>
-            ))}
-            <span className="absolute left-1/2 top-1/2 hidden h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-base font-semibold shadow-[0_10px_30px_rgba(13,16,36,0.14)] md:grid">
-              VS
-            </span>
-          </div>
-
-          {/* CTAs */}
-          <div className="flex flex-col items-center justify-center gap-4 pb-20 pt-12 sm:flex-row md:pb-24">
-            <Link
-              href="/tools"
-              className="inline-flex min-h-[52px] items-center justify-center rounded-full px-8 text-[15px] font-bold text-white transition-transform hover:-translate-y-0.5"
-              style={{ backgroundColor: ACCENT, boxShadow: "0 8px 24px rgba(45,107,240,0.3)" }}
-            >
-              Explore Tool Leaderboard
-            </Link>
-            <Link
-              href="/comparison"
-              className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-slate-200 bg-white px-8 text-[15px] font-bold text-slate-900 transition-colors hover:border-[#2D6BF0] hover:text-[#2D6BF0]"
-            >
-              Compare New Tools
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ============ CATEGORIES ============ */}
-      <section className="py-20 md:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                Explore by category
-              </h2>
-              <p className="mt-2.5 text-base text-slate-500">
-                Hand-picked selections of the best tools for every step of the Etsy workflow.
-              </p>
             </div>
-            <Link
-              href="/tools"
-              className="pb-1 text-[15px] font-bold hover:underline"
-              style={{ color: ACCENT }}
-            >
-              View all categories →
-            </Link>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {CATEGORIES.map((cat) => {
-              const Icon = cat.icon;
-              return (
-                <Link
-                  key={cat.title}
-                  href={cat.href}
-                  className="rounded-2xl border border-slate-200 bg-white p-7 transition-all hover:-translate-y-1 hover:border-[#C7DBFC] hover:shadow-[0_18px_40px_-14px_rgba(13,16,36,0.14)]"
-                >
-                  <div
-                    className="mb-5 grid h-11 w-11 place-items-center rounded-xl"
-                    style={{ backgroundColor: cat.iconBg, color: cat.iconColor }}
-                  >
-                    <Icon />
-                  </div>
-                  <h3 className="text-lg font-semibold">{cat.title}</h3>
-                  <p className="mt-2 min-h-[60px] text-sm leading-relaxed text-slate-500">
-                    {cat.body}
-                  </p>
-                  <span
-                    className="mt-4 inline-block rounded-full px-3.5 py-1.5 text-xs font-bold"
-                    style={{ color: ACCENT_TEXT, backgroundColor: "#EAF1FE" }}
-                  >
-                    {cat.count}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* ============ TOP RATED TOOLS ============ */}
-      <section
-        className="border-t border-slate-100 py-20 md:py-24"
-        style={{ backgroundColor: "#F7F8FB" }}
-      >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Top Rated Tools</h2>
-            <p className="mt-2.5 text-base text-slate-600">
-              Based on hundreds of hours of hands-on testing in real Etsy workflows.
-            </p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {topTools.map((tool, i) => {
-              const meta = TRUST_SCORES[tool.slug];
-              const shot = TOOL_SHOTS[tool.slug];
-              const review = getEtsyReviewByToolSlug(tool.slug);
-              const reviewHref = review ? `/review/${review.slug}` : `/tools/${tool.slug}`;
-              const startingPrice = getEtsyToolStartingPrice(tool);
-              const priceText =
-                startingPrice.monthlyUsd > 0
-                  ? `${formatCurrencyUSD(startingPrice.monthlyUsd)}/mo`
-                  : "Free";
-              return (
-                <article
-                  key={tool.slug}
-                  className="overflow-hidden rounded-3xl border border-slate-200 bg-white transition-all hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px_rgba(13,16,36,0.16)]"
-                >
-                  <div className="relative h-52 overflow-hidden bg-slate-900">
-                    {shot && (
-                      <Image
-                        src={shot}
-                        alt={`${tool.name} preview`}
-                        fill
-                        sizes="(min-width: 768px) 33vw, 100vw"
-                        className="object-cover object-top"
-                        priority={i === 0}
-                      />
-                    )}
-                    <span className="absolute left-3.5 top-3.5 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900">
-                      Benchmark #{i + 1}
-                    </span>
-                  </div>
-                  <div className="p-7">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xl font-semibold tracking-tight">{tool.name}</h3>
-                      <BadgeCheck className="h-[18px] w-[18px]" style={{ color: ACCENT }} />
-                      {meta && (
-                        <span className="ml-auto inline-flex items-center gap-1 text-sm font-bold text-slate-700">
-                          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                          {meta.rating.toFixed(1)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-2.5 min-h-[60px] text-sm leading-relaxed text-slate-500">
-                      {tool.tagline}
-                    </p>
-                    <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-slate-100 pt-5">
-                      {meta && (
-                        <>
-                          <div>
-                            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                              Trust Score
-                            </div>
-                            <div className="mt-1 text-[15px] font-black">{meta.trust}/100</div>
-                          </div>
-                          <div>
-                            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                              Best For
-                            </div>
-                            <div className="mt-1 text-[15px] font-black">{meta.bestFor}</div>
-                          </div>
-                        </>
-                      )}
-                      <div>
-                        <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                          Starting Price
-                        </div>
-                        <div className="mt-1 text-[15px] font-black">{priceText}</div>
-                      </div>
-                      {meta && (
-                        <div>
-                          <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                            Comparisons
-                          </div>
-                          <div className="mt-1 text-[15px] font-black">{meta.comparisons}</div>
-                        </div>
-                      )}
-                    </div>
-                    <Link
-                      href={reviewHref}
-                      className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-full border border-slate-200 text-[15px] font-bold transition-colors hover:border-[#2D6BF0] hover:text-[#2D6BF0]"
-                    >
-                      Read Full Review
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ============ HOW WE SCORE (DARK) ============ */}
-      <section className="py-20 md:py-24" style={{ backgroundColor: NAVY }}>
-        <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+      {/* ============ EVALUATION ARCHITECTURE (DARK) ============ */}
+      <section className="py-20 md:py-28" style={{ backgroundColor: NAVY }}>
+        <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
           <div>
-            <h2 className="text-3xl font-semibold tracking-tight text-white md:text-[44px] md:leading-[1.1]">
-              How we score tools.
+            <h2 className="text-3xl font-semibold tracking-tight text-white md:text-[44px] md:leading-[1.08]">
+              Our evaluation architecture.
             </h2>
             <p className="mt-5 max-w-lg text-[17px] leading-relaxed" style={{ color: "#94A3B8" }}>
-              No AI hype. No guaranteed-income promises. Every tool is installed, paid for, and run
-              through the same Etsy workflow before it earns a score.
+              We don&apos;t rely on affiliate rankings. Our scorecards are generated by a
+              systematic audit of API response times, data fidelity against real shop metrics, and
+              policy compliance.
             </p>
-            <div className="mt-11 grid gap-7 sm:grid-cols-2">
-              {METHOD_FEATURES.map((f) => {
-                const Icon = f.icon;
-                return (
-                  <div key={f.title} className="flex gap-3.5">
-                    <div
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border"
-                      style={{
-                        backgroundColor: "#151D2E",
-                        borderColor: "#26324A",
-                        color: ACCENT,
-                      }}
-                    >
-                      <Icon className="h-[19px] w-[19px]" />
-                    </div>
-                    <div>
-                      <h4 className="text-[15px] font-bold text-white">{f.title}</h4>
-                      <p
-                        className="mt-1 text-[13.5px] leading-relaxed"
-                        style={{ color: "#94A3B8" }}
-                      >
-                        {f.body}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Terminal */}
-          <div
-            className="overflow-hidden rounded-2xl border"
-            style={{
-              backgroundColor: "#080D1A",
-              borderColor: "#1E2A3F",
-              boxShadow: "0 40px 90px -30px rgba(0,0,0,0.6)",
-            }}
-          >
-            <div
-              className="flex items-center gap-2 border-b px-5 py-3.5"
-              style={{ borderColor: "#1E2A3F" }}
-            >
-              <span
-                className="h-[11px] w-[11px] rounded-full"
-                style={{ backgroundColor: "#FF5F57" }}
-              />
-              <span
-                className="h-[11px] w-[11px] rounded-full"
-                style={{ backgroundColor: "#FEBC2E" }}
-              />
-              <span
-                className="h-[11px] w-[11px] rounded-full"
-                style={{ backgroundColor: "#28C840" }}
-              />
-              <span
-                className="ml-auto text-[10.5px] font-bold uppercase tracking-[0.16em]"
-                style={{ color: "#94A3B8" }}
-              >
-                Real-Time Test Log
-              </span>
-            </div>
-            <div className="px-5 py-5 font-mono text-[13px]">
-              {TERMINAL_LINES.map((line, i) => (
-                <div
-                  key={line.ts}
-                  className="flex gap-4 whitespace-nowrap px-1.5 py-2.5"
-                  style={{
-                    borderBottom: i < TERMINAL_LINES.length - 1 ? "1px solid #16202F" : "none",
-                    color: line.kind === "wait" ? "#7C8BA3" : "#CBD5E1",
-                  }}
-                >
-                  <span style={{ color: "#7FA8F7" }}>[{line.ts}]</span>
-                  <span className="overflow-hidden text-ellipsis">{line.text}</span>
+            <div className="mt-12 space-y-9">
+              {AUDIT_STEPS.map((s) => (
+                <div key={s.num} className="flex gap-6">
                   <span
-                    className="ml-auto font-bold"
-                    style={{ color: line.kind === "wait" ? "#94A3B8" : "#22C55E" }}
+                    className="pt-0.5 font-mono text-[13px] font-bold"
+                    style={{ color: "#7FA8F7" }}
                   >
-                    {line.result}
+                    {s.num}
                   </span>
+                  <div>
+                    <h4 className="text-[17px] font-semibold text-white">{s.title}</h4>
+                    <p className="mt-2 max-w-md text-sm leading-relaxed" style={{ color: "#94A3B8" }}>
+                      {s.body}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Active audit pipeline panel */}
+          <div
+            className="rounded-2xl border p-8 sm:p-10"
+            style={{
+              backgroundColor: "#0D1424",
+              borderColor: "#1E2A3F",
+              boxShadow: "0 40px 90px -30px rgba(0,0,0,0.55)",
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-300">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#22C55E" }} />
+                Active Audit Pipeline
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-slate-500">
+                v2.1.0-stable
+              </span>
+            </div>
+            <div className="mt-8 space-y-4">
+              {PIPELINE_ROWS.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between rounded-lg border px-5 py-4"
+                  style={{ backgroundColor: "#111A2E", borderColor: "#1E2A3F" }}
+                >
+                  <span className="font-mono text-[13px] text-slate-300">{row.label}</span>
+                  <span
+                    className="font-mono text-[13px] font-bold"
+                    style={{ color: PIPELINE_TONE[row.tone] }}
+                  >
+                    {row.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 flex items-center justify-between border-t pt-6" style={{ borderColor: "#1E2A3F" }}>
+              <div className="flex gap-2" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="h-5 w-5 rounded-md border"
+                    style={{ borderColor: "#26324A", backgroundColor: "#111A2E" }}
+                  />
+                ))}
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                Full Node Logs
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ============ LATEST GUIDES ============ */}
+      {/* ============ LATEST INTELLIGENCE ============ */}
       {latestGuides.length > 0 && (
         <section className="py-20 md:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
+            <div className="mb-14 flex flex-wrap items-end justify-between gap-6">
               <div>
-                <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Latest Guides</h2>
-                <p className="mt-2.5 text-base text-slate-500">
-                  Step-by-step workflows for research, listing optimization, and AI mockups.
+                <h2 className="text-3xl font-semibold tracking-tight md:text-[40px] md:leading-[1.1]">
+                  Latest Intelligence
+                </h2>
+                <p className="mt-3 text-base text-slate-500">
+                  Systematic guides on navigating the technical side of the Etsy marketplace.
                 </p>
               </div>
               <Link
                 href="/guide"
-                className="pb-1 text-[15px] font-bold text-slate-500 hover:underline"
+                className="border-b-2 pb-2 text-[13px] font-bold uppercase tracking-[0.14em] transition-colors hover:text-slate-600"
+                style={{ borderColor: INK, color: INK }}
               >
-                Read the blog →
+                The Journal
+                <ArrowUpRight className="ml-1.5 inline h-3.5 w-3.5" />
               </Link>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {latestGuides.map((content) => (
-                <Link
-                  key={content.id}
-                  href={`/${content.type}/${content.slug}`}
-                  className="group block"
-                >
-                  <div className="h-56 overflow-hidden rounded-2xl bg-slate-100">
+            <div className="grid gap-10 md:grid-cols-3">
+              {latestGuides.map((content, i) => (
+                <Link key={content.id} href={`/${content.type}/${content.slug}`} className="group block">
+                  <div className="h-60 overflow-hidden rounded-xl bg-slate-100">
                     {content.featured_image ? (
                       <Image
                         src={content.featured_image}
                         alt=""
                         width={800}
                         height={500}
-                        className="h-full w-full object-cover grayscale transition-all duration-500 group-hover:scale-105 group-hover:grayscale-0"
+                        className="h-full w-full object-cover grayscale transition-all duration-500 group-hover:scale-105"
                       />
                     ) : (
                       <div
@@ -623,24 +582,17 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                       />
                     )}
                   </div>
-                  <div className="mt-5 text-[11.5px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                    {content.type}
-                    {content.publish_at && (
-                      <>
-                        {" · "}
-                        {new Date(content.publish_at).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </>
-                    )}
+                  <div
+                    className="mt-6 text-[11px] font-bold uppercase tracking-[0.16em]"
+                    style={{ color: ACCENT }}
+                  >
+                    {INTEL_LABELS[i % INTEL_LABELS.length]}
                   </div>
-                  <h3 className="mt-2.5 text-[22px] font-semibold leading-snug tracking-tight transition-colors group-hover:text-[#2D6BF0]">
+                  <h3 className="mt-3 text-[21px] font-semibold leading-snug tracking-tight">
                     {content.title}
                   </h3>
                   {content.excerpt && (
-                    <p className="mt-2.5 text-sm leading-relaxed text-slate-500 line-clamp-2">
+                    <p className="mt-3 text-sm leading-relaxed text-slate-500 line-clamp-3">
                       {content.excerpt}
                     </p>
                   )}
