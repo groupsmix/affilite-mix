@@ -23,7 +23,9 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
   if (site.slug === "ai-compared") {
     return <LightLabFooter site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />;
   }
-  return <DarkCompareFooter site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />;
+  return (
+    <DarkCompareFooter site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />
+  );
 }
 
 function LightLabFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterCompareProps) {
@@ -45,10 +47,7 @@ function LightLabFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterCompare
     { heading: "Audits", links: quickLinks.slice(0, 4) },
     {
       heading: "Resources",
-      links: [
-        { href: "/how-we-rank", label: "Methodology" },
-        ...dbLinks.slice(0, 3),
-      ].slice(0, 4),
+      links: [{ href: "/how-we-rank", label: "Methodology" }, ...dbLinks.slice(0, 3)].slice(0, 4),
     },
     { heading: "Legal", links: legalLinks.slice(0, 4) },
   ].filter((col) => col.links.length > 0);
