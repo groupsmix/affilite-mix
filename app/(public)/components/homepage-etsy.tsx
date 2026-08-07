@@ -79,7 +79,7 @@ const PIPELINE_ROWS: { label: string; value: string; tone: "green" | "blue" | "a
 const PIPELINE_TONE: Record<(typeof PIPELINE_ROWS)[number]["tone"], string> = {
   green: "#4ADE80",
   blue: "#7FA8F7",
-  amber: "#FBBF24",
+  amber: AMBER,
 };
 
 /* Leaderboard copy for the top three audited tools */
