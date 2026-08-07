@@ -117,18 +117,18 @@ function LightLabFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterCompare
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#22C55E" }} />
             &copy; {year} Independent Evaluation Lab. All rights reserved.
           </p>
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500">
             <span>
               Uptime: <span className="text-slate-600">99.98%</span>
             </span>
             <CookieSettingsButton
               label="Cookies"
-              className="font-mono text-[11px] uppercase tracking-[0.14em] text-slate-400 transition-colors hover:text-slate-900"
+              className="font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-slate-900"
             />
           </div>
         </div>
 
-        <p className="mt-6 max-w-3xl text-xs leading-relaxed text-slate-400">
+        <p className="mt-6 max-w-3xl text-xs leading-relaxed text-slate-500">
           {site.affiliateDisclosure || site.contentDisclosure}
         </p>
       </div>

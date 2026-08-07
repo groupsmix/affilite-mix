@@ -202,7 +202,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                     </span>
                     <span className="text-[17px] font-semibold">{vsLeft.name}</span>
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
                     VS
                   </span>
                   <div className="flex items-center gap-3">
@@ -280,7 +280,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-slate-400">Last audit: Oct 2026</span>
+                  <span className="text-xs text-slate-500">Last audit: Oct 2026</span>
                 </div>
               </div>
             </div>
@@ -309,7 +309,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
               </span>
               <Link
                 href="/tools"
-                className="pb-2 text-slate-400 transition-colors hover:text-slate-600"
+                className="pb-2 text-slate-500 transition-colors hover:text-slate-600"
               >
                 New Arrivals
               </Link>
@@ -333,7 +333,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                 <p className="mt-2.5 flex-1 text-sm leading-relaxed text-slate-500">{p.body}</p>
                 <div className="mt-10 flex items-center justify-between border-t border-slate-100 pt-5">
                   <span className="text-sm font-semibold">{p.count}</span>
-                  <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-slate-900" />
+                  <ArrowRight className="h-4 w-4 text-slate-500 transition-transform group-hover:translate-x-1 group-hover:text-slate-900" />
                 </div>
               </Link>
             ))}
@@ -354,7 +354,7 @@ export function EtsyHomepage({ site, recentContent }: EtsyHomepageProps) {
                   Top-performing tools based on direct API throughput and UX latency audits.
                 </p>
               </div>
-              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-400">
+              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-slate-500">
                 System Health: <span className="text-slate-600">99.98%</span>
               </span>
             </div>
