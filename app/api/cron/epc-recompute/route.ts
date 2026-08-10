@@ -11,7 +11,16 @@ import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { untypedFrom } from "@/lib/dal/type-guards";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
-import { groupAffiliateLinks, sumCommissions, computeEpc } from "./aggregation";
+import {
+  groupAffiliateLinks,
+  groupClickFilter,
+  countGroupClicks,
+  sumCommissions,
+  computeEpc,
+} from "./aggregation";
+
+/** Upper bound on the click rows scanned per link group in one cron run. */
+const CLICK_SCAN_LIMIT = 10_000;
 
 /**
  * GET /api/cron/epc-recompute
@@ -55,7 +64,7 @@ export async function POST(request: NextRequest) {
     // and undercounted clicks. This fed epc-tie-break ranking upward.
     //
     // Fix: group by (site_id, product_id, network), count clicks across ALL
-    // the group's URLs with .in(), and upsert exactly ONE row per group.
+    // the group's URLs, and upsert exactly ONE row per group.
     // Grouping is the pure `groupAffiliateLinks` helper (see ./aggregation).
     const normalizedLinks = (
       links as {
@@ -73,24 +82,36 @@ export async function POST(request: NextRequest) {
     const groups = groupAffiliateLinks(normalizedLinks);
 
     for (const g of groups.values()) {
-      // Count clicks (30d and 7d) across ALL of this group's URLs.
-      const { count: clicks30d } = await sb
+      // Clicks are recorded against the URL the visitor was sent to, which
+      // carries UTM and network tracking parameters the configured link does
+      // not have. Match on the destination prefix and settle each row in code
+      // (see ./aggregation), instead of on string equality that never matched.
+      const { data: clickRows, error: clickErr } = await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
-        .select("id", { count: "exact", head: true })
+        .select("affiliate_url, created_at")
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .in("affiliate_url", g.urls)
-        .gte("created_at", thirtyDaysAgo);
+        .or(groupClickFilter(g.urls))
+        .gte("created_at", thirtyDaysAgo)
+        .limit(CLICK_SCAN_LIMIT);
 
-      const { count: clicks7d } = await sb
-        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
-        .from("affiliate_clicks")
-        .select("id", { count: "exact", head: true })
-        // F-API-01: rollup is per (product, network); intentionally cross-tenant.
-        .unsafeNoSiteFilter()
-        .in("affiliate_url", g.urls)
-        .gte("created_at", sevenDaysAgo);
+      if (clickErr) throw clickErr;
+
+      const windowClicks = (clickRows ?? []) as { affiliate_url: string; created_at: string }[];
+      if (windowClicks.length === CLICK_SCAN_LIMIT) {
+        logger.warn("[cron/epc-recompute] click scan hit its limit; EPC may be understated", {
+          product_id: g.product_id,
+          network: g.network,
+          limit: CLICK_SCAN_LIMIT,
+        });
+      }
+
+      const clicks30d = countGroupClicks(windowClicks, g.urls);
+      const clicks7d = countGroupClicks(
+        windowClicks.filter((row) => row.created_at >= sevenDaysAgo),
+        g.urls,
+      );
 
       // Sum commissions (30d and 7d)
       const { data: comm30d } = await untypedFrom(sb, "commissions")
@@ -114,20 +135,17 @@ export async function POST(request: NextRequest) {
       const totalComm30d = sumCommissions(comm30d);
       const totalComm7d = sumCommissions(comm7d);
 
-      const c30 = clicks30d || 0;
-      const c7 = clicks7d || 0;
-
       await upsertProductEpc(
         {
           site_id: g.site_id,
           product_id: g.product_id,
           network: g.network,
-          clicks_30d: c30,
+          clicks_30d: clicks30d,
           commissions_30d: totalComm30d,
-          epc_30d: computeEpc(totalComm30d, c30),
-          clicks_7d: c7,
+          epc_30d: computeEpc(totalComm30d, clicks30d),
+          clicks_7d: clicks7d,
           commissions_7d: totalComm7d,
-          epc_7d: computeEpc(totalComm7d, c7),
+          epc_7d: computeEpc(totalComm7d, clicks7d),
         },
         getPrivilegedSupabaseClient,
       );

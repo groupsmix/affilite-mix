@@ -67,10 +67,45 @@ export function groupAffiliateLinks(
 }
 
 /**
- * Deduplicated click count for a Link_Group: the number of clicks whose target
- * URL is one of the group's URLs, with each click counted at most once even
- * when the group has multiple URLs. This is the pure model of the route's
- * `.in("affiliate_url", urls)` exact-count query.
+ * The part of an affiliate URL that identifies the destination: everything up
+ * to (and excluding) the query string and fragment.
+ *
+ * Clicks are stored with the URL the visitor was actually sent to, which
+ * carries the UTM parameters appended by `affiliateUrlWithUtm()` and the
+ * network tracking parameter appended by `/r/[shortcode]`. The configured link
+ * URL has none of those, so comparing the two for equality never matches and
+ * every group counted zero clicks — which pinned every EPC at zero.
+ */
+export function affiliateUrlPrefix(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`.replace(/\/$/, "");
+  } catch {
+    return url.split(/[?#]/)[0]?.replace(/\/$/, "") ?? url;
+  }
+}
+
+/** Deduplicated destination prefixes for a Link_Group. */
+export function groupClickPrefixes(urls: readonly string[]): string[] {
+  return [...new Set(urls.map(affiliateUrlPrefix))];
+}
+
+/**
+ * True when a recorded click targets `prefix` — the prefix itself, or the
+ * prefix followed by a query string, a fragment or a deeper path segment.
+ *
+ * The boundary matters: without it `…/dp/B01` would also swallow the clicks of
+ * `…/dp/B01XYZ`, attributing one product's traffic to another.
+ */
+export function clickMatchesPrefix(clickUrl: string, prefix: string): boolean {
+  const clicked = affiliateUrlPrefix(clickUrl);
+  return clicked === prefix || clicked.startsWith(`${prefix}/`);
+}
+
+/**
+ * Deduplicated click count for a Link_Group: clicks whose destination matches
+ * any of the group's URLs, each click counted at most once. Pure model of the
+ * route's count query.
  *
  * Requirements: 9.2, 9.4
  */
@@ -78,12 +113,33 @@ export function countGroupClicks(
   clicks: readonly { affiliate_url: string }[],
   urls: readonly string[],
 ): number {
-  const urlSet = new Set(urls);
+  const prefixes = groupClickPrefixes(urls);
   let count = 0;
   for (const click of clicks) {
-    if (urlSet.has(click.affiliate_url)) count++;
+    if (prefixes.some((prefix) => clickMatchesPrefix(click.affiliate_url, prefix))) count++;
   }
   return count;
+}
+
+/**
+ * PostgREST `or=` filter selecting the click rows that *may* belong to a
+ * Link_Group.
+ *
+ * This is a prefilter, not the decision: PostgREST reads `*` as the LIKE
+ * wildcard and offers no ESCAPE clause, so a `%`, `_` or `*` inside a URL can
+ * widen the pattern. Widening is harmless because every row it returns is then
+ * re-checked with `clickMatchesPrefix`; the filter only has to avoid missing
+ * rows.
+ */
+export function groupClickFilter(urls: readonly string[]): string {
+  return groupClickPrefixes(urls)
+    .map((prefix) => `affiliate_url.like.${quoteFilterValue(`${prefix}*`)}`)
+    .join(",");
+}
+
+/** Quote a PostgREST filter value so commas, parentheses and quotes stay literal. */
+function quoteFilterValue(value: string): string {
+  return `"${value.replace(/(["\\])/g, "\\$1")}"`;
 }
 
 /**
