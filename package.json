@@ -131,7 +131,10 @@
     "wait-on": "^9.0.10"
   },
   "overrides": {
-    "postcss": "^8.5.10",
+    "postcss": {
+      ".": "^8.5.10",
+      "nanoid": "^3.3.17"
+    },
     "tmp": "^0.2.7",
     "uuid": "^14.0.0",
     "fast-xml-parser": "^5.7.0",

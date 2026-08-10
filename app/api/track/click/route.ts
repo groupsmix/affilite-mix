@@ -16,6 +16,10 @@ import { getOrDeriveHmacKeyString } from "@/lib/hmac-key";
 import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
 import { isHttpsUrl } from "@/lib/validation";
+import {
+  normalizeOverrideUrl,
+  validateOverrideDestination,
+} from "@/lib/affiliate/override-url-guard";
 
 /**
  * A158: Compute a privacy-preserving click fingerprint for 24-hour dedup.
@@ -204,8 +208,13 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     const siteId = await resolveDbSiteId(siteSlug);
     const { searchParams } = request.nextUrl;
     const productSlug = (searchParams.get("p") ?? "").normalize("NFC");
-    const overrideUrl = searchParams.get("u") ?? undefined;
+    const rawOverrideUrl = searchParams.get("u");
+    const overrideUrl = rawOverrideUrl ? normalizeOverrideUrl(rawOverrideUrl) : null;
     const overrideName = searchParams.get("n") ?? undefined;
+
+    if (rawOverrideUrl && !overrideUrl) {
+      return apiError(400, "Malformed affiliate URL");
+    }
 
     if (!productSlug) {
       return apiError(400, "Missing required parameter: p");
@@ -224,6 +233,22 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     // name directly instead of requiring a product row in the database. The URL
     // is validated by the same destination checks below.
     if (overrideUrl) {
+      // A destination supplied by the caller is only as trustworthy as the
+      // caller. The allow-list below bounds the host; this bounds the rest.
+      const overrideCheck = validateOverrideDestination(overrideUrl);
+      if (!overrideCheck.allowed) {
+        logger.error("affiliate_override_destination_rejected", {
+          site_id: siteId,
+          product_slug: productSlug,
+          reason: overrideCheck.reason,
+        });
+        captureException(new Error(`Blocked affiliate override: ${overrideCheck.reason}`), {
+          context: "[api/track/click] rejected override destination",
+          extra: { reason: overrideCheck.reason },
+        });
+        return apiError(400, "Affiliate destination is not allowed");
+      }
+
       const safeName = (overrideName ?? productSlug)
         .normalize("NFC")
         .replace(/[\x00\x1F]/g, "")
