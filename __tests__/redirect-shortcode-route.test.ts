@@ -75,8 +75,8 @@ vi.mock("@/lib/runtime-env", () => ({
 import { GET } from "@/app/r/[shortcode]/route";
 
 /** A trusted top-level navigation so the analytics path runs (see M-01). */
-function makeRequest(headers: Record<string, string> = {}): NextRequest {
-  return new NextRequest("https://compareai.site/r/test-product?ref=review-page", {
+function makeRequest(headers: Record<string, string> = {}, extraQuery = ""): NextRequest {
+  return new NextRequest(`https://compareai.site/r/test-product?ref=review-page${extraQuery}`, {
     headers: {
       "x-site-id": "test-site",
       "cf-ipcountry": "US",
@@ -143,12 +143,73 @@ describe("GET /r/[shortcode]", () => {
     });
 
     expect(res.status).toBe(302);
-    expect(res.headers.get("Location")).toBe("https://amazon.com/dp/allowed");
+    const location = new URL(res.headers.get("Location")!);
+    expect(`${location.origin}${location.pathname}`).toBe("https://amazon.com/dp/allowed");
     expect(mockPublishClick).toHaveBeenCalledWith(
       expect.objectContaining({
-        affiliate_url: "https://amazon.com/dp/allowed",
+        affiliate_url: res.headers.get("Location"),
+        product_id: "prod-3",
       }),
     );
+  });
+
+  it("carries a per-click reference on Amazon's ascsubtag without touching the tag", async () => {
+    mockGetProductBySlug.mockResolvedValue({
+      id: "prod-7",
+      name: "Attributed Product",
+      affiliate_url: "https://amazon.com/dp/attributed?tag=wristnerd-20",
+    });
+
+    const res = await GET(makeRequest(), {
+      params: Promise.resolve({ shortcode: "test-product" }),
+    });
+
+    const location = new URL(res.headers.get("Location")!);
+    expect(location.searchParams.get("tag")).toBe("wristnerd-20");
+    const clickRef = location.searchParams.get("ascsubtag");
+    expect(clickRef).toMatch(/^[0-9a-f]{16}$/);
+    // The reference stored on the click must be the one the network will echo.
+    expect(mockPublishClick).toHaveBeenCalledWith(
+      expect.objectContaining({ click_ref: clickRef, product_id: "prod-7" }),
+    );
+  });
+
+  it("appends the reference to the publisher key on networks that share the parameter", async () => {
+    mockPickBestAffiliateLink.mockResolvedValue({
+      network: "cj",
+      url: "https://www.anrdoezrs.net/links/123/type/dlg/https://merchant.example/watch",
+    });
+    mockGetProductBySlug.mockResolvedValue({
+      id: "prod-8",
+      name: "CJ Product",
+      affiliate_url: "https://amazon.com/dp/unused",
+    });
+
+    const res = await GET(makeRequest({}, "&sid=wristnerd42"), {
+      params: Promise.resolve({ shortcode: "test-product" }),
+    });
+
+    const sid = new URL(res.headers.get("Location")!).searchParams.get("sid");
+    expect(sid).toMatch(/^wristnerd42-r[0-9a-f]{16}$/);
+    expect(mockPublishClick).toHaveBeenCalledWith(
+      expect.objectContaining({ click_ref: sid!.slice("wristnerd42-r".length) }),
+    );
+  });
+
+  it("does not mint a reference for a hit it will not count", async () => {
+    mockGetProductBySlug.mockResolvedValue({
+      id: "prod-9",
+      name: "Prefetched Product",
+      affiliate_url: "https://amazon.com/dp/prefetched",
+    });
+
+    const res = await GET(
+      makeRequest({ "sec-fetch-site": "cross-site", "sec-fetch-dest": "image" }),
+      { params: Promise.resolve({ shortcode: "test-product" }) },
+    );
+
+    expect(new URL(res.headers.get("Location")!).searchParams.get("ascsubtag")).toBeNull();
+    expect(mockPublishClick).not.toHaveBeenCalled();
   });
 
   it("redirects without recording the click for an untrusted navigation", async () => {

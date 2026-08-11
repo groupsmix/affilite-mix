@@ -50,6 +50,14 @@ export interface AffiliateNetworkConfig {
    */
   trackingParam?: string;
   /**
+   * Query parameter carrying a free-form per-click sub-identifier, when the
+   * network keeps it separate from `trackingParam`. Amazon is the case that
+   * matters: its `tag` is the associate tag and must not be decorated, so the
+   * click reference goes in `ascsubtag` instead. When unset, the click
+   * reference is appended to `trackingParam`.
+   */
+  subIdParam?: string;
+  /**
    * Hostnames (and their subdomains) that identify this network.
    * Used to infer the network from a raw affiliate URL.
    */
@@ -66,6 +74,7 @@ export const NETWORK_CONFIGS: Record<AffiliateNetwork, AffiliateNetworkConfig> =
     requiresApiKey: false,
     envKeyName: "",
     trackingParam: "tag",
+    subIdParam: "ascsubtag",
     domains: ["amazon.com", "amzn.to", "amzn.com"],
   },
   cj: {
@@ -237,6 +246,21 @@ export function getNetworkFromUrl(url: string): AffiliateNetwork | null {
 /** Return the tracking-key query parameter this network expects, if any. */
 export function getTrackingParamForNetwork(network: AffiliateNetwork): string | null {
   return NETWORK_CONFIGS[network]?.trackingParam ?? null;
+}
+
+/**
+ * Return the parameter a per-click reference should be written to, and whether
+ * it is shared with the publisher tracking key (in which case the reference is
+ * appended to that key rather than sent on its own).
+ */
+export function getSubIdParamForNetwork(
+  network: AffiliateNetwork,
+): { param: string; sharedWithTrackingKey: boolean } | null {
+  const config = NETWORK_CONFIGS[network];
+  if (!config) return null;
+  if (config.subIdParam) return { param: config.subIdParam, sharedWithTrackingKey: false };
+  if (config.trackingParam) return { param: config.trackingParam, sharedWithTrackingKey: true };
+  return null;
 }
 
 /** Validate a raw network string and narrow it to the typed union. */

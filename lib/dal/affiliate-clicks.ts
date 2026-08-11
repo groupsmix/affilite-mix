@@ -13,6 +13,15 @@ export interface RecordClickInput {
   content_slug?: string;
   referrer?: string;
   click_id?: string;
+  /**
+   * Opaque per-click reference echoed to the affiliate network in its
+   * tracking/sub-id parameter, so an ingested commission can be attributed
+   * back to this click. Distinct from `click_id`, which is the internal
+   * idempotency key for queue retries.
+   */
+  click_ref?: string;
+  /** Product that was clicked, so an attributed commission inherits it. */
+  product_id?: string;
   is_internal?: boolean;
   /** A162: /24 IP prefix only (e.g. "203.0.113"). Full IP is never stored. */
   ip_prefix?: string;
@@ -85,6 +94,8 @@ export async function recordClick(
     content_slug: input.content_slug ?? "",
     referrer: input.referrer ?? "",
     ...(input.click_id ? { click_id: input.click_id } : {}),
+    ...(input.click_ref ? { click_ref: input.click_ref } : {}),
+    ...(input.product_id ? { product_id: input.product_id } : {}),
     is_internal: input.is_internal ?? false,
     // A162: Only the /24 prefix is stored — full IP is never persisted.
     ...(input.ip_prefix ? { ip_prefix: input.ip_prefix } : {}),
@@ -117,7 +128,61 @@ export async function getClickCount(
 }
 
 const CLICK_COLUMNS =
-  "id, click_id, site_id, product_name, affiliate_url, content_slug, referrer, created_at" as const;
+  "id, click_id, click_ref, product_id, site_id, product_name, affiliate_url, content_slug, referrer, created_at" as const;
+
+export interface ResolvedClickAttribution {
+  click_id: string;
+  site_id: string;
+  product_id: string | null;
+}
+
+const CLICK_REF_LOOKUP_BATCH_SIZE = 500;
+
+/**
+ * Resolve per-click references reported back by an affiliate network.
+ *
+ * Returns the click's internal `click_id` (the value `commissions.click_id`
+ * stores), its site and the product that was clicked. References that match no
+ * click are simply absent from the map, leaving the commission attributed at
+ * site level exactly as before.
+ */
+export async function resolveClicksByRefs(
+  clickRefs: string[],
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<Map<string, ResolvedClickAttribution>> {
+  const uniqueRefs = Array.from(new Set(clickRefs.filter((ref) => ref !== "")));
+  const resolved = new Map<string, ResolvedClickAttribution>();
+  if (uniqueRefs.length === 0) return resolved;
+
+  const sb = await getClient();
+  for (let start = 0; start < uniqueRefs.length; start += CLICK_REF_LOOKUP_BATCH_SIZE) {
+    const batch = uniqueRefs.slice(start, start + CLICK_REF_LOOKUP_BATCH_SIZE);
+    const { data, error } = await sb
+      .from(TABLE)
+      .select("click_ref, click_id, site_id, product_id")
+      // SAFE: commission ingestion discovers tenant identity from the network's per-click reference before site_id is known.
+      .unsafeNoSiteFilter()
+      .in("click_ref", batch);
+
+    if (error) throw error;
+
+    for (const row of (data ?? []) as {
+      click_ref: string | null;
+      click_id: string | null;
+      site_id: string | null;
+      product_id: string | null;
+    }[]) {
+      if (!row.click_ref || !row.click_id || !row.site_id) continue;
+      resolved.set(row.click_ref, {
+        click_id: row.click_id,
+        site_id: row.site_id,
+        product_id: row.product_id ?? null,
+      });
+    }
+  }
+
+  return resolved;
+}
 
 export async function getRecentClicks(
   siteId: string,
