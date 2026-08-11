@@ -4,7 +4,7 @@
 import { assertRow, rowOrNull, untypedFrom } from "./type-guards";
 import { type DalClientGetter } from "./dal-client";
 import { getAutomationDbClient } from "@/lib/automation/db";
-import type { ActionState } from "@/lib/automation/action-state";
+import { assertTransition, type ActionState } from "@/lib/automation/action-state";
 import type { PolicyMode, RiskLevel } from "@/lib/automation/policy";
 
 const TABLE = "automation_actions";
@@ -96,6 +96,40 @@ export async function getActionByIdempotencyKey(
   return rowOrNull<AutomationActionRow>(data);
 }
 
+export async function getAutomationActionById(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = getAutomationDbClient,
+): Promise<AutomationActionRow | null> {
+  const sb = await getClient();
+  const { data, error } = await untypedFrom(sb, TABLE)
+    .select(ALL_COLUMNS)
+    .eq("site_id", siteId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return rowOrNull<AutomationActionRow>(data);
+}
+
+export async function listAutomationActionsForSite(
+  siteId: string,
+  options: { status?: ActionState; limit?: number; offset?: number } = {},
+  getClient: DalClientGetter = getAutomationDbClient,
+): Promise<AutomationActionRow[]> {
+  const sb = await getClient();
+  const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
+  const offset = Math.max(0, Math.min(options.offset ?? 0, 100_000));
+  let query = untypedFrom(sb, TABLE)
+    .select(ALL_COLUMNS)
+    .eq("site_id", siteId)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (options.status) query = query.eq("status", options.status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((row: unknown) => assertRow<AutomationActionRow>(row, TABLE));
+}
+
 export async function updateAutomationAction(
   siteId: string,
   id: string,
@@ -117,6 +151,11 @@ export async function updateAutomationAction(
   >,
   getClient: DalClientGetter = getAutomationDbClient,
 ): Promise<AutomationActionRow | null> {
+  if (patch.status) {
+    const existing = await getAutomationActionById(siteId, id, getClient);
+    if (!existing) return null;
+    assertTransition(existing.status, patch.status);
+  }
   const sb = await getClient();
   const { data, error } = await untypedFrom(sb, TABLE)
     .update({ ...patch, updated_at: new Date().toISOString() })
