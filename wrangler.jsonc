@@ -269,6 +269,7 @@
       "*/15 * * * *", // Click reconcile (every 15 min)
       "0 8 * * 1", // Access review (Mon 08:00 UTC, SOC 2 CC6.1)
       "*/10 * * * *", // Homepage synthetic check (every 10 min)
+      "0 10 * * *", // Daily affiliate optimization after EPC and link health
     ],
   },
   // FIX-02 (F-018): NODE_ENV must be "production" so the app rejects dev fallback
@@ -435,6 +436,7 @@
           "*/15 * * * *", // Click reconcile (every 15 min)
           "0 8 * * 1", // Access review (Mon 08:00 UTC, SOC 2 CC6.1)
           "*/10 * * * *", // Homepage synthetic check (every 10 min)
+          "0 10 * * *", // Affiliate optimization (daily 10 AM UTC)
         ],
       },
     },

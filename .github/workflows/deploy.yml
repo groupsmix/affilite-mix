@@ -48,6 +48,7 @@
 #       CRON_EPC_SECRET, CRON_PRICE_SECRET, CRON_DEALS_SECRET,
 #       CRON_CLICK_RECONCILE_SECRET, CRON_ACCESS_REVIEW_SECRET,
 #       CRON_HOMEPAGE_SYNTHETIC_SECRET, CRON_AFFILIATE_LINK_HEALTH_SECRET
+#       CRON_AFFILIATE_OPTIMIZATION_SECRET
 #     (single source of truth: `lib/cron-registry.ts -> cronJobs`)
 #   - AI keys (optional):
 #       CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY
@@ -326,6 +327,7 @@ jobs:
           _CRON_ACCESS_REVIEW_SECRET: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
           _CRON_HOMEPAGE_SYNTHETIC_SECRET: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
           _CRON_AFFILIATE_LINK_HEALTH_SECRET: ${{ secrets.CRON_AFFILIATE_LINK_HEALTH_SECRET }}
+          _CRON_AFFILIATE_OPTIMIZATION_SECRET: ${{ secrets.CRON_AFFILIATE_OPTIMIZATION_SECRET }}
         run: |
           set -euo pipefail
           MISSING=""
@@ -355,6 +357,7 @@ jobs:
             _CRON_ACCESS_REVIEW_SECRET
             _CRON_HOMEPAGE_SYNTHETIC_SECRET
             _CRON_AFFILIATE_LINK_HEALTH_SECRET
+            _CRON_AFFILIATE_OPTIMIZATION_SECRET
           )
 
           # Map env var names to their user-facing secret names
@@ -381,6 +384,7 @@ jobs:
             [_CRON_CLICK_RECONCILE_SECRET]=CRON_CLICK_RECONCILE_SECRET
             [_CRON_ACCESS_REVIEW_SECRET]=CRON_ACCESS_REVIEW_SECRET
             [_CRON_HOMEPAGE_SYNTHETIC_SECRET]=CRON_HOMEPAGE_SYNTHETIC_SECRET
+            [_CRON_AFFILIATE_OPTIMIZATION_SECRET]=CRON_AFFILIATE_OPTIMIZATION_SECRET
           )
 
           for key in "${REQUIRED[@]}"; do
@@ -1265,6 +1269,7 @@ jobs:
           [ -z "$_CRON_ACCESS_REVIEW" ]   && MISSING="$MISSING CRON_ACCESS_REVIEW_SECRET"
           [ -z "$_CRON_HOMEPAGE_SYNTHETIC" ] && MISSING="$MISSING CRON_HOMEPAGE_SYNTHETIC_SECRET"
           [ -z "$_CRON_AFFILIATE_LINK_HEALTH" ] && MISSING="$MISSING CRON_AFFILIATE_LINK_HEALTH_SECRET"
+          [ -z "$_CRON_AFFILIATE_OPTIMIZATION" ] && MISSING="$MISSING CRON_AFFILIATE_OPTIMIZATION_SECRET"
 
           if [ -n "$MISSING" ]; then
             echo "::error::Required secrets are missing:$MISSING"
@@ -1321,6 +1326,7 @@ jobs:
           echo "$_CRON_ACCESS_REVIEW" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_ACCESS_REVIEW_SECRET --name affilite-mix > /dev/null 2>&1
           echo "$_CRON_HOMEPAGE_SYNTHETIC" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOMEPAGE_SYNTHETIC_SECRET --name affilite-mix > /dev/null 2>&1
           echo "$_CRON_AFFILIATE_LINK_HEALTH" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AFFILIATE_LINK_HEALTH_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_AFFILIATE_OPTIMIZATION" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AFFILIATE_OPTIMIZATION_SECRET --name affilite-mix > /dev/null 2>&1
 
           echo "Setting optional Worker secrets (skipped if not configured)..."
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix > /dev/null 2>&1       || true
@@ -1411,6 +1417,7 @@ jobs:
           _CRON_ACCESS_REVIEW: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
           _CRON_HOMEPAGE_SYNTHETIC: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
           _CRON_AFFILIATE_LINK_HEALTH: ${{ secrets.CRON_AFFILIATE_LINK_HEALTH_SECRET }}
+          _CRON_AFFILIATE_OPTIMIZATION: ${{ secrets.CRON_AFFILIATE_OPTIMIZATION_SECRET }}
           _R2_ACCOUNT: ${{ vars.R2_ACCOUNT_ID }}
           _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
