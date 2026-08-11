@@ -74,10 +74,15 @@ function alternateUrls(
     const productRows = rows.filter((row) => row.productId === productId);
     const links = data.links.filter((link) => link.product_id === productId);
     if (links.length < 2) continue;
+    const product = data.products.find((candidate) => candidate.id === productId);
+    const currentLink = links.find((link) => link.url === product?.affiliate_url) ?? links[0];
     const current = data.health.find(
-      (health) => health.product_id === productId && health.classification !== "healthy",
+      (health) =>
+        health.product_id === productId &&
+        health.url === currentLink?.url &&
+        health.classification !== "healthy",
     );
-    const currentNetwork = current?.network ?? links[0]?.network;
+    const currentNetwork = current?.network ?? currentLink?.network;
     const currentEpc = productRows.find((row) => row.network === currentNetwork)?.epc ?? 0;
     const best = [...productRows].sort((a, b) => b.epc - a.epc)[0];
     const networkSwitch =
