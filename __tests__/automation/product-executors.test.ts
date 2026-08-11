@@ -16,7 +16,7 @@ import {
 const getProduct = getProductById as unknown as ReturnType<typeof vi.fn>;
 const update = updateProduct as unknown as ReturnType<typeof vi.fn>;
 const product = {
-  id: "product-1",
+  id: "11111111-1111-1111-1111-111111111111",
   site_id: "site-1",
   name: "Product",
   affiliate_url: "https://amazon.com/item?tag=ours-20",
@@ -38,13 +38,17 @@ beforeEach(() => {
 describe("product automation executors", () => {
   it("uses site-scoped reads and records before/after metadata snapshots", async () => {
     const result = await executeProductUpdate(
-      action({ product_id: "product-1", updates: { name: "Updated" } }),
+      action({ product_id: "11111111-1111-1111-1111-111111111111", updates: { name: "Updated" } }),
       { siteId: "site-1" },
     );
-    expect(getProduct).toHaveBeenCalledWith("site-1", "product-1", expect.anything());
+    expect(getProduct).toHaveBeenCalledWith(
+      "site-1",
+      "11111111-1111-1111-1111-111111111111",
+      expect.anything(),
+    );
     expect(update).toHaveBeenCalledWith(
       "site-1",
-      "product-1",
+      "11111111-1111-1111-1111-111111111111",
       { name: "Updated" },
       expect.anything(),
       2,
@@ -55,19 +59,30 @@ describe("product automation executors", () => {
 
   it("activates and archives through the same guarded executor path", async () => {
     expect(
-      (await executeProductActivate(action({ product_id: "product-1" }), { siteId: "site-1" }))
-        .afterSnapshot,
+      (
+        await executeProductActivate(
+          action({ product_id: "11111111-1111-1111-1111-111111111111" }),
+          { siteId: "site-1" },
+        )
+      ).afterSnapshot,
     ).toMatchObject({ status: "active" });
     expect(
-      (await executeProductArchive(action({ product_id: "product-1" }), { siteId: "site-1" }))
-        .afterSnapshot,
+      (
+        await executeProductArchive(
+          action({ product_id: "11111111-1111-1111-1111-111111111111" }),
+          { siteId: "site-1" },
+        )
+      ).afterSnapshot,
     ).toMatchObject({ status: "archived" });
   });
 
   it("rejects unapproved destinations and foreign publisher tags before mutation", async () => {
     await expect(
       executeProductAffiliateUrl(
-        action({ product_id: "product-1", affiliate_url: "https://not-allowlisted.example/item" }),
+        action({
+          product_id: "11111111-1111-1111-1111-111111111111",
+          affiliate_url: "https://not-allowlisted.example/item",
+        }),
         { siteId: "site-1" },
       ),
     ).rejects.toMatchObject({ status: 422 });
@@ -76,7 +91,10 @@ describe("product automation executors", () => {
     vi.stubEnv("AMAZON_ASSOCIATE_TAG", "ours-20");
     await expect(
       executeProductAffiliateUrl(
-        action({ product_id: "product-1", affiliate_url: "https://amazon.com/item?tag=other-20" }),
+        action({
+          product_id: "11111111-1111-1111-1111-111111111111",
+          affiliate_url: "https://amazon.com/item?tag=other-20",
+        }),
         { siteId: "site-1" },
       ),
     ).rejects.toMatchObject({ status: 422 });
@@ -87,10 +105,26 @@ describe("product automation executors", () => {
   it("returns not found without touching another site's product", async () => {
     getProduct.mockResolvedValueOnce(null);
     await expect(
-      executeProductUpdate(action({ product_id: "other-product", updates: { name: "x" } }), {
-        siteId: "site-1",
-      }),
+      executeProductUpdate(
+        action({ product_id: "11111111-1111-1111-1111-111111111112", updates: { name: "x" } }),
+        {
+          siteId: "site-1",
+        },
+      ),
     ).rejects.toMatchObject({ status: 404 });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("re-parses stored payloads before execution", async () => {
+    await expect(
+      executeProductUpdate(
+        action({
+          product_id: "11111111-1111-1111-1111-111111111111",
+          updates: { status: "active" },
+        }),
+        { siteId: "site-1" },
+      ),
+    ).rejects.toMatchObject({ status: 422 });
     expect(update).not.toHaveBeenCalled();
   });
 });

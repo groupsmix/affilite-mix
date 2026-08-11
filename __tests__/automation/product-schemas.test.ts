@@ -39,4 +39,14 @@ describe("product automation schemas", () => {
     expect(parseProductLifecycleInput({ product_id: id }).ok).toBe(true);
     expect(parseProductLifecycleInput({ product_id: id, status: "active" }).ok).toBe(false);
   });
+
+  it("requires image_url to be an absolute HTTP(S) URL", () => {
+    expect(parseProductUpdateInput({ product_id: id, image_url: "/relative/image.jpg" }).ok).toBe(
+      false,
+    );
+    expect(
+      parseProductUpdateInput({ product_id: id, image_url: "https://cdn.example.com/image.jpg" })
+        .ok,
+    ).toBe(true);
+  });
 });

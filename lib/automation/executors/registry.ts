@@ -5,7 +5,9 @@ import {
   executeProductArchive,
   executeProductAffiliateUrl,
   executeProductUpdate,
-  type ProductExecutorContext,
+  rollbackProductAffiliateUrl,
+  rollbackProductLifecycle,
+  rollbackProductUpdate,
 } from "./products";
 
 export interface ExecutorContext {
@@ -29,10 +31,13 @@ export interface Executor {
 }
 
 export const executorRegistry = {
-  "products.update": { execute: executeProductUpdate },
-  "products.update_affiliate_url": { execute: executeProductAffiliateUrl },
-  "products.activate": { execute: executeProductActivate },
-  "products.archive": { execute: executeProductArchive },
+  "products.update": { execute: executeProductUpdate, rollback: rollbackProductUpdate },
+  "products.update_affiliate_url": {
+    execute: executeProductAffiliateUrl,
+    rollback: rollbackProductAffiliateUrl,
+  },
+  "products.activate": { execute: executeProductActivate, rollback: rollbackProductLifecycle },
+  "products.archive": { execute: executeProductArchive, rollback: rollbackProductLifecycle },
 } satisfies Partial<Record<ActionType, Executor>>;
 
 export function getExecutor(actionType: ActionType): Executor | null {

@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { validateOverrideDestination } from "@/lib/affiliate/override-url-guard";
 import { getProductById, updateProduct } from "@/lib/dal/products";
@@ -7,7 +8,13 @@ import type { ProductRow } from "@/types/database";
 import type {
   ProductAffiliateUrlInput,
   ProductLifecycleInput,
+  ProductMetadataUpdate,
   ProductUpdateInput,
+} from "@/lib/automation/schemas";
+import {
+  parseProductAffiliateUrlInput,
+  parseProductLifecycleInput,
+  parseProductUpdateInput,
 } from "@/lib/automation/schemas";
 
 export interface ProductExecutorContext {
@@ -17,6 +24,8 @@ export interface ProductExecutorContext {
 function snapshot(product: ProductRow): Record<string, unknown> {
   return { ...product };
 }
+
+type ProductUpdateField = keyof ProductMetadataUpdate;
 
 export function validateProductAffiliateDestination(url: string): string | null {
   const domain = validateAffiliateDomain(url);
@@ -44,7 +53,9 @@ export async function executeProductUpdate(
   action: AutomationActionRow,
   context: ProductExecutorContext,
 ) {
-  const input = action.payload as unknown as ProductUpdateInput;
+  const parsed = parseProductUpdateInput(action.payload);
+  if (!parsed.ok) throw validationError(parsed.errors.join("; "));
+  const input: ProductUpdateInput = parsed.value;
   const before = await productForAction(context.siteId, input.product_id);
   const after = await updateProduct(
     context.siteId,
@@ -64,10 +75,12 @@ export async function executeProductAffiliateUrl(
   action: AutomationActionRow,
   context: ProductExecutorContext,
 ) {
-  const input = action.payload as unknown as ProductAffiliateUrlInput;
-  const validationError = validateProductAffiliateDestination(input.affiliate_url);
-  if (validationError) {
-    const error = new Error(validationError) as Error & {
+  const parsed = parseProductAffiliateUrlInput(action.payload);
+  if (!parsed.ok) throw validationError(parsed.errors.join("; "));
+  const input: ProductAffiliateUrlInput = parsed.value;
+  const destinationError = validateProductAffiliateDestination(input.affiliate_url);
+  if (destinationError) {
+    const error = new Error(destinationError) as Error & {
       status?: number;
     };
     error.status = 422;
@@ -93,7 +106,9 @@ async function executeLifecycle(
   context: ProductExecutorContext,
   status: ProductRow["status"],
 ) {
-  const input = action.payload as unknown as ProductLifecycleInput;
+  const parsed = parseProductLifecycleInput(action.payload);
+  if (!parsed.ok) throw validationError(parsed.errors.join("; "));
+  const input: ProductLifecycleInput = parsed.value;
   const before = await productForAction(context.siteId, input.product_id);
   const after = await updateProduct(
     context.siteId,
@@ -119,6 +134,100 @@ export const executeProductArchive = (
   context: ProductExecutorContext,
 ) => executeLifecycle(action, context, "archived");
 
+function snapshotField(snapshotValue: Record<string, unknown> | null, field: string): unknown {
+  if (!snapshotValue || !(field in snapshotValue)) {
+    throw validationError(`Missing ${field} in action snapshot`);
+  }
+  return snapshotValue[field];
+}
+
+function assertCurrentMatchesAfter(
+  current: ProductRow,
+  after: Record<string, unknown> | null,
+  fields: readonly string[],
+): void {
+  for (const field of fields) {
+    if (!isDeepStrictEqual(snapshotField(after, field), current[field as keyof ProductRow])) {
+      throw conflictError(`Product changed since approval (${field})`);
+    }
+  }
+}
+
+async function rollbackProductFields(
+  action: AutomationActionRow,
+  context: ProductExecutorContext,
+  fields: readonly ProductUpdateField[],
+) {
+  const parsed = parseProductUpdateInput(action.payload);
+  if (!parsed.ok) throw validationError(parsed.errors.join("; "));
+  const before = await productForAction(context.siteId, parsed.value.product_id);
+  assertCurrentMatchesAfter(before, action.after_snapshot, fields);
+  const updates: Record<string, unknown> = {};
+  for (const field of fields) updates[field] = snapshotField(action.before_snapshot, field);
+  const restored = await updateProduct(
+    context.siteId,
+    parsed.value.product_id,
+    updates as Parameters<typeof updateProduct>[2],
+    getAutomationDbClient,
+    before.version,
+  );
+  return { product_id: restored.id, status: restored.status };
+}
+
+export async function rollbackProductUpdate(
+  action: AutomationActionRow,
+  context: ProductExecutorContext,
+) {
+  const parsed = parseProductUpdateInput(action.payload);
+  if (!parsed.ok) throw validationError(parsed.errors.join("; "));
+  const fields = Object.keys(parsed.value.updates) as ProductUpdateField[];
+  return rollbackProductFields(action, context, fields);
+}
+
+export async function rollbackProductAffiliateUrl(
+  action: AutomationActionRow,
+  context: ProductExecutorContext,
+) {
+  const parsed = parseProductAffiliateUrlInput(action.payload);
+  if (!parsed.ok) throw validationError(parsed.errors.join("; "));
+  const beforeUrl = snapshotField(action.before_snapshot, "affiliate_url");
+  if (typeof beforeUrl !== "string") throw validationError("Invalid affiliate URL snapshot");
+  const validationErrorMessage = validateProductAffiliateDestination(beforeUrl);
+  if (validationErrorMessage) throw validationError(validationErrorMessage);
+  const current = await productForAction(context.siteId, parsed.value.product_id);
+  assertCurrentMatchesAfter(current, action.after_snapshot, ["affiliate_url"]);
+  const restored = await updateProduct(
+    context.siteId,
+    parsed.value.product_id,
+    { affiliate_url: beforeUrl },
+    getAutomationDbClient,
+    current.version,
+  );
+  return { product_id: restored.id, affiliate_url: restored.affiliate_url };
+}
+
+export async function rollbackProductLifecycle(
+  action: AutomationActionRow,
+  context: ProductExecutorContext,
+) {
+  const parsed = parseProductLifecycleInput(action.payload);
+  if (!parsed.ok) throw validationError(parsed.errors.join("; "));
+  const before = await productForAction(context.siteId, parsed.value.product_id);
+  assertCurrentMatchesAfter(before, action.after_snapshot, ["status"]);
+  const priorStatus = snapshotField(action.before_snapshot, "status");
+  if (priorStatus !== "draft" && priorStatus !== "active" && priorStatus !== "archived") {
+    throw validationError("Invalid product status snapshot");
+  }
+  const restored = await updateProduct(
+    context.siteId,
+    parsed.value.product_id,
+    { status: priorStatus },
+    getAutomationDbClient,
+    before.version,
+  );
+  return { product_id: restored.id, status: restored.status };
+}
+
 export function mapProductExecutorError(error: unknown) {
   const status = (error as Error & { status?: number }).status;
   const code =
@@ -133,4 +242,12 @@ export function mapProductExecutorError(error: unknown) {
     code,
     message: error instanceof Error ? error.message : "Product mutation failed",
   } as const;
+}
+
+function validationError(message: string): Error & { status: number } {
+  return Object.assign(new Error(message), { status: 422 });
+}
+
+function conflictError(message: string): Error & { status: number; code: string } {
+  return Object.assign(new Error(message), { status: 409, code: "CONFLICT" });
 }

@@ -1,3 +1,5 @@
+import { validateAdminUrl } from "@/lib/admin-url-guard";
+
 /**
  * Request validation for automation mutations. Deliberately hand-rolled
  * (no runtime schema dependency) and defensive: unknown fields are ignored,
@@ -132,6 +134,10 @@ export function parseProductUpdateInput(
         value === null && key === "deal_expires_at"
           ? null
           : boundedString(value, `updates.${key}`, errors);
+      if (key === "image_url" && stringValue !== undefined && stringValue !== null) {
+        const imageUrl = validateAdminUrl(stringValue, { allowHttp: true });
+        if (!imageUrl.valid) errors.push(`updates.image_url ${imageUrl.error}`);
+      }
       if (stringValue !== undefined || stringValue === null)
         (updates as Record<string, unknown>)[key] = stringValue;
     } else if (["price_amount", "score"].includes(key)) {
