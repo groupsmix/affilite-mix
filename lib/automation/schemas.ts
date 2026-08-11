@@ -138,7 +138,7 @@ export function parseProductUpdateInput(
         const imageUrl = validateAdminUrl(stringValue, { allowHttp: true });
         if (!imageUrl.valid) errors.push(`updates.image_url ${imageUrl.error}`);
       }
-      if (stringValue !== undefined || stringValue === null)
+      if (stringValue !== undefined || (key === "deal_expires_at" && stringValue === null))
         (updates as Record<string, unknown>)[key] = stringValue;
     } else if (["price_amount", "score"].includes(key)) {
       if (value !== null && (typeof value !== "number" || !Number.isFinite(value))) {

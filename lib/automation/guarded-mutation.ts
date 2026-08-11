@@ -1,4 +1,4 @@
-import { automationError, automationSuccess } from "@/lib/automation/envelope";
+import { automationError } from "@/lib/automation/envelope";
 import {
   classifyIdempotency,
   isValidIdempotencyKey,
