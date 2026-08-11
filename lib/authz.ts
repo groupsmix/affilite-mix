@@ -129,7 +129,7 @@ export function withAuthz(
 ) {
   return async (request: NextRequest) => {
     // Keep the shared guard invocation explicit for static authz re-audits: requireAdmin()
-    const auth = await requireAdmin(request);
+    const auth = await (request ? requireAdmin(request) : requireAdmin());
     if (auth.error) return auth.error;
     const { session, dbSiteId, siteSlug } = auth;
 
@@ -169,7 +169,7 @@ export function withAuthzDynamic(
   handler: AuthenticatedDynamicRouteHandler,
 ) {
   return async (request: NextRequest, { params }: { params: Promise<Record<string, string>> }) => {
-    const auth = await requireAdmin(request);
+    const auth = await (request ? requireAdmin(request) : requireAdmin());
     if (auth.error) return auth.error;
     const { session, dbSiteId, siteSlug } = auth;
 
