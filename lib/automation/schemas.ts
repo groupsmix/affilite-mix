@@ -20,6 +20,170 @@ export interface DraftInput {
   run_id: string | null;
 }
 
+export type ProductMetadataUpdate = Partial<{
+  name: string;
+  description: string;
+  image_url: string;
+  image_alt: string;
+  price: string;
+  price_amount: number | null;
+  price_currency: string;
+  score: number | null;
+  featured: boolean;
+  category_id: string | null;
+  category_ids: string[] | null;
+  cta_text: string;
+  deal_text: string;
+  deal_expires_at: string | null;
+  pros: string;
+  cons: string;
+}>;
+
+const PRODUCT_METADATA_FIELDS = new Set([
+  "name",
+  "description",
+  "image_url",
+  "image_alt",
+  "price",
+  "price_amount",
+  "price_currency",
+  "score",
+  "featured",
+  "category_id",
+  "category_ids",
+  "cta_text",
+  "deal_text",
+  "deal_expires_at",
+  "pros",
+  "cons",
+]);
+
+export interface ProductUpdateInput {
+  product_id: string;
+  updates: ProductMetadataUpdate;
+}
+
+export interface ProductAffiliateUrlInput {
+  product_id: string;
+  affiliate_url: string;
+}
+
+export interface ProductLifecycleInput {
+  product_id: string;
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
+function boundedString(value: unknown, field: string, errors: string[]): string | undefined {
+  if (typeof value !== "string") {
+    errors.push(`${field} must be a string`);
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > 2_000) errors.push(`${field} exceeds 2000 chars`);
+  return trimmed;
+}
+
+export function parseProductUpdateInput(
+  body: Record<string, unknown>,
+): ValidationResult<ProductUpdateInput> {
+  const errors: string[] = [];
+  const productId = body.product_id;
+  if (!isUuid(productId)) errors.push("product_id must be a uuid");
+  let raw: Record<string, unknown>;
+  if (body.updates !== undefined) {
+    if (!body.updates || typeof body.updates !== "object" || Array.isArray(body.updates)) {
+      errors.push("updates must be an object");
+      return { ok: false, errors };
+    }
+    for (const key of Object.keys(body)) {
+      if (key !== "product_id" && key !== "updates") errors.push(`${key} is not allowed`);
+    }
+    raw = body.updates as Record<string, unknown>;
+  } else {
+    raw = { ...body };
+    delete raw.product_id;
+  }
+  const updates: ProductMetadataUpdate = {};
+  for (const key of Object.keys(raw)) {
+    if (!PRODUCT_METADATA_FIELDS.has(key)) {
+      errors.push(`updates.${key} is not allowed`);
+      continue;
+    }
+    const value = raw[key];
+    if (
+      [
+        "name",
+        "description",
+        "image_url",
+        "image_alt",
+        "price",
+        "price_currency",
+        "cta_text",
+        "deal_text",
+        "pros",
+        "cons",
+        "deal_expires_at",
+      ].includes(key)
+    ) {
+      const stringValue =
+        value === null && key === "deal_expires_at"
+          ? null
+          : boundedString(value, `updates.${key}`, errors);
+      if (stringValue !== undefined || stringValue === null)
+        (updates as Record<string, unknown>)[key] = stringValue;
+    } else if (["price_amount", "score"].includes(key)) {
+      if (value !== null && (typeof value !== "number" || !Number.isFinite(value))) {
+        errors.push(`updates.${key} must be a finite number or null`);
+      } else (updates as Record<string, unknown>)[key] = value;
+    } else if (key === "featured") {
+      if (typeof value !== "boolean") errors.push("updates.featured must be a boolean");
+      else updates.featured = value;
+    } else if (key === "category_id") {
+      if (value !== null && !isUuid(value))
+        errors.push("updates.category_id must be a uuid or null");
+      else updates.category_id = value as string | null;
+    } else if (key === "category_ids") {
+      if (value !== null && (!Array.isArray(value) || value.some((v) => !isUuid(v)))) {
+        errors.push("updates.category_ids must be an array of uuids or null");
+      } else updates.category_ids = value as string[] | null;
+    }
+  }
+  if (Object.keys(updates).length === 0 && errors.length === 0)
+    errors.push("updates cannot be empty");
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, value: { product_id: productId as string, updates } };
+}
+
+export function parseProductAffiliateUrlInput(
+  body: Record<string, unknown>,
+): ValidationResult<ProductAffiliateUrlInput> {
+  const errors: string[] = [];
+  for (const key of Object.keys(body)) {
+    if (key !== "product_id" && key !== "affiliate_url") errors.push(`${key} is not allowed`);
+  }
+  if (!isUuid(body.product_id)) errors.push("product_id must be a uuid");
+  const affiliateUrl = boundedString(body.affiliate_url, "affiliate_url", errors);
+  if (!affiliateUrl) errors.push("affiliate_url is required");
+  if (errors.length > 0) return { ok: false, errors };
+  return {
+    ok: true,
+    value: { product_id: body.product_id as string, affiliate_url: affiliateUrl! },
+  };
+}
+
+export function parseProductLifecycleInput(
+  body: Record<string, unknown>,
+): ValidationResult<ProductLifecycleInput> {
+  const unknown = Object.keys(body).filter((key) => key !== "product_id");
+  if (unknown.length > 0)
+    return { ok: false, errors: unknown.map((key) => `${key} is not allowed`) };
+  if (!isUuid(body.product_id)) return { ok: false, errors: ["product_id must be a uuid"] };
+  return { ok: true, value: { product_id: body.product_id as string } };
+}
+
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 
 const MAX = {
