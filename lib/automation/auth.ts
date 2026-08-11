@@ -29,7 +29,7 @@ import {
 import type { AutomationErrorCode } from "./envelope";
 
 export interface AutomationAuthContext {
-  token: AutomationTokenRow;
+  token?: AutomationTokenRow;
   account: AutomationServiceAccountRow;
   /** Server-derived site id (from the account, never request input). */
   siteId: string;
