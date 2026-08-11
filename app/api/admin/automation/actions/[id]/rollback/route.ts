@@ -8,7 +8,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { requireHumanAdmin } from "../../_shared";
 
 export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin(request);
   const { error } = admin;
   if (error) return error;
   const auth = await requireHumanAdmin(request, admin);
@@ -35,10 +35,16 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
   try {
     assertTransition(action.status, "rolled_back");
     const result = await executor.rollback(action, { siteId: auth.dbSiteId });
-    const rolledBack = await updateAutomationAction(auth.dbSiteId, action.id, {
-      status: "rolled_back",
-      result,
-    });
+    const rolledBack = await updateAutomationAction(
+      auth.dbSiteId,
+      action.id,
+      {
+        status: "rolled_back",
+        result,
+      },
+      undefined,
+      "succeeded",
+    );
     await recordAuditEvent({
       site_id: auth.dbSiteId,
       actor: auth.session.email ?? auth.session.userId ?? "admin",

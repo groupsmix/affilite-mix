@@ -70,7 +70,13 @@ const context = { params: Promise.resolve({ id: actionId }) };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  requireAdminMock.mockResolvedValue({ error: null, session: admin, dbSiteId: siteId });
+  requireAdminMock.mockResolvedValue({
+    error: null,
+    session: admin,
+    dbSiteId: siteId,
+    siteSlug: "site-1",
+    caller: { type: "interactive" },
+  });
   getActionMock.mockResolvedValue(action());
   listMock.mockResolvedValue([action()]);
   updateMock.mockImplementation((_site: string, _id: string, patch: Record<string, unknown>) => ({
@@ -95,11 +101,15 @@ describe("owner automation approval plane", () => {
       siteId,
       actionId,
       expect.objectContaining({ status: "approved", approved_by: "admin-1" }),
+      undefined,
+      "manual_attention",
     );
     expect(updateMock).toHaveBeenCalledWith(
       siteId,
       actionId,
       expect.objectContaining({ status: "succeeded" }),
+      undefined,
+      "running",
     );
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -123,6 +133,40 @@ describe("owner automation approval plane", () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
+  it("losing concurrent approval returns conflict without executing", async () => {
+    updateMock.mockImplementationOnce(() => {
+      throw Object.assign(new Error("Automation action changed before transition"), {
+        status: 409,
+      });
+    });
+    const execute = vi.fn();
+    executorMock.mockReturnValueOnce({ execute });
+    const response = await approveAction(request(`/actions/${actionId}/approve`), context);
+    expect(response.status).toBe(409);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("audits execution failures separately with their error code", async () => {
+    executorMock.mockReturnValueOnce({
+      execute: vi.fn().mockRejectedValue(
+        Object.assign(new Error("Rejected by executor"), {
+          code: "AUTOMATION_VALIDATION_ERROR",
+        }),
+      ),
+    });
+    const response = await approveAction(request(`/actions/${actionId}/approve`), context);
+    expect(response.status).toBe(422);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "automation.action.approval_failed",
+        details: {
+          action_type: "products.update",
+          error_code: "AUTOMATION_VALIDATION_ERROR",
+        },
+      }),
+    );
+  });
+
   it("rejects without executing and records the reason", async () => {
     const response = await rejectAction(
       request(`/actions/${actionId}/reject`, { reason: "Not appropriate" }),
@@ -133,6 +177,8 @@ describe("owner automation approval plane", () => {
       siteId,
       actionId,
       expect.objectContaining({ status: "cancelled", error_message: "Not appropriate" }),
+      undefined,
+      "manual_attention",
     );
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: "automation.action.rejected" }),
@@ -148,6 +194,8 @@ describe("owner automation approval plane", () => {
       siteId,
       actionId,
       expect.objectContaining({ status: "rolled_back" }),
+      undefined,
+      "succeeded",
     );
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: "automation.action.rolled_back" }),
@@ -171,6 +219,13 @@ describe("owner automation approval plane", () => {
   });
 
   it("refuses machine callers on approve, reject, and rollback", async () => {
+    requireAdminMock.mockResolvedValue({
+      error: null,
+      session: admin,
+      dbSiteId: siteId,
+      siteSlug: "site-1",
+      caller: { type: "machine", tokenId: "token-1" },
+    });
     for (const handler of [approveAction, rejectAction, rollbackAction]) {
       expect(
         (await handler(request(`/actions/${actionId}`, undefined, false), context)).status,

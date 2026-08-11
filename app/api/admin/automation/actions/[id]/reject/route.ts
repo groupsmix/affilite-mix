@@ -7,7 +7,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import { requireHumanAdmin } from "../../_shared";
 
 export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin(request);
   const { error } = admin;
   if (error) return error;
   const auth = await requireHumanAdmin(request, admin);
@@ -28,10 +28,16 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     typeof bodyRecord.reason === "string" ? bodyRecord.reason.trim().slice(0, 500) : "";
   try {
     assertTransition(action.status, "cancelled");
-    const cancelled = await updateAutomationAction(auth.dbSiteId, action.id, {
-      status: "cancelled",
-      error_message: reason || null,
-    });
+    const cancelled = await updateAutomationAction(
+      auth.dbSiteId,
+      action.id,
+      {
+        status: "cancelled",
+        error_message: reason || null,
+      },
+      undefined,
+      action.status,
+    );
     await recordAuditEvent({
       site_id: auth.dbSiteId,
       actor: auth.session.email ?? auth.session.userId ?? "admin",

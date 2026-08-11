@@ -150,6 +150,7 @@ export async function updateAutomationAction(
     >
   >,
   getClient: DalClientGetter = getAutomationDbClient,
+  expectedStatus?: ActionState,
 ): Promise<AutomationActionRow | null> {
   if (patch.status) {
     const existing = await getAutomationActionById(siteId, id, getClient);
@@ -157,12 +158,21 @@ export async function updateAutomationAction(
     assertTransition(existing.status, patch.status);
   }
   const sb = await getClient();
-  const { data, error } = await untypedFrom(sb, TABLE)
+  let updateQuery = untypedFrom(sb, TABLE)
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("site_id", siteId)
-    .eq("id", id)
-    .select(ALL_COLUMNS)
-    .maybeSingle();
+    .eq("id", id);
+  if (expectedStatus) updateQuery = updateQuery.eq("status", expectedStatus);
+  const { data, error } = await updateQuery.select(ALL_COLUMNS).maybeSingle();
   if (error) throw error;
+  if (!data && expectedStatus) {
+    const current = await getAutomationActionById(siteId, id, getClient);
+    if (current) {
+      throw Object.assign(
+        new Error(`Automation action changed before transition from ${expectedStatus}`),
+        { status: 409, code: "AUTOMATION_ACTION_CONFLICT" },
+      );
+    }
+  }
   return rowOrNull<AutomationActionRow>(data);
 }

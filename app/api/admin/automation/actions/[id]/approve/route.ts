@@ -8,7 +8,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { requireHumanAdmin } from "../../_shared";
 
 export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin(request);
   const { error } = admin;
   if (error) return error;
   const auth = await requireHumanAdmin(request, admin);
@@ -31,25 +31,43 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
   }
   try {
     assertTransition(action.status, "approved");
-    const approved = await updateAutomationAction(auth.dbSiteId, action.id, {
-      status: "approved",
-      approved_by: auth.session.userId,
-      approved_at: new Date().toISOString(),
-    });
+    const approved = await updateAutomationAction(
+      auth.dbSiteId,
+      action.id,
+      {
+        status: "approved",
+        approved_by: auth.session.userId,
+        approved_at: new Date().toISOString(),
+      },
+      undefined,
+      action.status,
+    );
     if (!approved)
       return NextResponse.json({ error: "Automation action not found" }, { status: 404 });
-    const running = await updateAutomationAction(auth.dbSiteId, action.id, { status: "running" });
+    const running = await updateAutomationAction(
+      auth.dbSiteId,
+      action.id,
+      { status: "running" },
+      undefined,
+      "approved",
+    );
     if (!running)
       return NextResponse.json({ error: "Automation action not found" }, { status: 404 });
     try {
       const execution = await executor.execute(running, { siteId: auth.dbSiteId });
-      const succeeded = await updateAutomationAction(auth.dbSiteId, action.id, {
-        status: "succeeded",
-        target_id: execution.targetId ?? running.target_id,
-        before_snapshot: execution.beforeSnapshot ?? null,
-        after_snapshot: execution.afterSnapshot ?? null,
-        result: execution.result,
-      });
+      const succeeded = await updateAutomationAction(
+        auth.dbSiteId,
+        action.id,
+        {
+          status: "succeeded",
+          target_id: execution.targetId ?? running.target_id,
+          before_snapshot: execution.beforeSnapshot ?? null,
+          after_snapshot: execution.afterSnapshot ?? null,
+          result: execution.result,
+        },
+        undefined,
+        "running",
+      );
       await recordAuditEvent({
         site_id: auth.dbSiteId,
         actor: auth.session.email ?? auth.session.userId ?? "admin",
@@ -62,19 +80,28 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
       return NextResponse.json({ action: succeeded ?? running }, { status: 200 });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Approved action failed";
-      const failed = await updateAutomationAction(auth.dbSiteId, action.id, {
-        status: "failed",
-        error_code: (error as Error & { code?: string }).code ?? "AUTOMATION_EXECUTION_FAILED",
-        error_message: message.slice(0, 500),
-      });
+      const failed = await updateAutomationAction(
+        auth.dbSiteId,
+        action.id,
+        {
+          status: "failed",
+          error_code: (error as Error & { code?: string }).code ?? "AUTOMATION_EXECUTION_FAILED",
+          error_message: message.slice(0, 500),
+        },
+        undefined,
+        "running",
+      );
       await recordAuditEvent({
         site_id: auth.dbSiteId,
         actor: auth.session.email ?? auth.session.userId ?? "admin",
         actor_user_id: auth.session.userId,
-        action: "automation.action.approved",
+        action: "automation.action.approval_failed",
         entity_type: "automation_action",
         entity_id: action.id,
-        details: { action_type: action.action_type },
+        details: {
+          action_type: action.action_type,
+          error_code: (error as Error & { code?: string }).code ?? "AUTOMATION_EXECUTION_FAILED",
+        },
       });
       return NextResponse.json({ error: message, action: failed }, { status: 422 });
     }
@@ -84,6 +111,9 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
       error.message.startsWith("Illegal automation action transition")
     ) {
       return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if ((error as Error & { status?: number }).status === 409) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 409 });
     }
     throw error;
   }
