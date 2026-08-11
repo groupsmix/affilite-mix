@@ -154,17 +154,21 @@ export function assertRole(
  * - Resolves the database UUID for the site
  * - Verifies admin_site_memberships for non-super_admin users
  */
+export const MACHINE_DENIED_ADMIN_ROUTE_PREFIXES = [
+  "/api/admin/users",
+  "/api/admin/api-tokens",
+  "/api/admin/permissions",
+  "/api/admin/sites",
+  "/api/admin/automation/service-accounts",
+  "/api/admin/integrations",
+  "/api/admin/affiliate-networks",
+  "/api/admin/privacy",
+] as const;
+
 function isMachineDeniedPath(pathname: string): boolean {
-  return [
-    /^\/api\/admin\/users(?:\/|$)/,
-    /^\/api\/admin\/api-tokens(?:\/|$)/,
-    /^\/api\/admin\/permissions(?:\/|$)/,
-    /^\/api\/admin\/sites(?:\/|$)/,
-    /^\/api\/admin\/automation\/service-accounts(?:\/|$)/,
-    /^\/api\/admin\/integrations(?:\/|$)/,
-    /^\/api\/admin\/affiliate-networks(?:\/|$)/,
-    /^\/api\/admin\/privacy(?:\/|$)/,
-  ].some((pattern) => pattern.test(pathname));
+  return MACHINE_DENIED_ADMIN_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 async function denyMachineAccess(

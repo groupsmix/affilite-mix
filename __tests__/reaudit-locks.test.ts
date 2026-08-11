@@ -147,8 +147,8 @@ describe("re-audit lock — R-007 withAuthz reads site from server context only"
     expect(code).not.toMatch(/searchParams\.get\(\s*["']site_id["']\s*\)/);
   });
 
-  it("derives site_id from requireAdmin().dbSiteId, not the request", () => {
-    expect(code).toMatch(/requireAdmin\(\)/);
+  it("derives site_id from request-aware requireAdmin().dbSiteId, not the request", () => {
+    expect(code).toMatch(/requireAdmin\(\s*request\s*\)/);
     expect(code).toMatch(/dbSiteId/);
   });
 });

@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
 /** PATCH /api/admin/sites — update an existing site (super_admin only) */
 export async function PATCH(request: NextRequest) {
   // Use requireAdminSession() — site management does not need an active site cookie.
-  const { error, session } = await requireAdminSession();
+  const { error, session } = await requireAdminSession(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -293,7 +293,7 @@ export async function PATCH(request: NextRequest) {
 /** DELETE /api/admin/sites — delete a site (super_admin only) */
 export async function DELETE(request: NextRequest) {
   // Use requireAdminSession() — site management does not need an active site cookie.
-  const { error, session } = await requireAdminSession();
+  const { error, session } = await requireAdminSession(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
