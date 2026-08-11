@@ -20,12 +20,12 @@ import { buildAdminSiteRegistry, isStaticConfigSiteSlug } from "@/lib/site-confi
 import type { SiteRow } from "@/types/database";
 
 /** GET /api/admin/sites — list all available sites (super_admin: all, admin: membership-filtered) */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Use requireAdminSession() (no site context) because this endpoint must
     // work BEFORE a site is selected (chicken-and-egg: you need to list sites
     // to select one, but requireAdmin() demands a site cookie).
-    const { error, session } = await requireAdminSession();
+    const { error, session } = await requireAdminSession(request);
     if (error) return error;
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
   // Use requireAdminSession() (no site context) — same reason as GET above:
   // site management endpoints must be callable when no site cookie is set,
   // e.g. when creating the very first site or after clearing the active site.
-  const { error, session } = await requireAdminSession();
+  const { error, session } = await requireAdminSession(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
 /** PATCH /api/admin/sites — update an existing site (super_admin only) */
 export async function PATCH(request: NextRequest) {
   // Use requireAdminSession() — site management does not need an active site cookie.
-  const { error, session } = await requireAdminSession();
+  const { error, session } = await requireAdminSession(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -293,7 +293,7 @@ export async function PATCH(request: NextRequest) {
 /** DELETE /api/admin/sites — delete a site (super_admin only) */
 export async function DELETE(request: NextRequest) {
   // Use requireAdminSession() — site management does not need an active site cookie.
-  const { error, session } = await requireAdminSession();
+  const { error, session } = await requireAdminSession(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

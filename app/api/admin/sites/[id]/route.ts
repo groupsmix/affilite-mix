@@ -18,8 +18,8 @@ import { isStaticConfigSiteSlug } from "@/lib/site-config-authority";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 /** GET /api/admin/sites/[id] — get a single site by DB id */
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error, session } = await requireAdmin();
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -46,7 +46,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 /** PUT /api/admin/sites/[id] — update a site (super_admin only) */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error, session } = await requireAdmin();
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -157,10 +157,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 /** DELETE /api/admin/sites/[id] — delete a site (super_admin only) */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { error, session } = await requireAdmin();
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

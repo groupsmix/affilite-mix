@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { generateTotpSecret, verifyTotpToken } from "@/lib/totp";
@@ -12,8 +12,8 @@ import QRCode from "qrcode";
  * POST /api/admin/users/me/totp — enroll in TOTP 2FA.
  * Returns the secret and a data-URL QR code for the authenticator app.
  */
-export async function POST(request: Request) {
-  const { error, session } = await requireAdmin();
+export async function POST(request: NextRequest) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -78,8 +78,8 @@ export async function POST(request: Request) {
  * PUT /api/admin/users/me/totp — verify TOTP token and enable 2FA.
  * Requires the user to provide a valid token from their authenticator app.
  */
-export async function PUT(request: Request) {
-  const { error, session } = await requireAdmin();
+export async function PUT(request: NextRequest) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -149,8 +149,8 @@ export async function PUT(request: Request) {
 /**
  * DELETE /api/admin/users/me/totp — disable 2FA.
  */
-export async function DELETE(request: Request) {
-  const { error, session } = await requireAdmin();
+export async function DELETE(request: NextRequest) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

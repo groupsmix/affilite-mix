@@ -13,6 +13,13 @@ const SITE_A_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const SITE_B_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
 const requestHeaders = new Headers();
+const recordAuditEvent = vi.fn().mockResolvedValue(undefined);
+let cookieSession: {
+  userId: string;
+  email: string;
+  role: "admin" | "super_admin";
+} | null = null;
+let activeSiteSlug: string | null = null;
 
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: () => undefined }),
@@ -20,13 +27,12 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  // No cookie session in any of these tests.
-  getAdminSession: async () => null,
+  getAdminSession: async () => cookieSession,
   AdminPayload: {},
 }));
 
 vi.mock("@/lib/active-site", () => ({
-  getActiveSiteSlug: async () => null,
+  getActiveSiteSlug: async () => activeSiteSlug,
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -53,7 +59,7 @@ vi.mock("@/lib/server-only/service-role", () => ({
 }));
 
 vi.mock("@/lib/runtime-env", () => ({ getAppCacheKV: () => undefined }));
-vi.mock("@/lib/audit-log", () => ({ recordAuditEvent: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/audit-log", () => ({ recordAuditEvent }));
 vi.mock("@/lib/sentry", () => ({ captureException: vi.fn() }));
 
 vi.mock("@/lib/dal/admin-site-memberships", () => ({
@@ -103,6 +109,9 @@ describe("admin bearer authentication", () => {
     vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", "watch-tools");
     requestHeaders.delete("authorization");
     requestHeaders.delete("x-admin-site");
+    cookieSession = null;
+    activeSiteSlug = null;
+    recordAuditEvent.mockClear();
     touchAdminApiToken.mockClear();
     tokenRow = {
       id: "tok-1",
@@ -125,6 +134,60 @@ describe("admin bearer authentication", () => {
     expect(result.siteSlug).toBe("watch-tools");
     expect(result.dbSiteId).toBe(SITE_A_ID);
     expect(touchAdminApiToken).toHaveBeenCalledWith("tok-1");
+  });
+
+  it("returns the machine discriminator and denies sensitive routes with an audit event", async () => {
+    setBearer("aadm_valid");
+    const { requireAdmin } = await import("@/lib/admin-guard");
+    const deniedPaths = [
+      "/api/admin/users",
+      "/api/admin/api-tokens",
+      "/api/admin/permissions",
+      "/api/admin/sites",
+      "/api/admin/automation/service-accounts",
+      "/api/admin/integrations",
+      "/api/admin/affiliate-networks",
+      "/api/admin/privacy/user",
+      "/api/admin/users/me/password",
+    ];
+    for (const pathname of deniedPaths) {
+      const result = await requireAdmin(new NextRequest(`http://localhost${pathname}`));
+      expect(result.error?.status, pathname).toBe(403);
+      expect(result.caller, pathname).toBeNull();
+    }
+    expect(recordAuditEvent).toHaveBeenCalledTimes(deniedPaths.length);
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "admin.machine_access_denied",
+        details: expect.objectContaining({
+          token_id: "tok-1",
+          reason: "machine_caller_not_permitted",
+        }),
+      }),
+    );
+  });
+
+  it("keeps browser sessions allowed on sensitive routes and bearer access open on products", async () => {
+    cookieSession = {
+      userId: "user-super",
+      email: "super@test.com",
+      role: "super_admin",
+    };
+    activeSiteSlug = "watch-tools";
+    const { requireAdmin } = await import("@/lib/admin-guard");
+    const browser = await requireAdmin(
+      new NextRequest("http://localhost/api/admin/users", { method: "GET" }),
+    );
+    expect(browser.error).toBeNull();
+    expect(browser.caller).toEqual({ type: "interactive" });
+
+    cookieSession = null;
+    setBearer("aadm_valid");
+    const machine = await requireAdmin(
+      new NextRequest("http://localhost/api/admin/products", { method: "GET" }),
+    );
+    expect(machine.error).toBeNull();
+    expect(machine.caller).toEqual({ type: "machine", tokenId: "tok-1" });
   });
 
   it("honours the x-admin-site header for an all-sites token", async () => {

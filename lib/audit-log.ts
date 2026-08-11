@@ -58,6 +58,8 @@ const AUDIT_DETAIL_ALLOWLIST: Record<string, string[]> = {
   upload: ["contentType", "fileSize"],
   // Auth events
   admin_user: ["role"],
+  admin_route: ["path", "token_id", "reason"],
+  automation_action: ["action_type", "error_code", "reason"],
   // A167-01: Membership audit trail
   membership: [
     "status",

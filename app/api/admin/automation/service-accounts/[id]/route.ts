@@ -12,8 +12,8 @@ const UUID_RE = /^[0-9a-fA-F-]{36}$/;
 // DELETE /api/admin/automation/service-accounts/[id]
 // Kill switch: revokes an automation service account (status -> revoked),
 // immediately blocking all of its tokens at authentication. super_admin only.
-export async function DELETE(_request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const { error, session } = await requireAdmin();
+export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const roleError = assertRole(session, "super_admin");

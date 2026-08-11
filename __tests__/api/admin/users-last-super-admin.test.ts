@@ -130,6 +130,7 @@ describe("admin/users last-super_admin safety guard", () => {
       },
       dbSiteId: "site-uuid",
       siteSlug: "test-site",
+      caller: { type: "interactive" },
     });
   });
 

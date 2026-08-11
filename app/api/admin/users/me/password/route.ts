@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { requireAdmin } from "@/lib/admin-guard";
 import { COOKIE_NAME } from "@/lib/auth";
@@ -16,8 +16,8 @@ import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 
 /** POST /api/admin/users/me/password — change own password */
-export async function POST(request: Request) {
-  const { error, session } = await requireAdmin();
+export async function POST(request: NextRequest) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
