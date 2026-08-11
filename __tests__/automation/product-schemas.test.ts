@@ -49,4 +49,15 @@ describe("product automation schemas", () => {
         .ok,
     ).toBe(true);
   });
+
+  it("allows clearing deal_expires_at with null", () => {
+    const result = parseProductUpdateInput({
+      product_id: id,
+      updates: { deal_expires_at: null },
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: { product_id: id, updates: { deal_expires_at: null } },
+    });
+  });
 });

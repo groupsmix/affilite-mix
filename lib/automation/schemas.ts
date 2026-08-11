@@ -130,16 +130,16 @@ export function parseProductUpdateInput(
         "deal_expires_at",
       ].includes(key)
     ) {
-      const stringValue =
-        value === null && key === "deal_expires_at"
-          ? null
-          : boundedString(value, `updates.${key}`, errors);
-      if (key === "image_url" && stringValue !== undefined && stringValue !== null) {
+      if (key === "deal_expires_at" && value === null) {
+        updates.deal_expires_at = null;
+        continue;
+      }
+      const stringValue = boundedString(value, `updates.${key}`, errors);
+      if (key === "image_url" && stringValue !== undefined) {
         const imageUrl = validateAdminUrl(stringValue, { allowHttp: true });
         if (!imageUrl.valid) errors.push(`updates.image_url ${imageUrl.error}`);
       }
-      if (stringValue !== undefined || (key === "deal_expires_at" && stringValue === null))
-        (updates as Record<string, unknown>)[key] = stringValue;
+      if (stringValue !== undefined) (updates as Record<string, unknown>)[key] = stringValue;
     } else if (["price_amount", "score"].includes(key)) {
       if (value !== null && (typeof value !== "number" || !Number.isFinite(value))) {
         errors.push(`updates.${key} must be a finite number or null`);
