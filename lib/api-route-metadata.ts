@@ -193,6 +193,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/affiliate-link-health",
+    methods: ["GET"],
+    requestSchema: null,
+    responseSchema: "AffiliateLinkHealthList",
+    sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
     auth: "super_admin",
     path: "/api/admin/seo/gsc",
     methods: ["GET"],
@@ -781,6 +789,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     methods: ["POST"],
     requestSchema: null,
     responseSchema: "{ generated: number }",
+    sensitiveFields: [],
+  },
+  {
+    ...CRON_DEFAULTS,
+    path: "/api/cron/affiliate-link-health",
+    methods: ["POST"],
+    requestSchema: null,
+    responseSchema: "AffiliateLinkHealthProbe",
     sensitiveFields: [],
   },
   {
