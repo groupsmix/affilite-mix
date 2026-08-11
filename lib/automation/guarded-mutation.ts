@@ -40,6 +40,8 @@ export interface GuardedMutationOptions<TResult> {
   targetType: string;
   targetId: string;
   payload: Record<string, unknown>;
+  runId?: string | null;
+  runActionCount?: number;
   replay: (action: AutomationActionRow) => NextResponse;
   success: (
     execution: GuardedMutationExecution<TResult>,
@@ -109,12 +111,13 @@ export async function runGuardedMutation<TResult>(
       ? { mode: override.mode, constraints: override.constraints, is_active: override.is_active }
       : null,
     itemCount: 1,
+    runActionCount: options.runActionCount,
     dayActionCount: dayCount,
     maxActionsPerDay: auth.account.max_actions_per_day,
     maxActionsPerRun: auth.account.max_actions_per_run,
   });
   const baseAction = {
-    run_id: null,
+    run_id: options.runId ?? null,
     service_account_id: auth.account.id,
     site_id: auth.siteId,
     idempotency_key: idempotencyKey,

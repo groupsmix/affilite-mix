@@ -14,7 +14,7 @@ export type RunStatus = "running" | "succeeded" | "partial" | "failed" | "cancel
 
 export interface AutomationRunRow {
   id: string;
-  service_account_id: string;
+  service_account_id: string | null;
   site_id: string;
   trigger: RunTrigger;
   goal: string | null;
@@ -31,7 +31,7 @@ export interface AutomationRunRow {
 
 export async function createAutomationRun(
   values: {
-    service_account_id: string;
+    service_account_id?: string | null;
     site_id: string;
     trigger: RunTrigger;
     goal?: string | null;
@@ -83,4 +83,33 @@ export async function countActionsSince(
     .unsafeNoSiteFilter();
   if (error) throw error;
   return count ?? 0;
+}
+
+export async function updateAutomationRun(
+  siteId: string,
+  id: string,
+  patch: Partial<
+    Pick<
+      AutomationRunRow,
+      | "status"
+      | "planned_actions"
+      | "succeeded_actions"
+      | "failed_actions"
+      | "manual_actions"
+      | "finished_at"
+      | "summary"
+      | "error_code"
+    >
+  >,
+  getClient: DalClientGetter = getAutomationDbClient,
+): Promise<AutomationRunRow | null> {
+  const sb = await getClient();
+  const { data, error } = await untypedFrom(sb, TABLE)
+    .update(patch)
+    .eq("site_id", siteId)
+    .eq("id", id)
+    .select(ALL_COLUMNS)
+    .maybeSingle();
+  if (error) throw error;
+  return rowOrNull<AutomationRunRow>(data);
 }
