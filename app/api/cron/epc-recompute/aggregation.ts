@@ -151,7 +151,14 @@ export function sumCommissions(
   commissions: readonly { commission_amount?: number | null }[] | null | undefined,
 ): number {
   if (!commissions) return 0;
-  return commissions.reduce((sum, c) => sum + Number(c?.commission_amount ?? 0), 0);
+  // Sum in cents: amounts are stored as NUMERIC(12,2), so accumulating them as
+  // floats drifts (0.1 + 0.2 = 0.30000000000000004) once a group has enough
+  // commissions to matter.
+  const cents = commissions.reduce(
+    (sum, c) => sum + Math.round(Number(c?.commission_amount ?? 0) * 100),
+    0,
+  );
+  return cents / 100;
 }
 
 /**
