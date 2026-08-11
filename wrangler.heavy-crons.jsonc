@@ -19,7 +19,7 @@
   // posture (A206/A209).
   "workers_dev": false,
   "triggers": {
-    "crons": ["0 2 * * *", "0 5 * * *", "0 7 * * *"],
+    "crons": ["0 2 * * *", "0 5 * * *", "0 7 * * *", "0 9 * * *"],
   },
   "observability": {
     "enabled": true,

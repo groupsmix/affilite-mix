@@ -165,6 +165,17 @@ export const cronJobs: readonly CronJob[] = [
     heavy: true,
   },
   {
+    name: "affiliate-link-health",
+    schedule: "0 9 * * *",
+    path: "/api/cron/affiliate-link-health",
+    method: "POST",
+    secretEnvVar: "CRON_AFFILIATE_LINK_HEALTH_SECRET",
+    csrfExempt: true,
+    alertOnFailure: true,
+    description: "Probe active affiliate destinations and record link health.",
+    heavy: true,
+  },
+  {
     name: "expire-deals",
     schedule: "0 * * * *",
     path: "/api/cron/expire-deals",
