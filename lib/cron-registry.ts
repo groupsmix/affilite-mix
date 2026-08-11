@@ -176,6 +176,16 @@ export const cronJobs: readonly CronJob[] = [
     heavy: true,
   },
   {
+    name: "affiliate-optimization",
+    schedule: "0 10 * * *",
+    path: "/api/cron/affiliate-optimization",
+    method: "POST",
+    secretEnvVar: "CRON_AFFILIATE_OPTIMIZATION_SECRET",
+    csrfExempt: true,
+    alertOnFailure: true,
+    description: "Evaluate EPC and affiliate health for guarded product optimizations.",
+  },
+  {
     name: "expire-deals",
     schedule: "0 * * * *",
     path: "/api/cron/expire-deals",

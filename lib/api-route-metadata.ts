@@ -801,6 +801,15 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...CRON_DEFAULTS,
+    path: "/api/cron/affiliate-optimization",
+    methods: ["POST"],
+    requestSchema: null,
+    responseSchema: "{ sites: number; actions: number }",
+    sensitiveFields: [],
+    notes: "Runs EPC-based product proposals through the automation guardrail plane.",
+  },
+  {
+    ...CRON_DEFAULTS,
     path: "/api/cron/click-reconcile",
     methods: ["POST"],
     requestSchema: null,
