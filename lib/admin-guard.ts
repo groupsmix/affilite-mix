@@ -83,7 +83,7 @@ export function assertRole(
 /**
  * Shared admin guard for all /api/admin/* routes.
  * - Verifies the admin JWT session exists
- * - Enforces per-session rate limiting (100 req/min)
+ * - Enforces per-session rate limiting (see ADMIN_RATE_LIMIT: 600 req/min, fail-open)
  * - Reads the active site from the nh_active_site cookie
  * - Validates the cookie value against known site configs
  * - Resolves the database UUID for the site

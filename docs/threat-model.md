@@ -158,6 +158,6 @@ workflow failure for manual review.
 | Impersonate admin   | **S**poofing               | JWT + HMAC binding cookie + optional TOTP           | Low           |
 | IDOR (cross-tenant) | **T**ampering              | site_id scoping in every DAL query, ownership check | Low           |
 | Deny admin action   | **R**epudiation            | Comprehensive audit log with PII redaction          | Low           |
-| Bulk data export    | **I**nformation Disclosure | Admin rate limit (100/min), RBAC per resource       | Low           |
+| Bulk data export    | **I**nformation Disclosure | Admin rate limit (600/min), RBAC per resource       | Low           |
 | Admin API abuse     | **D**enial of Service      | Per-admin rate limiting via `requireAdmin()`        | Low           |
 | Role escalation     | **E**levation of Privilege | Role check in `assertRole()`, super_admin gated     | Low           |

@@ -14,35 +14,19 @@ import { logger } from "@/lib/logger";
 import { getAppCacheKV } from "@/lib/runtime-env";
 import { getOrDeriveHmacKeyString } from "@/lib/hmac-key";
 import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
-import { verifyToken } from "@/lib/auth";
 import { isHttpsUrl } from "@/lib/validation";
+import {
+  computeClickFingerprint,
+  hasValidAdminSession,
+  isDuplicateClick,
+  safeKeyPart,
+  sanitizeClickReferrer,
+  shouldSkipClickAnalytics,
+} from "@/lib/click-analytics";
 import {
   normalizeOverrideUrl,
   validateOverrideDestination,
 } from "@/lib/affiliate/override-url-guard";
-
-/**
- * A158: Compute a privacy-preserving click fingerprint for 24-hour dedup.
- * Inputs: HMAC key + site_id + product_slug + content_slug (campaign) + ip_prefix + UA hash.
- * The fingerprint is an HMAC — no raw PII leaves this function.
- */
-async function computeClickFingerprint(
-  hmacKey: string,
-  siteId: string,
-  productSlug: string,
-  contentSlug: string,
-  ipPrefix: string,
-  userAgent: string,
-): Promise<string> {
-  const encoder = new TextEncoder();
-  const uaHashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(userAgent));
-  const uaHash = Array.from(new Uint8Array(uaHashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .slice(0, 16); // truncated — sufficient for dedup, not reversible to UA
-  const payload = `${siteId}\x1F${productSlug}\x1F${contentSlug}\x1F${ipPrefix}\x1F${uaHash}`;
-  return computeHmac(hmacKey, "click-dedup", "click-dedup", payload);
-}
 
 /**
  * AUDIT-FIX A4-001/A2-002: Validate and sanitize slug inputs.
@@ -53,104 +37,11 @@ function isValidSlug(s: string): boolean {
   return SLUG_RE.test(s.normalize("NFC"));
 }
 
-/** AUDIT-FIX A2-002: Strip \x1F delimiters from user input to prevent KV key collision. */
-function safeKeyPart(s: string): string {
-  return s.replace(/[\x1F\x00]/g, "").slice(0, 160);
-}
-
-/**
- * A158: Check KV for a dedup key. Returns "duplicate" if this click is a duplicate
- * within the 24-hour window. Returns "unique" on a cache miss.
- * AUDIT-FIX A5-005/A7-004/A11-006: Returns "error" on KV failure so callers
- * can fail analytics closed while still redirecting.
- */
-/**
- * A99-3: KV write-rate monitoring for click dedup.
- * Tracks per-minute write count and emits a warning when the rate
- * exceeds the configurable threshold (KV_DEDUP_WRITE_ALERT_RATE,
- * default 500 writes/min).
- */
-let _kvDedupWriteCount = 0;
-let _kvDedupWriteWindowStart = Date.now();
-const KV_DEDUP_WRITE_WINDOW_MS = 60_000;
-function trackKvDedupWrite(): void {
-  const now = Date.now();
-  if (now - _kvDedupWriteWindowStart >= KV_DEDUP_WRITE_WINDOW_MS) {
-    _kvDedupWriteCount = 0;
-    _kvDedupWriteWindowStart = now;
-  }
-  _kvDedupWriteCount++;
-
-  const threshold = Number(process.env.KV_DEDUP_WRITE_ALERT_RATE) || 500;
-  if (_kvDedupWriteCount === threshold) {
-    logger.warn("[track/click] KV dedup write rate exceeded threshold", {
-      metric: "kv_dedup_write_rate_exceeded",
-      writes_in_window: _kvDedupWriteCount,
-      threshold,
-      window_ms: KV_DEDUP_WRITE_WINDOW_MS,
-    });
-    captureException(new Error(`KV dedup write rate exceeded ${threshold}/min`), {
-      context: "[api/track/click] kv-dedup-write-rate",
-    });
-  }
-}
-
-/**
- * Bug 5: dedup key includes product_slug between siteId and contentSlug so
- * clicks on different products are not collapsed together.
- */
-async function isDuplicateClick(
-  fingerprint: string,
-  siteId: string,
-  productSlug: string,
-  contentSlug: string,
-): Promise<"duplicate" | "unique" | "error"> {
-  try {
-    const kv = getAppCacheKV();
-    if (!kv) return "unique";
-    const dedupKey = `click-dedup:${safeKeyPart(siteId)}:${safeKeyPart(productSlug)}:${safeKeyPart(contentSlug)}:${fingerprint}`;
-    const existing = await kv.get(dedupKey);
-    if (existing !== null) return "duplicate";
-    await kv.put(dedupKey, "1", { expirationTtl: 86400 });
-    // A99-3: Track KV write rate for monitoring/alerting.
-    trackKvDedupWrite();
-    return "unique";
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    return "error";
-  }
-}
-
 const CLICK_RATE_LIMIT = {
   maxRequests: 60,
   windowMs: 60 * 1000,
   failPolicy: "closed" as const,
 };
-
-/**
- * AUDIT-FIX A3-006/A6-003: Validate admin session AND bind to the resolved siteId
- * so an admin from tenant A cannot suppress analytics on tenant B's clicks.
- */
-async function hasValidAdminSession(request: NextRequest, siteId?: string): Promise<boolean> {
-  const adminToken =
-    request.cookies.get("__Host-nh_admin_token")?.value ??
-    request.cookies.get("nh_admin_token")?.value;
-  if (!adminToken) return false;
-  try {
-    const payload = await verifyToken(adminToken, request);
-    if (!payload) return false;
-    // RC-001: Require token to carry a site_id claim that matches the resolved tenant.
-    // Tokens without site_id (legacy/older) must NOT be treated as internal.
-    const tokenSiteId = payload.site_id;
-    if (siteId && tokenSiteId !== siteId) {
-      return false;
-    }
-    return true;
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    return false;
-  }
-}
 
 async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean } = {}) {
   try {
@@ -374,19 +265,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       });
     }
 
-    // AUDIT-FIX A4-003/A7-006: Slice referrer before parsing to bound memory, strip CR/LF
-    // Q2-4: Drop unparsable referrers entirely instead of storing raw strings
-    // that could contain URL-encoded HTML. Only well-formed URLs survive.
-    let sanitizedReferrer = request.headers.get("referer") || undefined;
-    if (sanitizedReferrer) {
-      sanitizedReferrer = sanitizedReferrer.replace(/[\r\n\0]/g, "").slice(0, 2048);
-      try {
-        const refUrl = new URL(sanitizedReferrer);
-        sanitizedReferrer = `${refUrl.origin}${refUrl.pathname}`.slice(0, 2048);
-      } catch {
-        sanitizedReferrer = undefined;
-      }
-    }
+    const sanitizedReferrer = sanitizeClickReferrer(request.headers.get("referer"));
 
     const isInternal = await hasValidAdminSession(request, siteId);
     // AUDIT-FIX A1-003/A4-002: Validate and cap content slug
@@ -499,21 +378,10 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
 
 // AUDIT-FIX A3-002: GET requests may be triggered cross-site (image tags,
 // prefetch, embed, etc.) without user activation. Only top-level trusted
-// navigations ("none", "same-origin", "same-site") may record analytics.
-// Missing Sec-Fetch-Site means the browser did not send the header at all
-// (e.g. prefetch pipelines, crawlers) — treat as untrusted.
+// navigations may record analytics — see `shouldSkipClickAnalytics`, shared
+// with /r/[shortcode] so both outbound paths count clicks identically.
 export async function GET(request: NextRequest) {
-  const secFetchSite = request.headers.get("sec-fetch-site");
-  const secFetchDest = request.headers.get("sec-fetch-dest");
-  // Only "none" (direct nav / email link) or same-origin/same-site navigations
-  // are trusted top-level user actions.
-  const trustedNavigation =
-    secFetchSite === "none" || secFetchSite === "same-origin" || secFetchSite === "same-site";
-  // Skip analytics for any non-document sub-resource request even if it
-  // somehow arrives with a trusted site value.
-  const skipAnalytics =
-    !trustedNavigation || (secFetchDest !== null && secFetchDest !== "document");
-  return handleClick(request, { skipAnalytics });
+  return handleClick(request, { skipAnalytics: shouldSkipClickAnalytics(request) });
 }
 
 export async function POST(request: NextRequest) {
