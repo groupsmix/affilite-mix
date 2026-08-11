@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { getAdminSession, AdminPayload } from "@/lib/auth";
 import { getActiveSiteSlug } from "@/lib/active-site";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
+import { getSiteRowBySlugWithClient, getSiteRowById } from "@/lib/dal/sites";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteById } from "@/config/sites";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
 import { getAppCacheKV } from "@/lib/runtime-env";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { getBearerAdminAuth, getRequestedAdminSiteSlug } from "@/lib/admin-bearer-auth";
 
 type AdminResult =
   | { error: NextResponse; session: null; dbSiteId: null; siteSlug: null }
@@ -24,6 +25,56 @@ const ADMIN_RATE_LIMIT = {
   windowMs: 60 * 1000,
   failPolicy: "open" as const,
 };
+
+interface AdminAuth {
+  session: AdminPayload;
+  /** Rate-limit bucket: one per human admin, one per API token. */
+  rateLimitKey: string;
+  /**
+   * Site the caller acts on, when it can be derived without the active-site
+   * cookie (bearer clients have no cookies). Null means "use the cookie".
+   */
+  siteSlug: string | null;
+}
+
+/**
+ * Authenticate an admin request from either the browser session cookie or an
+ * `Authorization: Bearer <admin api token>` header.
+ *
+ * The cookie wins when both are present so an interactive session is never
+ * silently escalated to a token's identity.
+ */
+async function authenticateAdmin(): Promise<AdminAuth | null> {
+  const session = await getAdminSession();
+  if (session) {
+    return {
+      session,
+      rateLimitKey: `admin:${session.email ?? session.userId ?? "unknown"}`,
+      siteSlug: null,
+    };
+  }
+
+  const bearer = await getBearerAdminAuth();
+  if (!bearer) return null;
+
+  // Site selection for a bearer client, most to least specific: the token's
+  // own tenant pin, the site it asked for, then the deployment default.
+  let siteSlug: string | null = null;
+  if (bearer.tokenSiteId) {
+    const site = await getSiteRowById(bearer.tokenSiteId, () =>
+      getPrivilegedSupabaseClient("admin-bearer-site"),
+    );
+    siteSlug = site?.slug ?? null;
+  } else {
+    siteSlug = (await getRequestedAdminSiteSlug()) ?? process.env.NEXT_PUBLIC_DEFAULT_SITE ?? null;
+  }
+
+  return {
+    session: bearer.session,
+    rateLimitKey: `admin-token:${bearer.tokenId}`,
+    siteSlug,
+  };
+}
 
 /**
  * G-45: Build the canonical auth error response for admin routes.
@@ -83,16 +134,19 @@ export function assertRole(
 /**
  * Shared admin guard for all /api/admin/* routes.
  * - Verifies the admin JWT session exists
- * - Enforces per-session rate limiting (100 req/min)
- * - Reads the active site from the nh_active_site cookie
+ * - Enforces per-session rate limiting (see ADMIN_RATE_LIMIT: 600 req/min, fail-open)
+ * - Accepts an `Authorization: Bearer <admin api token>` credential for
+ *   non-browser clients, which have neither cookies nor a stable IP
+ * - Reads the active site from the nh_active_site cookie (bearer clients use
+ *   their token's site, the `x-admin-site` header, or the default site)
  * - Validates the cookie value against known site configs
  * - Resolves the database UUID for the site
  * - Verifies admin_site_memberships for non-super_admin users
  */
 export async function requireAdmin(): Promise<AdminResult> {
   // F-21: This function now logs authn failures (no session) vs authz failures (wrong role)
-  const session = await getAdminSession();
-  if (!session) {
+  const auth = await authenticateAdmin();
+  if (!auth) {
     return {
       error: unauthorizedResponse(),
       session: null,
@@ -101,9 +155,10 @@ export async function requireAdmin(): Promise<AdminResult> {
     };
   }
 
-  // Rate-limit by admin identity (email or userId)
-  const rateLimitKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
-  const rl = await checkRateLimit(rateLimitKey, ADMIN_RATE_LIMIT);
+  const { session } = auth;
+
+  // Rate-limit by admin identity (email or userId), or by token id
+  const rl = await checkRateLimit(auth.rateLimitKey, ADMIN_RATE_LIMIT);
   if (!rl.allowed) {
     return {
       error: NextResponse.json(
@@ -119,8 +174,9 @@ export async function requireAdmin(): Promise<AdminResult> {
     };
   }
 
-  // Read the active site from the cookie
-  const siteSlug = await getActiveSiteSlug();
+  // Read the active site from the cookie, unless the credential already
+  // determined it (bearer tokens send no cookies).
+  const siteSlug = auth.siteSlug ?? (await getActiveSiteSlug());
   if (!siteSlug) {
     return {
       error: NextResponse.json({ error: "No site selected" }, { status: 400 }),
@@ -276,13 +332,13 @@ export async function requireAdmin(): Promise<AdminResult> {
 export async function requireAdminSession(): Promise<
   { error: NextResponse; session: null } | { error: null; session: AdminPayload }
 > {
-  const session = await getAdminSession();
-  if (!session) {
+  const auth = await authenticateAdmin();
+  if (!auth) {
     return { error: unauthorizedResponse(), session: null };
   }
 
-  const rateLimitKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
-  const rl = await checkRateLimit(rateLimitKey, ADMIN_RATE_LIMIT);
+  const { session } = auth;
+  const rl = await checkRateLimit(auth.rateLimitKey, ADMIN_RATE_LIMIT);
   if (!rl.allowed) {
     return {
       error: NextResponse.json(

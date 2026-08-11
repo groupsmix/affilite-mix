@@ -14,6 +14,7 @@
 - [Security Policy](../SECURITY.md) - Security practices and supported versions
 - [RLS Policy Inventory](./public-rls-inventory.md) - Database RLS policy documentation
 - [Secrets Rotation Runbook](./secrets-rotation-runbook.md) - Per-secret rotation procedures
+- [Admin API Machine Access](./admin-api-machine-access.md) - Bearer tokens for scripts and AI agents
 
 ### SRE / Operations
 

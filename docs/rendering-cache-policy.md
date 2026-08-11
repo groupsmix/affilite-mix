@@ -64,7 +64,7 @@ This document maps every route to its rendering strategy, revalidation interval,
 | `/api/track/impression` | POST    | —     | —             | Content impression tracking               |
 | `/api/newsletter/*`     | POST    | —     | 3/15min/IP    | Newsletter subscribe/confirm/unsubscribe  |
 | `/api/auth/*`           | POST    | —     | 5-10/15min    | Login, logout, CSRF, refresh              |
-| `/api/admin/*`          | Various | —     | 100/min/user  | Admin CRUD — all session-gated            |
+| `/api/admin/*`          | Various | —     | 600/min/user  | Admin CRUD — all session-gated            |
 | `/api/cron/*`           | POST    | —     | CRON_SECRET   | Scheduled jobs (publish, sitemap refresh) |
 | `/api/revalidate`       | POST    | —     | CRON_SECRET   | On-demand ISR revalidation trigger        |
 | `/api/health`           | GET     | —     | —             | Health check endpoint                     |

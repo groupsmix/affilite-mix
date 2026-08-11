@@ -23,6 +23,28 @@ export interface CommissionReport {
 
 type ValidationResult = { data: CommissionReport; errors: null } | { data: null; errors: string[] };
 
+/**
+ * `commissions.commission_amount` / `sale_amount` are NUMERIC(12,2) with a
+ * non-negativity constraint. Bound the value here so an out-of-range or
+ * negative payout from a network API is discarded and logged instead of
+ * failing the insert (or, for extra decimals, being silently rounded by
+ * PostgreSQL in a way the ingest log never records).
+ */
+const MAX_MONEY = 10_000_000_000; // NUMERIC(12,2) holds at most 10 integer digits
+
+function isStorableAmount(value: number): boolean {
+  return Number.isFinite(value) && value >= 0 && value < MAX_MONEY;
+}
+
+/**
+ * Round to cents through integer math so the stored value matches what
+ * PostgreSQL would store, without accumulating IEEE-754 drift in the
+ * aggregates computed before insertion.
+ */
+export function toStoredAmount(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 function isIso8601ish(value: string): boolean {
   // Accept ISO-8601 dates/datetimes, but also YYYY-MM-DD so network APIs that
   // return date-only event dates don't get rejected.
@@ -50,6 +72,8 @@ export function validateCommissionReport(input: unknown): ValidationResult {
 
   if (typeof raw.commission_amount !== "number" || !Number.isFinite(raw.commission_amount)) {
     errors.push("commission_amount must be a finite number");
+  } else if (!isStorableAmount(raw.commission_amount)) {
+    errors.push("commission_amount must be >= 0 and within NUMERIC(12,2)");
   }
 
   if (typeof raw.event_date !== "string" || !isIso8601ish(raw.event_date)) {
@@ -76,11 +100,12 @@ export function validateCommissionReport(input: unknown): ValidationResult {
     errors.push("status must be a string when provided");
   }
 
-  if (
-    raw.sale_amount !== undefined &&
-    (typeof raw.sale_amount !== "number" || !Number.isFinite(raw.sale_amount))
-  ) {
-    errors.push("sale_amount must be a finite number when provided");
+  if (raw.sale_amount !== undefined) {
+    if (typeof raw.sale_amount !== "number" || !Number.isFinite(raw.sale_amount)) {
+      errors.push("sale_amount must be a finite number when provided");
+    } else if (!isStorableAmount(raw.sale_amount)) {
+      errors.push("sale_amount must be >= 0 and within NUMERIC(12,2)");
+    }
   }
 
   if (
@@ -97,7 +122,7 @@ export function validateCommissionReport(input: unknown): ValidationResult {
   const report: CommissionReport = {
     tracking_key: String(raw.tracking_key),
     network: String(raw.network),
-    commission_amount: Number(raw.commission_amount),
+    commission_amount: toStoredAmount(Number(raw.commission_amount)),
     event_date: String(raw.event_date),
   };
 
@@ -106,7 +131,7 @@ export function validateCommissionReport(input: unknown): ValidationResult {
   if (typeof raw.order_id === "string") report.order_id = raw.order_id;
   if (typeof raw.currency === "string") report.currency = raw.currency;
   if (typeof raw.status === "string") report.status = raw.status;
-  if (typeof raw.sale_amount === "number") report.sale_amount = raw.sale_amount;
+  if (typeof raw.sale_amount === "number") report.sale_amount = toStoredAmount(raw.sale_amount);
   if (raw.raw_data && typeof raw.raw_data === "object" && !Array.isArray(raw.raw_data)) {
     report.raw_data = raw.raw_data as Record<string, unknown>;
   }

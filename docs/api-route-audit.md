@@ -15,7 +15,7 @@ This document is the **human-readable** view of the route audit. The machine-rea
 | `auth`            | `public` / `admin` / `super_admin` / `cron` / `internal` / `stripe-webhook` / `token`             |
 | `adminRequired`   | Shortcut for "requires admin cookie session" (always matches `auth`)                              |
 | `scope`           | `site` (tenant-scoped by active-site cookie), `tenant` (org-wide), or `global` (platform-wide)    |
-| `rateLimit`       | Whether the handler enforces rate limiting (`checkRateLimit` / `requireAdmin` default of 100/min) |
+| `rateLimit`       | Whether the handler enforces rate limiting (`checkRateLimit` / `requireAdmin` default of 600/min) |
 | `csrf`            | Whether the handler enforces double-submit CSRF (required for cookie-auth mutations)              |
 | `requestSchema`   | Name of the request body schema, or `null` if no body                                             |
 | `responseSchema`  | Short description or schema name for the response body                                            |
@@ -41,7 +41,7 @@ As of this audit pass, every route in `app/api/**` falls into one of these bucke
 
 | Bucket                                                                                                                                                                                       | Auth               | Typical CSRF / rate-limit posture                                             |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------- |
-| `/api/admin/**`                                                                                                                                                                              | `admin`            | All mutations enforce CSRF; 100 req/min per session via `requireAdmin`        |
+| `/api/admin/**`                                                                                                                                                                              | `admin`            | All mutations enforce CSRF; 600 req/min per session via `requireAdmin`        |
 | `/api/admin/users/**` (writes), `/api/admin/permissions`, `/api/admin/privacy/user`                                                                                                          | `super_admin`      | Same as admin, plus explicit `assertRole('super_admin')`                      |
 | `/api/auth/**`                                                                                                                                                                               | `public` / `admin` | IP + email rate limiting; CSRF on all mutations; Turnstile on login & forgot  |
 | `/api/cron/**`                                                                                                                                                                               | `cron`             | `Authorization: Bearer <CRON_*_SECRET>`; per-trigger secret with fallback     |
