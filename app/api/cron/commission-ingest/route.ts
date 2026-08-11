@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestCommissions } from "@/lib/dal/commissions";
 import { resolveSitesByTrackingKeys } from "@/lib/dal/affiliate-tracking-keys";
+import { resolveClicksByRefs } from "@/lib/dal/affiliate-clicks";
+import { attributeCommissions } from "@/lib/affiliate/commission-attribution";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { logger } from "@/lib/logger";
 import { verifyCronAuth } from "@/lib/cron-auth";
@@ -168,59 +170,37 @@ async function resolveCommissions(
   reports: CommissionReport[],
   sb: ReturnType<typeof getPrivilegedSupabaseClient>,
 ): Promise<{ resolved: ResolvedCommission[]; discarded: number }> {
-  const resolved: ResolvedCommission[] = [];
-  let discarded = 0;
-  const reportsByNetwork = new Map<string, CommissionReport[]>();
+  const { resolved, unresolved } = await attributeCommissions(reports, {
+    resolveSites: (network, trackingKeys) =>
+      resolveSitesByTrackingKeys(network, trackingKeys, () => sb),
+    resolveClicks: (clickRefs) => resolveClicksByRefs(clickRefs, () => sb),
+  });
 
-  for (const report of reports) {
-    const networkReports = reportsByNetwork.get(report.network) ?? [];
-    networkReports.push(report);
-    reportsByNetwork.set(report.network, networkReports);
-  }
-
-  const sitesByNetworkKey = new Map<string, string>();
-  for (const [network, networkReports] of reportsByNetwork) {
-    const sites = await resolveSitesByTrackingKeys(
-      network,
-      networkReports.map((report) => report.tracking_key),
+  for (const report of unresolved) {
+    logger.warn("Commission discarded: unregistered tracking key", {
+      network: report.network,
+      trackingKey: report.tracking_key,
+      orderId: report.order_id,
+    });
+    // Fire-and-forget audit log for unmapped tracking key
+    void recordAuditEvent(
+      {
+        site_id: "00000000-0000-0000-0000-000000000000",
+        actor: "commission-ingest-cron",
+        action: "commission.discarded.unregistered_tracking_key",
+        entity_type: "commission",
+        entity_id: report.order_id ?? report.tracking_key,
+        details: {
+          network: report.network,
+          tracking_key: report.tracking_key,
+          commission_amount: report.commission_amount,
+        },
+      },
       () => sb,
     );
-    for (const [trackingKey, siteId] of sites) {
-      sitesByNetworkKey.set(`${network}\u0000${trackingKey}`, siteId);
-    }
   }
 
-  for (const report of reports) {
-    const siteId = sitesByNetworkKey.get(`${report.network}\u0000${report.tracking_key}`);
-    if (siteId) {
-      resolved.push({ ...report, site_id: siteId });
-    } else {
-      discarded++;
-      logger.warn("Commission discarded: unregistered tracking key", {
-        network: report.network,
-        trackingKey: report.tracking_key,
-        orderId: report.order_id,
-      });
-      // Fire-and-forget audit log for unmapped tracking key
-      void recordAuditEvent(
-        {
-          site_id: "00000000-0000-0000-0000-000000000000",
-          actor: "commission-ingest-cron",
-          action: "commission.discarded.unregistered_tracking_key",
-          entity_type: "commission",
-          entity_id: report.order_id ?? report.tracking_key,
-          details: {
-            network: report.network,
-            tracking_key: report.tracking_key,
-            commission_amount: report.commission_amount,
-          },
-        },
-        () => sb,
-      );
-    }
-  }
-
-  return { resolved, discarded };
+  return { resolved, discarded: unresolved.length };
 }
 
 async function fetchCjReports(): Promise<unknown[]> {

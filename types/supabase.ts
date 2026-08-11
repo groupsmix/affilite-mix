@@ -319,12 +319,14 @@ export type Database = {
         Row: {
           affiliate_url: string | null;
           click_id: string | null;
+          click_ref: string | null;
           content_slug: string | null;
           created_at: string | null;
           fingerprint: string | null;
           id: string;
           ip_prefix: string | null;
           is_internal: boolean | null;
+          product_id: string | null;
           product_name: string | null;
           referrer: string | null;
           site_id: string | null;
@@ -332,12 +334,14 @@ export type Database = {
         Insert: {
           affiliate_url?: string | null;
           click_id?: string | null;
+          click_ref?: string | null;
           content_slug?: string | null;
           created_at?: string | null;
           fingerprint?: string | null;
           id?: string;
           ip_prefix?: string | null;
           is_internal?: boolean | null;
+          product_id?: string | null;
           product_name?: string | null;
           referrer?: string | null;
           site_id?: string | null;
@@ -345,17 +349,26 @@ export type Database = {
         Update: {
           affiliate_url?: string | null;
           click_id?: string | null;
+          click_ref?: string | null;
           content_slug?: string | null;
           created_at?: string | null;
           fingerprint?: string | null;
           id?: string;
           ip_prefix?: string | null;
           is_internal?: boolean | null;
+          product_id?: string | null;
           product_name?: string | null;
           referrer?: string | null;
           site_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "affiliate_clicks_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "fk_affiliate_clicks_site_id";
             columns: ["site_id"];

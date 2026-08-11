@@ -6,6 +6,7 @@ import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { untypedFrom } from "@/lib/dal/type-guards";
 import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
+import { isValidClickRef } from "@/lib/affiliate/click-attribution";
 
 /**
  * POST /api/queue/clicks
@@ -42,6 +43,8 @@ interface ClickMessage {
   content_slug?: string;
   referrer?: string;
   click_id?: string;
+  click_ref?: string;
+  product_id?: string;
   ts?: number;
 }
 
@@ -89,6 +92,7 @@ const MAX_PRODUCT_NAME_LEN = 512;
 const MAX_CONTENT_SLUG_LEN = 256;
 const MAX_REFERRER_LEN = 2048;
 const MAX_CLICK_ID_LEN = 128;
+/** site_id and product_id are both UUIDs. */
 const SITE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALLOWED_URL_PROTOCOLS = new Set(["http:", "https:"]);
 const CLICK_ID_RE = /^[A-Za-z0-9_-]+$/;
@@ -152,6 +156,18 @@ function isValidMessage(
     ) {
       return false;
     }
+  }
+  if (
+    m.click_ref !== undefined &&
+    (typeof m.click_ref !== "string" || !isValidClickRef(m.click_ref))
+  ) {
+    return false;
+  }
+  if (
+    m.product_id !== undefined &&
+    (typeof m.product_id !== "string" || !SITE_ID_RE.test(m.product_id))
+  ) {
+    return false;
   }
   return true;
 }
@@ -369,6 +385,8 @@ export async function POST(request: NextRequest) {
         content_slug: string;
         referrer: string;
         click_id?: string;
+        click_ref?: string;
+        product_id?: string;
       } = {
         site_id: m.site_id,
         product_name: m.product_name,
@@ -377,6 +395,8 @@ export async function POST(request: NextRequest) {
         referrer: m.referrer ?? "",
       };
       if (m.click_id) row.click_id = m.click_id;
+      if (m.click_ref) row.click_ref = m.click_ref;
+      if (m.product_id) row.product_id = m.product_id;
       return row;
     });
 

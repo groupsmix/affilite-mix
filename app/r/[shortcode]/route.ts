@@ -15,9 +15,11 @@ import { isHttpsUrl } from "@/lib/validation";
 import { isPlaceholderAffiliateUrl } from "@/lib/affiliate-url";
 import {
   getNetworkFromUrl,
+  getSubIdParamForNetwork,
   getTrackingParamForNetwork,
   toAffiliateNetwork,
 } from "@/lib/affiliate/networks";
+import { generateClickRef, withClickRef } from "@/lib/affiliate/click-attribution";
 import { getOrDeriveHmacKeyString } from "@/lib/hmac-key";
 import {
   computeClickFingerprint,
@@ -81,11 +83,37 @@ export async function GET(
       (bestLink?.network ? toAffiliateNetwork(bestLink.network) : null) ??
       getNetworkFromUrl(destinationUrl);
     const trackingParam = network ? getTrackingParamForNetwork(network) : null;
+    const incomingTrackingValue = trackingParam
+      ? request.nextUrl.searchParams.get(trackingParam)
+      : null;
+    const siteTrackingKey =
+      incomingTrackingValue && isValidTrackingValue(incomingTrackingValue)
+        ? incomingTrackingValue
+        : null;
+
     let finalDestinationUrl = destinationUrl;
-    if (trackingParam) {
-      const trackingValue = request.nextUrl.searchParams.get(trackingParam);
-      if (trackingValue && isValidTrackingValue(trackingValue)) {
-        finalDestinationUrl = appendTrackingParam(destinationUrl, trackingParam, trackingValue);
+    if (trackingParam && siteTrackingKey) {
+      finalDestinationUrl = appendTrackingParam(destinationUrl, trackingParam, siteTrackingKey);
+    }
+
+    // M-01 / attribution: only a click we are going to record gets a
+    // reference — an uncounted hit would ship a reference no commission could
+    // ever resolve.
+    const countsAsClick = !shouldSkipClickAnalytics(request);
+    const subId = network ? getSubIdParamForNetwork(network) : null;
+    let clickRef: string | null = null;
+    if (countsAsClick && subId) {
+      const candidate = generateClickRef();
+      // Networks that reuse the publisher key parameter get `<key>-r<ref>` so
+      // site resolution keeps working on the prefix; Amazon keeps its `tag`
+      // untouched and carries the bare reference in `ascsubtag`.
+      const value =
+        subId.sharedWithTrackingKey && siteTrackingKey
+          ? withClickRef(siteTrackingKey, candidate)
+          : candidate;
+      if (value) {
+        finalDestinationUrl = appendTrackingParam(finalDestinationUrl, subId.param, value);
+        clickRef = candidate;
       }
     }
 
@@ -154,14 +182,16 @@ export async function GET(
     // top-level navigation (prefetch, <img>, crawler) still redirects but is
     // never counted, and a repeat click inside the 24h window is suppressed —
     // otherwise a page reload inflates the EPC denominator on this path only.
-    if (!shouldSkipClickAnalytics(request)) {
+    if (countsAsClick) {
       await recordShortcodeClick({
         request,
         siteId,
         productSlug: shortcode,
         productName: product.name,
+        productId: product.id,
         affiliateUrl: finalDestinationUrl,
         contentSlug,
+        clickRef,
         ip,
       });
     }
@@ -182,11 +212,23 @@ async function recordShortcodeClick(args: {
   siteId: string;
   productSlug: string;
   productName: string;
+  productId: string;
   affiliateUrl: string;
   contentSlug: string;
+  clickRef: string | null;
   ip: string;
 }): Promise<void> {
-  const { request, siteId, productSlug, productName, affiliateUrl, contentSlug, ip } = args;
+  const {
+    request,
+    siteId,
+    productSlug,
+    productName,
+    productId,
+    affiliateUrl,
+    contentSlug,
+    clickRef,
+    ip,
+  } = args;
   const ipPrefix = getIpPrefix(ip) ?? "";
   const isInternal = await hasValidAdminSession(request, siteId);
 
@@ -235,8 +277,10 @@ async function recordShortcodeClick(args: {
     publishClick({
       site_id: siteId,
       product_name: productName,
+      product_id: productId,
       affiliate_url: affiliateUrl,
       content_slug: contentSlug,
+      ...(clickRef ? { click_ref: clickRef } : {}),
       referrer: sanitizeClickReferrer(request.headers.get("referer")),
       is_internal: isInternal,
       ip_prefix: ipPrefix || undefined,
