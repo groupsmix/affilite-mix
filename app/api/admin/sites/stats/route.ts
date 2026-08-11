@@ -38,7 +38,7 @@ export interface SiteStatsResponse {
 export async function GET(request: NextRequest) {
   // Use requireAdminSession() (no site context) — this endpoint must work
   // before a site is selected (requireAdmin() demands a site cookie).
-  const { error, session } = await requireAdminSession();
+  const { error, session } = await requireAdminSession(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

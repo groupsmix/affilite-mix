@@ -86,6 +86,7 @@ describe("admin/permissions site-scope enforcement (F-5)", () => {
       } as never,
       dbSiteId: DB_SITE_ID,
       siteSlug: "test-site",
+      caller: { type: "interactive" },
     });
   });
 

@@ -18,7 +18,7 @@ const DEFAULT_TOKEN_TTL_DAYS = 90;
 // Lists the automation service accounts for a site (super_admin only). Token
 // hashes are never returned.
 export async function GET(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const roleError = assertRole(session, "super_admin");
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 // bearer token. The raw token is returned exactly once (only its hash is
 // stored). super_admin only.
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const roleError = assertRole(session, "super_admin");

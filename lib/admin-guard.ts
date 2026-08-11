@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getAdminSession, AdminPayload } from "@/lib/auth";
 import { getActiveSiteSlug } from "@/lib/active-site";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
@@ -12,8 +12,16 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { getBearerAdminAuth, getRequestedAdminSiteSlug } from "@/lib/admin-bearer-auth";
 
 type AdminResult =
-  | { error: NextResponse; session: null; dbSiteId: null; siteSlug: null }
-  | { error: null; session: AdminPayload; dbSiteId: string; siteSlug: string };
+  | { error: NextResponse; session: null; dbSiteId: null; siteSlug: null; caller: null }
+  | {
+      error: null;
+      session: AdminPayload;
+      dbSiteId: string;
+      siteSlug: string;
+      caller: AdminCaller;
+    };
+
+export type AdminCaller = { type: "interactive" } | { type: "machine"; tokenId: string };
 
 /**
  * Authenticated admin navigation can fan out into several RSC/API requests per page.
@@ -28,6 +36,7 @@ const ADMIN_RATE_LIMIT = {
 
 interface AdminAuth {
   session: AdminPayload;
+  caller: AdminCaller;
   /** Rate-limit bucket: one per human admin, one per API token. */
   rateLimitKey: string;
   /**
@@ -49,6 +58,7 @@ async function authenticateAdmin(): Promise<AdminAuth | null> {
   if (session) {
     return {
       session,
+      caller: { type: "interactive" },
       rateLimitKey: `admin:${session.email ?? session.userId ?? "unknown"}`,
       siteSlug: null,
     };
@@ -71,6 +81,7 @@ async function authenticateAdmin(): Promise<AdminAuth | null> {
 
   return {
     session: bearer.session,
+    caller: { type: "machine", tokenId: bearer.tokenId },
     rateLimitKey: `admin-token:${bearer.tokenId}`,
     siteSlug,
   };
@@ -143,7 +154,50 @@ export function assertRole(
  * - Resolves the database UUID for the site
  * - Verifies admin_site_memberships for non-super_admin users
  */
-export async function requireAdmin(): Promise<AdminResult> {
+function isMachineDeniedPath(pathname: string): boolean {
+  return [
+    /^\/api\/admin\/users(?:\/|$)/,
+    /^\/api\/admin\/api-tokens(?:\/|$)/,
+    /^\/api\/admin\/permissions(?:\/|$)/,
+    /^\/api\/admin\/sites(?:\/|$)/,
+    /^\/api\/admin\/automation\/service-accounts(?:\/|$)/,
+    /^\/api\/admin\/integrations(?:\/|$)/,
+    /^\/api\/admin\/affiliate-networks(?:\/|$)/,
+    /^\/api\/admin\/privacy(?:\/|$)/,
+  ].some((pattern) => pattern.test(pathname));
+}
+
+async function denyMachineAccess(
+  request: NextRequest,
+  caller: AdminCaller,
+  session: AdminPayload,
+  siteId: string,
+): Promise<NextResponse | null> {
+  if (caller.type !== "machine" || !isMachineDeniedPath(request.nextUrl.pathname)) return null;
+  await recordAuditEvent({
+    site_id: siteId,
+    actor: session.email ?? session.userId ?? "machine",
+    actor_user_id: session.userId,
+    action: "admin.machine_access_denied",
+    entity_type: "admin_route",
+    entity_id: request.nextUrl.pathname,
+    details: {
+      path: request.nextUrl.pathname,
+      token_id: caller.tokenId,
+      reason: "machine_caller_not_permitted",
+    },
+    failure_type: "authz",
+  });
+  return NextResponse.json(
+    {
+      error: "Machine callers are not permitted on this admin route",
+      code: "ADMIN_MACHINE_ACCESS_DENIED",
+    },
+    { status: 403 },
+  );
+}
+
+export async function requireAdmin(request?: NextRequest): Promise<AdminResult> {
   // F-21: This function now logs authn failures (no session) vs authz failures (wrong role)
   const auth = await authenticateAdmin();
   if (!auth) {
@@ -152,6 +206,7 @@ export async function requireAdmin(): Promise<AdminResult> {
       session: null,
       dbSiteId: null,
       siteSlug: null,
+      caller: null,
     };
   }
 
@@ -171,6 +226,7 @@ export async function requireAdmin(): Promise<AdminResult> {
       session: null,
       dbSiteId: null,
       siteSlug: null,
+      caller: null,
     };
   }
 
@@ -183,6 +239,7 @@ export async function requireAdmin(): Promise<AdminResult> {
       session: null,
       dbSiteId: null,
       siteSlug: null,
+      caller: null,
     };
   }
 
@@ -198,6 +255,7 @@ export async function requireAdmin(): Promise<AdminResult> {
       session: null,
       dbSiteId: null,
       siteSlug: null,
+      caller: null,
     };
   }
 
@@ -244,6 +302,7 @@ export async function requireAdmin(): Promise<AdminResult> {
         session: null,
         dbSiteId: null,
         siteSlug: null,
+        caller: null,
       };
     }
     // LIB-2: resolveDbSiteId() can throw ("Site not found in database") when a
@@ -265,6 +324,7 @@ export async function requireAdmin(): Promise<AdminResult> {
         session: null,
         dbSiteId: null,
         siteSlug: null,
+        caller: null,
       };
     }
   }
@@ -281,6 +341,7 @@ export async function requireAdmin(): Promise<AdminResult> {
         session: null,
         dbSiteId: null,
         siteSlug: null,
+        caller: null,
       };
     }
   }
@@ -296,10 +357,23 @@ export async function requireAdmin(): Promise<AdminResult> {
       session: null,
       dbSiteId: null,
       siteSlug: null,
+      caller: null,
     };
   }
 
-  return { error: null, session, dbSiteId, siteSlug };
+  if (request && auth.caller.type === "machine" && isMachineDeniedPath(request.nextUrl.pathname)) {
+    const denial = await denyMachineAccess(request, auth.caller, session, dbSiteId);
+    if (!denial) return { error: null, session, dbSiteId, siteSlug, caller: auth.caller };
+    return {
+      error: denial,
+      session: null,
+      dbSiteId: null,
+      siteSlug: null,
+      caller: null,
+    };
+  }
+
+  return { error: null, session, dbSiteId, siteSlug, caller: auth.caller };
 }
 
 /**
@@ -329,9 +403,9 @@ export async function requireAdmin(): Promise<AdminResult> {
  * Anywhere else is a misuse — use `requireAdmin()` (which also enforces
  * the active-site cookie) or `withAuthz`.
  */
-export async function requireAdminSession(): Promise<
-  { error: NextResponse; session: null } | { error: null; session: AdminPayload }
-> {
+export async function requireAdminSession(
+  request?: NextRequest,
+): Promise<{ error: NextResponse; session: null } | { error: null; session: AdminPayload }> {
   const auth = await authenticateAdmin();
   if (!auth) {
     return { error: unauthorizedResponse(), session: null };
@@ -352,6 +426,11 @@ export async function requireAdminSession(): Promise<
     };
   }
 
+  if (request && auth.caller.type === "machine" && isMachineDeniedPath(request.nextUrl.pathname)) {
+    const denial = await denyMachineAccess(request, auth.caller, session, "_global");
+    if (denial) return { error: denial, session: null };
+  }
+
   return { error: null, session };
 }
 
@@ -368,7 +447,7 @@ export async function requireSuperAdmin(): Promise<AdminResult> {
   const okResult = result as Extract<AdminResult, { error: null }>;
   const forbidden = assertRole(okResult.session, "super_admin");
   if (forbidden) {
-    return { error: forbidden, session: null, dbSiteId: null, siteSlug: null };
+    return { error: forbidden, session: null, dbSiteId: null, siteSlug: null, caller: null };
   }
   return okResult;
 }

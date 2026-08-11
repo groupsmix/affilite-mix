@@ -18,8 +18,8 @@ import { isUsableUuid } from "@/lib/security/uuid";
 const VALID_ADMIN_ROLES = ["admin", "super_admin"] as const;
 
 /** GET /api/admin/users — list all admin users (super_admin only) */
-export async function GET() {
-  const { error, session } = await requireAdmin();
+export async function GET(request: NextRequest) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -41,7 +41,7 @@ export async function GET() {
 
 /** POST /api/admin/users — create a new admin user */
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
 /** PATCH /api/admin/users — update an admin user */
 export async function PATCH(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -201,7 +201,7 @@ export async function PATCH(request: NextRequest) {
 
 /** DELETE /api/admin/users — delete an admin user */
 export async function DELETE(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

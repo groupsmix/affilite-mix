@@ -29,7 +29,7 @@ import { isUsableUuid } from "@/lib/security/uuid";
  *   - site_id: optional — if provided, returns user-role assignments for that site
  */
 export async function GET(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/admin/permissions — assign a role to a user for a site */
 export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
 
 /** DELETE /api/admin/permissions?user_id=<uuid>&site_id=<uuid> — remove role assignment */
 export async function DELETE(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

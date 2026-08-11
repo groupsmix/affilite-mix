@@ -9,7 +9,11 @@
 
 The session cookie is bound to the client's user agent and IP prefix and expires
 after 30 minutes of inactivity, so an automated client cannot hold one. Bearer
-tokens are the supported path for scripts, bots and AI agents.
+tokens remain available for compatible, non-sensitive admin routes. They are
+not permitted on user, token, permission, site, automation service account,
+integration, affiliate-network, privacy/GDPR, or `users/me*` routes. The
+AI/automation path for mutations is the scoped `/api/automation/v1`
+service-account API, not a full-admin bearer token.
 
 When both credentials are present the cookie wins and CSRF validation still
 applies, so an attacker cannot downgrade an interactive session by appending an

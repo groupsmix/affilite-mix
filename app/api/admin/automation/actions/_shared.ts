@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, assertRole } from "@/lib/admin-guard";
-import { COOKIE_NAME } from "@/lib/auth";
 import { getAutomationActionById } from "@/lib/dal/automation-actions";
 
-const LEGACY_COOKIE_NAME = "nh_admin_token";
 type AdminResult = Awaited<ReturnType<typeof requireAdmin>>;
 
 export async function requireHumanAdmin(request: NextRequest, existing?: AdminResult) {
-  const result = existing ?? (await requireAdmin());
+  const result = existing ?? (await requireAdmin(request));
   if (result.error) return { response: result.error } as const;
   if (!result.session || !result.dbSiteId) {
     return { response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) } as const;
   }
-  if (!request.cookies.get(COOKIE_NAME) && !request.cookies.get(LEGACY_COOKIE_NAME)) {
+  if (result.caller.type !== "interactive") {
     return {
       response: NextResponse.json(
         { error: "Owner approval requires an interactive admin session" },

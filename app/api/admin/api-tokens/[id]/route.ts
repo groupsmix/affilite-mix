@@ -8,8 +8,8 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
-  const { error, session } = await requireAdmin();
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

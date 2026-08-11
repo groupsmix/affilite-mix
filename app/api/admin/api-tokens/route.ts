@@ -12,8 +12,8 @@ import { generateSecretToken, hashSecretToken } from "@/lib/generate-token";
 
 const DEFAULT_TOKEN_TTL_DAYS = 30;
 
-export async function GET() {
-  const { error, session } = await requireAdmin();
+export async function GET(request: NextRequest) {
+  const { error, session } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -31,7 +31,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin(request);
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

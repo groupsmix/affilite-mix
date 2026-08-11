@@ -5,7 +5,7 @@ import { listAutomationActionsForSite } from "@/lib/dal/automation-actions";
 import { requireHumanAdmin } from "./_shared";
 
 export async function GET(request: NextRequest) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin(request);
   const { error } = admin;
   if (error) return error;
   const auth = await requireHumanAdmin(request, admin);

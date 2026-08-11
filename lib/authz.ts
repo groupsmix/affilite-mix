@@ -128,7 +128,7 @@ export function withAuthz(
   handler: AuthenticatedRouteHandler,
 ) {
   return async (request: NextRequest) => {
-    const auth = await requireAdmin();
+    const auth = await requireAdmin(request);
     if (auth.error) return auth.error;
     const { session, dbSiteId, siteSlug } = auth;
 
@@ -168,7 +168,7 @@ export function withAuthzDynamic(
   handler: AuthenticatedDynamicRouteHandler,
 ) {
   return async (request: NextRequest, { params }: { params: Promise<Record<string, string>> }) => {
-    const auth = await requireAdmin();
+    const auth = await requireAdmin(request);
     if (auth.error) return auth.error;
     const { session, dbSiteId, siteSlug } = auth;
 
