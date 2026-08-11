@@ -36,6 +36,25 @@ export interface AffiliateClickRow {
   created_at: string;
 }
 
+export interface AffiliateLinkHealthRow {
+  id: string;
+  site_id: string;
+  product_id: string;
+  product_affiliate_link_id: string | null;
+  url: string;
+  network: string;
+  last_probed_at: string | null;
+  last_http_status: number | null;
+  final_url: string | null;
+  baseline_registrable_domain: string | null;
+  latency_ms: number | null;
+  consecutive_failures: number;
+  failure_streak_started_at: string | null;
+  classification: "healthy" | "broken" | "suspicious";
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SiteRow {
   id: string;
   slug: string;
