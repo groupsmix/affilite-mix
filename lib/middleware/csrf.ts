@@ -5,9 +5,28 @@ import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
 import { getAllowedOrigins } from "@/lib/security/allowed-origins";
 import type { MiddlewareContext } from "./compose";
 
+/** Admin session cookie names (prefixed in secure contexts, plain in dev). */
+const ADMIN_COOKIE_NAME = "__Host-nh_admin_token";
+const LEGACY_ADMIN_COOKIE_NAME = "nh_admin_token";
+
 const AUTOMATION_PATH_PREFIX = "/api/automation/" as const;
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * A request authenticated purely by `Authorization: Bearer` carries no ambient
+ * credential: a browser never attaches that header to a cross-site request, so
+ * the double-submit token protects nothing here. Requests that also carry an
+ * admin session cookie stay under CSRF enforcement, so an attacker cannot
+ * disarm it by appending an Authorization header to a cookie-authenticated
+ * victim request.
+ */
+function isBearerOnlyRequest(request: NextRequest): boolean {
+  const authorization = request.headers.get("authorization");
+  if (!authorization || !/^Bearer\s+\S+$/i.test(authorization.trim())) return false;
+
+  return !request.cookies.get(ADMIN_COOKIE_NAME) && !request.cookies.get(LEGACY_ADMIN_COOKIE_NAME);
+}
 
 /**
  * H-4: CSRF protection for state-changing API routes.
@@ -32,7 +51,8 @@ export function withCsrf(request: NextRequest, ctx: MiddlewareContext): NextResp
   const isExempt =
     csrfExemptPaths().has(pathname) ||
     pathname.startsWith(CRON_PATH_PREFIX) ||
-    pathname.startsWith(AUTOMATION_PATH_PREFIX);
+    pathname.startsWith(AUTOMATION_PATH_PREFIX) ||
+    isBearerOnlyRequest(request);
 
   if (!isExempt) {
     const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
