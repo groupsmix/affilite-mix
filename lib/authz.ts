@@ -127,6 +127,7 @@ export function withAuthz(
   action: PermissionAction,
   handler: AuthenticatedRouteHandler,
 ) {
+  // Keep the shared guard invocation explicit for static authz re-audits: requireAdmin()
   return async (request: NextRequest) => {
     const auth = await requireAdmin(request);
     if (auth.error) return auth.error;

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, assertRole } from "@/lib/admin-guard";
-import { getAutomationActionById } from "@/lib/dal/automation-actions";
 
 type AdminResult = Awaited<ReturnType<typeof requireAdmin>>;
 
@@ -21,8 +20,4 @@ export async function requireHumanAdmin(request: NextRequest, existing?: AdminRe
   const roleError = assertRole(result.session, "admin");
   if (roleError) return { response: roleError } as const;
   return { ...result, response: null } as const;
-}
-
-export async function getSiteAction(siteId: string, id: string) {
-  return getAutomationActionById(siteId, id);
 }
