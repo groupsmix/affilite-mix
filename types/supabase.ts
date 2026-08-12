@@ -1806,8 +1806,11 @@ export type Database = {
         Row: {
           id: string;
           site_id: string;
-          product_id: string;
+          product_id: string | null;
           product_affiliate_link_id: string | null;
+          source_type: string;
+          source_key?: string;
+          source_name: string | null;
           url: string;
           network: string;
           last_probed_at: string | null;
@@ -1824,8 +1827,11 @@ export type Database = {
         Insert: {
           id?: string;
           site_id: string;
-          product_id: string;
+          product_id?: string | null;
           product_affiliate_link_id?: string | null;
+          source_type?: string;
+          source_key?: string;
+          source_name?: string | null;
           url: string;
           network?: string;
           last_probed_at?: string | null;
@@ -1842,8 +1848,11 @@ export type Database = {
         Update: {
           id?: string;
           site_id?: string;
-          product_id?: string;
+          product_id?: string | null;
           product_affiliate_link_id?: string | null;
+          source_type?: string;
+          source_key?: string;
+          source_name?: string | null;
           url?: string;
           network?: string;
           last_probed_at?: string | null;

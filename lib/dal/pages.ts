@@ -47,9 +47,13 @@ export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
 }
 
 /** Get a single page by slug within a site */
-export async function getPageBySlug(siteId: string, slug: string): Promise<PageRow | null> {
+export async function getPageBySlug(
+  siteId: string,
+  slug: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<PageRow | null> {
   if (!isSupabaseConfigured()) return null;
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from("pages")
     .select(FULL_COLUMNS)

@@ -4,7 +4,7 @@ import { assertRows, assertRow, rowOrNull, untypedFrom } from "./type-guards";
 
 const TABLE = "affiliate_link_health";
 const HEALTH_COLUMNS =
-  "id, site_id, product_id, product_affiliate_link_id, url, network, last_probed_at, last_http_status, final_url, baseline_registrable_domain, latency_ms, consecutive_failures, failure_streak_started_at, classification, created_at, updated_at" as const;
+  "id, site_id, product_id, product_affiliate_link_id, source_type, source_key, source_name, url, network, last_probed_at, last_http_status, final_url, baseline_registrable_domain, latency_ms, consecutive_failures, failure_streak_started_at, classification, created_at, updated_at" as const;
 
 export type LinkHealthClassification = "healthy" | "broken" | "suspicious";
 
@@ -15,8 +15,11 @@ export interface AffiliateLinkHealthListRow extends AffiliateLinkHealthRow {
 
 export interface LinkHealthProbeUpdate {
   site_id: string;
-  product_id: string;
+  product_id: string | null;
   product_affiliate_link_id?: string | null;
+  source_type?: "product" | "dial_watch";
+  source_key?: string;
+  source_name?: string | null;
   url: string;
   network: string;
   last_probed_at: string;
@@ -67,10 +70,13 @@ export async function upsertAffiliateLinkHealth(
   getClient: DalClientGetter = privilegedHealthClient,
 ): Promise<AffiliateLinkHealthRow> {
   const sb = await getClient();
+  const sourceType = update.source_type ?? "product";
+  const sourceKey = update.source_key ?? update.product_id ?? "";
   let existingQuery = untypedFrom(sb, TABLE)
     .select("id")
     .eq("site_id", update.site_id)
-    .eq("product_id", update.product_id)
+    .eq("source_type", sourceType)
+    .eq("source_key", sourceKey)
     .eq("url", update.url);
   existingQuery =
     update.product_affiliate_link_id == null
@@ -80,6 +86,9 @@ export async function upsertAffiliateLinkHealth(
   if (lookupError) throw lookupError;
   const values = {
     ...update,
+    source_type: sourceType,
+    source_key: sourceKey,
+    source_name: update.source_name ?? null,
     product_affiliate_link_id: update.product_affiliate_link_id ?? null,
     last_http_status: update.last_http_status ?? null,
     final_url: update.final_url ?? null,
@@ -101,16 +110,19 @@ export async function upsertAffiliateLinkHealth(
 
 export async function getAffiliateLinkHealth(
   siteId: string,
-  productId: string,
+  productId: string | null,
   url: string,
   productAffiliateLinkId: string | null,
+  sourceType: "product" | "dial_watch" = "product",
+  sourceKey: string = productId ?? "",
   getClient: DalClientGetter = privilegedHealthClient,
 ): Promise<AffiliateLinkHealthRow | null> {
   const sb = await getClient();
   let query = untypedFrom(sb, TABLE)
     .select(HEALTH_COLUMNS)
     .eq("site_id", siteId)
-    .eq("product_id", productId)
+    .eq("source_type", sourceType)
+    .eq("source_key", sourceKey)
     .eq("url", url);
   query =
     productAffiliateLinkId === null
@@ -140,12 +152,15 @@ export async function listUnhealthyAffiliateLinks(
   if (error) throw error;
   const rows = assertRows<AffiliateLinkHealthRow>(data);
   if (rows.length === 0) return [];
-  const productIds = [...new Set(rows.map((row) => row.product_id))];
-  const { data: products, error: productError } = await sb
-    .from("products")
-    .select("id, name, slug")
-    .eq("site_id", siteId)
-    .in("id", productIds);
+  const productIds = [...new Set(rows.flatMap((row) => (row.product_id ? [row.product_id] : [])))];
+  const { data: products, error: productError } =
+    productIds.length > 0
+      ? await sb
+          .from("products")
+          .select("id, name, slug")
+          .eq("site_id", siteId)
+          .in("id", productIds)
+      : { data: [], error: null };
   if (productError) throw productError;
   const productById = new Map(
     ((products ?? []) as Array<{ id: string; name: string; slug: string }>).map((product) => [
@@ -155,7 +170,13 @@ export async function listUnhealthyAffiliateLinks(
   );
   return rows.map((row) => ({
     ...row,
-    product_name: productById.get(row.product_id)?.name ?? "Unknown product",
-    product_slug: productById.get(row.product_id)?.slug ?? "",
+    product_name:
+      row.source_name ??
+      (row.product_id ? productById.get(row.product_id)?.name : null) ??
+      "Unknown product",
+    product_slug:
+      row.source_type === "dial_watch"
+        ? (row.source_key ?? "")
+        : ((row.product_id ? productById.get(row.product_id)?.slug : null) ?? ""),
   }));
 }
