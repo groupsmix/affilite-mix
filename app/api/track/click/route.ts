@@ -43,6 +43,21 @@ const CLICK_RATE_LIMIT = {
   failPolicy: "closed" as const,
 };
 
+type CachedProductData = {
+  name: string;
+  url: string;
+  product_id?: string;
+  _hmac?: string;
+};
+
+function cacheBody(data: CachedProductData): string {
+  return JSON.stringify({
+    name: data.name,
+    url: data.url,
+    ...(data.product_id ? { product_id: data.product_id } : {}),
+  });
+}
+
 async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean } = {}) {
   try {
     // H-12: Prefer derived HMAC key via HKDF. Fall back to the env var
@@ -116,9 +131,9 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       return apiError(400, "Invalid product slug");
     }
 
-    const matchedProduct = await getProductBySlug(siteId, productSlug);
     const cacheKey = `product-url:${safeKeyPart(siteId)}:${safeKeyPart(productSlug)}`;
-    let cachedData: { name: string; url: string; _hmac?: string } | null = null;
+    let matchedProduct: Awaited<ReturnType<typeof getProductBySlug>> = null;
+    let cachedData: CachedProductData | null = null;
     let cacheHmacValid = false;
 
     // A dial/guide/watch configuration may supply the affiliate URL and display
@@ -141,6 +156,18 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         return apiError(400, "Affiliate destination is not allowed");
       }
 
+      try {
+        matchedProduct = await getProductBySlug(siteId, productSlug);
+      } catch (error) {
+        logger.warn("[track/click] product attribution lookup failed for override", {
+          site_id: siteId,
+          product_slug: productSlug,
+        });
+        captureException(error, {
+          context: "[api/track/click] override product attribution lookup failed",
+        });
+      }
+
       const safeName = (overrideName ?? productSlug)
         .normalize("NFC")
         .replace(/[\x00\x1F]/g, "")
@@ -150,11 +177,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       try {
         const kv = getAppCacheKV();
         if (kv) {
-          cachedData = (await kv.get(cacheKey, "json")) as {
-            name: string;
-            url: string;
-            _hmac?: string;
-          } | null;
+          cachedData = (await kv.get(cacheKey, "json")) as CachedProductData | null;
           if (cachedData && !cachedData._hmac) {
             logger.error("affiliate_cache_unsigned_rejected", {
               cacheKey,
@@ -162,7 +185,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
             cachedData = null;
           }
           if (cachedData?._hmac && hmacKey) {
-            const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
+            const bodyForHmac = cacheBody(cachedData);
             const expectedHmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
             cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
             if (!cacheHmacValid) {
@@ -178,13 +201,39 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         // Ignore KV errors and fallback to DB
       }
 
+      // Entries created before product attribution was added remain valid.
+      // Resolve their missing identity only when the legacy shape is used.
+      if (cachedData && !cachedData.product_id) {
+        try {
+          matchedProduct = await getProductBySlug(siteId, productSlug);
+        } catch (error) {
+          logger.warn("[track/click] legacy cache product lookup failed", {
+            site_id: siteId,
+            product_slug: productSlug,
+          });
+          captureException(error, {
+            context: "[api/track/click] legacy cache product lookup failed",
+          });
+        }
+      }
+
       if (!cachedData) {
+        try {
+          matchedProduct = await getProductBySlug(siteId, productSlug);
+        } catch (error) {
+          captureException(error, { context: "[api/track/click] product lookup failed" });
+          return apiError(500, "Internal server error");
+        }
         if (!matchedProduct || !matchedProduct.affiliate_url) {
           return apiError(404, "Product not found or has no affiliate URL");
         }
-        cachedData = { name: matchedProduct.name, url: matchedProduct.affiliate_url };
+        cachedData = {
+          name: matchedProduct.name,
+          url: matchedProduct.affiliate_url,
+          product_id: matchedProduct.id,
+        };
 
-        const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
+        const bodyForHmac = cacheBody(cachedData);
         let hmacSigned = false;
         if (!hmacKey) {
           // A8-002: Never cache unsigned destinations — empty HMAC key means
@@ -351,7 +400,9 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         site_id: siteId,
         product_name: cachedData.name,
         affiliate_url: destinationUrl,
-        ...(matchedProduct ? { product_id: matchedProduct.id } : {}),
+        ...(matchedProduct?.id || cachedData.product_id
+          ? { product_id: matchedProduct?.id ?? cachedData.product_id }
+          : {}),
         content_slug: contentSlug,
         referrer: sanitizedReferrer,
         is_internal: isInternal,
