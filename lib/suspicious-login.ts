@@ -68,7 +68,13 @@ async function sendSuspiciousLoginAlert(params: SuspiciousLoginCheck): Promise<v
   if (!resendKey) return;
 
   const alertEmail = process.env.SECURITY_ALERT_EMAIL ?? params.email;
-  const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? "noreply@affilite-mix.com";
+  const fromEmail = process.env.NEWSLETTER_FROM_EMAIL;
+  if (!fromEmail) {
+    const error = new Error("Suspicious-login alert sender is not configured");
+    logger.error(error.message, { userId: params.userId });
+    captureException(error, { tag: "suspicious-login:sender-not-configured" });
+    return;
+  }
 
   const now = new Date().toISOString();
   const subject = "Security Alert: New login from unfamiliar device";

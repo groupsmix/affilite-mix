@@ -5,8 +5,8 @@
  * (articles, product pages, community posts). Clicking opens the user's
  * email client with a prefilled abuse report template.
  *
- * The link is deliberately minimal and uses the tenant's configured
- * abuse-contact address, falling back to a generic noreply@ address.
+ * The link is deliberately minimal and only renders when the tenant has a
+ * configured abuse-contact address.
  */
 
 interface ReportContentLinkProps {
@@ -14,7 +14,7 @@ interface ReportContentLinkProps {
   contentUrl: string;
   /** Human-readable title/slug for the email subject */
   contentTitle?: string;
-  /** Tenant abuse-contact email (falls back to site contact or noreply) */
+  /** Tenant abuse-contact email */
   abuseEmail?: string;
   /** Additional CSS classes */
   className?: string;
@@ -26,7 +26,9 @@ export function ReportContentLink({
   abuseEmail,
   className,
 }: ReportContentLinkProps) {
-  const to = abuseEmail ?? "abuse@affilite-mix.com";
+  if (!abuseEmail) return null;
+
+  const to = abuseEmail;
   const subject = encodeURIComponent(`Content Report: ${contentTitle ?? contentUrl}`);
   const body = encodeURIComponent(
     [

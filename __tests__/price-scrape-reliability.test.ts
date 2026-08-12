@@ -23,6 +23,17 @@ describe("price catalog snapshot reliability", () => {
     expect(route).toContain("retryableStatuses: [429, 500, 502, 503, 504]");
   });
 
+  it("does not fabricate a sender when price-alert email configuration is missing", () => {
+    expect(route).toContain("const fromEmail = process.env.NEWSLETTER_FROM_EMAIL;");
+    expect(route).toContain("Price alert email sender is not configured");
+    expect(route).toContain(
+      'captureException(error, { context: "[cron/price-scrape] sender not configured" })',
+    );
+    expect(route).toContain("if (!fromEmail)");
+    expect(route).toContain("continue;");
+    expect(route).not.toContain("noreply@example.com");
+  });
+
   it("labels snapshots as catalog-derived and deduplicates daily retries", () => {
     expect(route).toContain('CATALOG_SNAPSHOT_SOURCE = "catalog_snapshot"');
     expect(route).toContain('"Price catalog snapshot complete"');
