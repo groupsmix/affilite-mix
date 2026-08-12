@@ -37,6 +37,7 @@ env:
   CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
   CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
   CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
+  CRON_AFFILIATE_LINK_HEALTH_SECRET: ci-test-cron-affiliate-link-health
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared
@@ -1191,6 +1192,7 @@ jobs:
           CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
           CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
           CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
+          CRON_AFFILIATE_LINK_HEALTH_SECRET: ci-test-cron-affiliate-link-health
           STRIPE_WEBHOOK_SECRET: whsec_ci_test_placeholder
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
           # F-18: production mode requires purpose-specific tokens; the legacy
@@ -1292,6 +1294,7 @@ jobs:
           CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
           CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
           CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
+          CRON_AFFILIATE_LINK_HEALTH_SECRET: ci-test-cron-affiliate-link-health
       - name: Wait for server to be ready
         # Use TCP check — verifies the port is bound without making an HTTP
         # request. HTTP checks fail because `next start` runs in production

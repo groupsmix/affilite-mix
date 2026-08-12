@@ -66,6 +66,7 @@ readonly CRON_SECRET_ENV_VARS=(
   "CRON_DEALS_SECRET"
   "CRON_CLICK_RECONCILE_SECRET"
   "CRON_ACCESS_REVIEW_SECRET"
+  "CRON_AFFILIATE_LINK_HEALTH_SECRET"
 )
 
 # --- preflight -----------------------------------------------------------
