@@ -7,7 +7,7 @@
  * so the public documentation does not drift from the actual route surface.
  *
  * Usage:
- *   npx tsx scripts/generate-openapi.ts
+ *   npx tsx scripts/generate-openapi.ts [output-path]
  */
 
 import { writeFileSync } from "fs";
@@ -15,7 +15,7 @@ import { API_ROUTE_METADATA } from "@/lib/api-route-metadata";
 import { API_SCHEMA_COMPONENTS } from "@/lib/api-contract-schema";
 import { API_VERSION_HEADER, CURRENT_API_VERSION } from "@/lib/api-version";
 
-const OUTPUT = "openapi.yaml";
+const OUTPUT = process.argv[2] ?? "openapi.yaml";
 
 function needsQuotes(value: string): boolean {
   if (value === "") return true;

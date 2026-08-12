@@ -1383,8 +1383,7 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: "AutomationProductAffiliateUrlInput",
     responseSchema: "AutomationEnvelope",
     sensitiveFields: ["authorization", "idempotency-key"],
-    notes:
-      "Requires scope products:update_affiliate_url. Approval-gated affiliate destination change.",
+    notes: "Requires scope products:update. Approval-gated affiliate destination change.",
   },
   {
     path: "/api/automation/v1/products/[id]/archive",
@@ -1397,7 +1396,7 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "AutomationEnvelope",
     sensitiveFields: ["authorization", "idempotency-key"],
-    notes: "Requires scope products:archive. Approval-gated lifecycle archival.",
+    notes: "Requires scope products:update. Approval-gated lifecycle archival.",
   },
   {
     path: "/api/automation/v1/runs",
