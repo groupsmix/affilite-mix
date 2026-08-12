@@ -22,6 +22,7 @@ for (const { name, path } of PUBLIC_PATHS) {
     if (!response || response.status() >= 500) {
       test.skip(true, `${path} returned ${response?.status() ?? "no response"}`);
     }
+    await expect(page).toHaveTitle(/.+/);
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
