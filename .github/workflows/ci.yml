@@ -635,7 +635,11 @@ jobs:
           #       the auth resolver and the super_admin kill switch (cross-site by role).
           # Each call is annotated with a `// SAFE:` comment; lib/automation/db.ts is the
           # single sanctioned importer on the SERVICE_ROLE_IMPORT_ALLOWLIST.
-          BASELINE=107
+          # then 107 -> 110 (affiliate optimization loop): lib/dal/optimization-loop.ts
+          # adds three audited reads for the global active-site registry and joined
+          # product/content tables. The latter two carry site predicates on their
+          # joined records; the active-site registry is intentionally global.
+          BASELINE=110
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
