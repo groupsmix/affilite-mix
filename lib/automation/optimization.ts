@@ -32,6 +32,17 @@ export interface OptimizationCandidate {
   reason: string;
 }
 
+export interface AffiliateLinkOption {
+  url: string;
+  network: string;
+}
+
+export interface NetworkPerformance {
+  network: string;
+  clicks: number;
+  epc: number;
+}
+
 export function hasSampleFloor(clicks: number): boolean {
   return clicks >= OPTIMIZATION_SAMPLE_FLOOR;
 }
@@ -56,27 +67,62 @@ export function deterministicOptimizationKey(
   return `optimize:${runDate}:${productId}:${actionType}`;
 }
 
+export function chooseNetworkSwitch(
+  currentAffiliateUrl: string | null,
+  links: AffiliateLinkOption[],
+  performance: NetworkPerformance[],
+  health: Pick<AffiliateLinkHealthRow, "url" | "classification">[],
+): { url: string; reason: string } | null {
+  if (!currentAffiliateUrl || links.length < 2) return null;
+  const currentLink = links.find((link) => link.url === currentAffiliateUrl);
+  if (!currentLink) return null;
+  const currentHealth = health.find((row) => row.url === currentAffiliateUrl);
+  const currentPerformance = performance.find((row) => row.network === currentLink.network);
+  const currentIsUnhealthy =
+    currentHealth?.classification === "broken" || currentHealth?.classification === "suspicious";
+  if (currentIsUnhealthy) {
+    const alternate = links.find((link) => link.network !== currentLink.network);
+    if (alternate) {
+      return {
+        url: alternate.url,
+        reason: `Current affiliate destination is ${currentHealth.classification}`,
+      };
+    }
+  }
+  const best = [...performance]
+    .filter((row) => row.network !== currentLink.network && hasSampleFloor(row.clicks))
+    .sort((a, b) => b.epc - a.epc)[0];
+  if (!best) return null;
+  const alternate = links.find((link) => link.network === best.network);
+  if (!alternate) return null;
+  if (currentPerformance && best.epc >= currentPerformance.epc * OPTIMIZATION_EPC_MULTIPLIER) {
+    return {
+      url: alternate.url,
+      reason: `Network ${best.network} EPC is at least 1.5x current network EPC`,
+    };
+  }
+  return null;
+}
+
 export function chooseCandidates(
   products: ProductPerformance[],
-  health: AffiliateLinkHealthRow[],
-  alternateUrls: Map<string, string>,
+  networkSwitches: Map<string, { url: string; reason: string }>,
 ): OptimizationCandidate[] {
-  const candidates: OptimizationCandidate[] = [];
   const eligible = products.filter((product) => product.active && hasSampleFloor(product.clicks));
-
-  const deadWeightProducts = new Set<string>();
+  const reservedProducts = new Set<string>();
+  const units: OptimizationCandidate[][] = [];
   for (const product of eligible) {
-    if (
-      isDeadWeight(product.clicks, product.commissions) &&
-      !deadWeightProducts.has(product.productId)
-    ) {
-      deadWeightProducts.add(product.productId);
-      candidates.push({
-        actionType: "products.archive",
-        productId: product.productId,
-        payload: { product_id: product.productId },
-        reason: "At least 200 clicks in 30 days with zero commissions",
-      });
+    const switchProposal = networkSwitches.get(product.productId);
+    if (switchProposal) {
+      units.push([
+        {
+          actionType: "products.update_affiliate_url",
+          productId: product.productId,
+          payload: { product_id: product.productId, affiliate_url: switchProposal.url },
+          reason: switchProposal.reason,
+        },
+      ]);
+      reservedProducts.add(product.productId);
     }
   }
 
@@ -101,36 +147,47 @@ export function chooseCandidates(
       hasSampleFloor(featured.clicks) &&
       isWinnerPromotion(winner.epc, featured.epc)
     ) {
-      candidates.push({
-        actionType: "products.update",
-        productId: winner.productId,
-        payload: { product_id: winner.productId, updates: { featured: true } },
-        reason: `EPC ${winner.epc} is at least 1.5x featured product EPC ${featured.epc}`,
-      });
-      candidates.push({
-        actionType: "products.update",
-        productId: featured.productId,
-        payload: { product_id: featured.productId, updates: { featured: false } },
-        reason: "Demoted after a competing product qualified for promotion",
-      });
+      if (!reservedProducts.has(winner.productId) && !reservedProducts.has(featured.productId)) {
+        units.push([
+          {
+            actionType: "products.update",
+            productId: winner.productId,
+            payload: { product_id: winner.productId, updates: { featured: true } },
+            reason: `EPC ${winner.epc} is at least 1.5x featured product EPC ${featured.epc}`,
+          },
+          {
+            actionType: "products.update",
+            productId: featured.productId,
+            payload: { product_id: featured.productId, updates: { featured: false } },
+            reason: "Demoted after a competing product qualified for promotion",
+          },
+        ]);
+        reservedProducts.add(winner.productId);
+        reservedProducts.add(featured.productId);
+      }
     }
   }
 
-  const healthByProduct = new Map(health.map((row) => [row.product_id, row]));
   for (const product of eligible) {
-    const alternateUrl = alternateUrls.get(product.productId);
-    const currentHealth = healthByProduct.get(product.productId);
     if (
-      alternateUrl &&
-      (currentHealth?.classification === "broken" || currentHealth?.classification === "suspicious")
+      !reservedProducts.has(product.productId) &&
+      isDeadWeight(product.clicks, product.commissions)
     ) {
-      candidates.push({
-        actionType: "products.update_affiliate_url",
-        productId: product.productId,
-        payload: { product_id: product.productId, affiliate_url: alternateUrl },
-        reason: `Current affiliate destination is ${currentHealth.classification}`,
-      });
+      units.push([
+        {
+          actionType: "products.archive",
+          productId: product.productId,
+          payload: { product_id: product.productId },
+          reason: "At least 200 clicks in 30 days with zero commissions",
+        },
+      ]);
+      reservedProducts.add(product.productId);
     }
   }
-  return candidates.slice(0, OPTIMIZATION_ACTION_CAP);
+  const candidates: OptimizationCandidate[] = [];
+  for (const unit of units) {
+    if (candidates.length + unit.length > OPTIMIZATION_ACTION_CAP) continue;
+    candidates.push(...unit);
+  }
+  return candidates;
 }

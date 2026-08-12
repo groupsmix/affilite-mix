@@ -17,6 +17,7 @@ import { runGuardedMutation } from "@/lib/automation/guarded-mutation";
 import { type AutomationAuthContext } from "@/lib/automation/auth";
 import {
   chooseCandidates,
+  chooseNetworkSwitch,
   deterministicOptimizationKey,
   isEpcFresh,
   OPTIMIZATION_COOLDOWN_DAYS,
@@ -30,10 +31,14 @@ function runDate(now = new Date()): string {
   return now.toISOString().slice(0, 10);
 }
 
-function responseRequest(idempotencyKey: string): NextRequest {
-  return new NextRequest("https://internal.invalid/api/automation/v1/optimization", {
+function automationCronRequest(idempotencyKey: string): NextRequest {
+  return new NextRequest("https://cron.internal/api/cron/affiliate-optimization", {
     method: "POST",
-    headers: { "idempotency-key": idempotencyKey },
+    headers: {
+      "idempotency-key": idempotencyKey,
+      "user-agent": "affiliate-optimization-cron",
+      "x-automation-trigger": "scheduled",
+    },
   });
 }
 
@@ -65,35 +70,23 @@ function performanceRows(
   return rows;
 }
 
-function alternateUrls(
+function networkSwitches(
   data: Awaited<ReturnType<typeof getOptimizationData>>,
   rows: ProductPerformance[],
-): Map<string, string> {
-  const result = new Map<string, string>();
+): Map<string, { url: string; reason: string }> {
+  const result = new Map<string, { url: string; reason: string }>();
   for (const productId of new Set(rows.map((row) => row.productId))) {
     const productRows = rows.filter((row) => row.productId === productId);
     const links = data.links.filter((link) => link.product_id === productId);
     if (links.length < 2) continue;
     const product = data.products.find((candidate) => candidate.id === productId);
-    const currentLink = links.find((link) => link.url === product?.affiliate_url) ?? links[0];
-    const current = data.health.find(
-      (health) =>
-        health.product_id === productId &&
-        health.url === currentLink?.url &&
-        health.classification !== "healthy",
+    const decision = chooseNetworkSwitch(
+      product?.affiliate_url ?? null,
+      links,
+      productRows,
+      data.health.filter((health) => health.product_id === productId),
     );
-    const currentNetwork = current?.network ?? currentLink?.network;
-    const currentEpc = productRows.find((row) => row.network === currentNetwork)?.epc ?? 0;
-    const best = [...productRows].sort((a, b) => b.epc - a.epc)[0];
-    const networkSwitch =
-      best && best.network !== currentNetwork && best.clicks >= 100 && best.epc >= currentEpc * 1.5;
-    const alternate = links.find(
-      (link) =>
-        link.network === best?.network &&
-        link.network !== currentNetwork &&
-        link.url !== current?.url,
-    );
-    if (alternate && (networkSwitch || current)) result.set(productId, alternate.url);
+    if (decision) result.set(productId, decision);
   }
   return result;
 }
@@ -138,15 +131,8 @@ export async function POST(request: NextRequest) {
     const sites = await listOptimizationSites();
     for (const site of sites) {
       totals.sites++;
-      const accounts = await listAutomationServiceAccountsForSite(site.id);
-      const account = [...accounts]
-        .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
-        .find(
-          (candidate) =>
-            candidate.status === "active" && candidate.scopes.includes("products:update"),
-        );
       const run = await createAutomationRun({
-        service_account_id: account?.id ?? null,
+        service_account_id: null,
         site_id: site.id,
         trigger: "scheduled",
         goal: GOAL,
@@ -160,17 +146,25 @@ export async function POST(request: NextRequest) {
         });
       };
       try {
+        const accounts = await listAutomationServiceAccountsForSite(site.id);
+        const account = [...accounts]
+          .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+          .find(
+            (candidate) =>
+              candidate.status === "active" && candidate.scopes.includes("products:update"),
+          );
         if (!account) {
           await finishSkipped("No active service account with products:update scope");
           continue;
         }
+        await updateAutomationRun(site.id, run.id, { service_account_id: account.id });
         const data = await getOptimizationData(site.id);
         if (!isEpcFresh(data.latestEpcAt, now.getTime())) {
           await finishSkipped("EPC aggregates are missing or older than 48 hours");
           continue;
         }
         const rows = performanceRows(data);
-        const candidates = chooseCandidates(rows, data.health, alternateUrls(data, rows));
+        const candidates = chooseCandidates(rows, networkSwitches(data, rows));
         let runActionCount = 0;
         let runSucceeded = 0;
         let runFailed = 0;
@@ -199,7 +193,7 @@ export async function POST(request: NextRequest) {
             continue;
           }
           await executeCandidate(
-            responseRequest(key),
+            automationCronRequest(key),
             {
               account,
               siteId: site.id,
@@ -235,13 +229,19 @@ export async function POST(request: NextRequest) {
           summary: { candidate_count: candidates.length, cooldown_since: since },
         });
       } catch (error) {
+        totals.failed++;
+        captureException(error, {
+          context: "[cron/affiliate-optimization] site failed",
+          site_id: site.id,
+          run_id: run.id,
+        });
         await updateAutomationRun(site.id, run.id, {
           status: "failed",
           finished_at: new Date().toISOString(),
           error_code: "OPTIMIZATION_RUN_FAILED",
           summary: { error: error instanceof Error ? error.message : String(error) },
         });
-        throw error;
+        continue;
       }
     }
     void recordCronLiveness("affiliate-optimization");
