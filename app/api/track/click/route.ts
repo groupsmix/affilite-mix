@@ -116,6 +116,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       return apiError(400, "Invalid product slug");
     }
 
+    const matchedProduct = await getProductBySlug(siteId, productSlug);
     const cacheKey = `product-url:${safeKeyPart(siteId)}:${safeKeyPart(productSlug)}`;
     let cachedData: { name: string; url: string; _hmac?: string } | null = null;
     let cacheHmacValid = false;
@@ -178,11 +179,10 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       }
 
       if (!cachedData) {
-        const product = await getProductBySlug(siteId, productSlug);
-        if (!product || !product.affiliate_url) {
+        if (!matchedProduct || !matchedProduct.affiliate_url) {
           return apiError(404, "Product not found or has no affiliate URL");
         }
-        cachedData = { name: product.name, url: product.affiliate_url };
+        cachedData = { name: matchedProduct.name, url: matchedProduct.affiliate_url };
 
         const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
         let hmacSigned = false;
@@ -351,6 +351,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         site_id: siteId,
         product_name: cachedData.name,
         affiliate_url: destinationUrl,
+        ...(matchedProduct ? { product_id: matchedProduct.id } : {}),
         content_slug: contentSlug,
         referrer: sanitizedReferrer,
         is_internal: isInternal,

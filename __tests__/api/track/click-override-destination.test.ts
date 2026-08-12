@@ -64,6 +64,7 @@ vi.mock("@/lib/get-client-ip", () => ({
 
 import { GET } from "@/app/api/track/click/route";
 import { getTrackingUrl } from "@/lib/tracking-url";
+import { getProductBySlug } from "@/lib/dal/products";
 
 function requestFor(trackingHref: string): NextRequest {
   return new NextRequest(new URL(trackingHref, "https://test.example.com"), {
@@ -88,6 +89,23 @@ afterEach(() => {
 });
 
 describe("GET /api/track/click — destinations produced by getTrackingUrl", () => {
+  it("records product_id when the slug matches a site-scoped product", async () => {
+    vi.mocked(getProductBySlug).mockResolvedValueOnce({
+      id: "product-123",
+      name: "Dial watch",
+      affiliate_url: AMAZON_DESTINATION,
+    } as never);
+    const href = getTrackingUrl("navigator-automatic", "guide", AMAZON_DESTINATION, true, {
+      productName: "Orient Kamasu",
+    });
+
+    await GET(requestFor(href));
+
+    expect(mockPublishClick).toHaveBeenCalledWith(
+      expect.objectContaining({ product_id: "product-123" }),
+    );
+  });
+
   it("redirects to the destination of a productName CTA", async () => {
     const href = getTrackingUrl("dial-watch", "guide", AMAZON_DESTINATION, true, {
       placement: "ranked-pick",
