@@ -1,5 +1,9 @@
 # Admin API machine access
 
+> **Authoritative integration guide:** [Automation API integration guide](./automation-api.md).
+> Use the scoped `/api/automation/v1` service-account API for AI mutations.
+> This page retains the legacy full-admin bearer-token details only.
+
 `/api/admin/*` accepts two credentials:
 
 | Caller              | Credential                                | CSRF                         |

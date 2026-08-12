@@ -1,5 +1,9 @@
 # Affiliate optimization loop
 
+> **Authoritative API integration guide:** [Automation API integration guide](./automation-api.md).
+> This page is the short cron/operator summary; the integration guide owns the
+> complete API, policy, approval, error, and read-surface contract.
+
 The daily, light-Worker affiliate optimization job runs at **10:00 UTC**, after EPC
 recomputation (06:00) and affiliate link health (09:00). It reads 30-day
 clicks, commissions, EPC, affiliate-link health, and content/product
