@@ -92,6 +92,7 @@ export async function updateAutomationRun(
     Pick<
       AutomationRunRow,
       | "status"
+      | "service_account_id"
       | "planned_actions"
       | "succeeded_actions"
       | "failed_actions"
