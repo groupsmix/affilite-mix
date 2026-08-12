@@ -133,6 +133,8 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "bartonwatchbands.com",
   "hirschstraps.com",
   "crownandbuckle.com",
+  // Sovrn monetized shortlinks
+  "sovrn.co",
 ];
 
 /**

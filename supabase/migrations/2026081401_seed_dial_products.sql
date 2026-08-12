@@ -42,8 +42,6 @@ BEGIN
   )
   ON CONFLICT (site_id, slug) DO NOTHING;
 
-  -- getNetworkFromUrl() has no Sovrn catalog entry; direct preserves the URL
-  -- without inventing a network identity or tracking parameters.
   INSERT INTO product_affiliate_links (id, product_id, network, geo, url, weight, is_active)
   SELECT
     l.id, p.id, l.network, '*', l.url, 100, true
@@ -55,7 +53,7 @@ BEGIN
       ('f1a1d140-7a5f-4c34-a001-000000000004'::UUID, 'retro-digital', 'amazon', 'https://www.amazon.com/dp/B000LAKYW8'),
       ('f1a1d140-7a5f-4c34-a001-000000000005'::UUID, 'circuit-chrono', 'amazon', 'https://www.amazon.com/s?k=Seiko+SSB399P1'),
       ('f1a1d140-7a5f-4c34-a001-000000000006'::UUID, 'aria-minimalist', 'amazon', 'https://www.amazon.com/s?k=Skagen+Signatur+Lille'),
-      ('f1a1d140-7a5f-4c34-a001-000000000007'::UUID, 'casio-duro-walmart', 'direct', 'https://sovrn.co/1m9tdvu')
+      ('f1a1d140-7a5f-4c34-a001-000000000007'::UUID, 'casio-duro-walmart', 'sovrn', 'https://sovrn.co/1m9tdvu')
   ) AS l(id, slug, network, url)
   JOIN products p
     ON p.site_id = watch_tools_id

@@ -133,11 +133,12 @@ Existing machinery is already present for most of these:
 ### 12. Affiliate network identifiers and tracking parameters are fixed protocol metadata
 
 - **Location:** `lib/affiliate/networks.ts:67-205`.
-- **Values:** Network hosts, base URLs, and tracking names such as Amazon `tag`/`ascsubtag`, CJ `sid`, Awin `clickref`, Rakuten `u1`, Impact `subId1`, and Admitad `subid`.
+- **Values:** Network hosts, base URLs, and tracking names such as Amazon `tag`/`ascsubtag`, CJ `sid`, Awin `clickref`, Rakuten `u1`, Impact `subId1`, and Admitad `subid`. Sovrn is catalogued without a tracking parameter because its shortlinks are already monetized and this repository has no verified per-click parameter for them.
 - **Consumed by:** Network inference, redirect tracking decoration, commission ingestion selection, and affiliate-link health classification.
 - **Verdict:** **(c) fine as a named constant**.
 - **Why:** These describe third-party protocols and must be code-reviewed and tested rather than casually edited as business data. Publisher/site-specific values are not hardcoded here; they come from `affiliate_tracking_keys` or environment secrets.
 - **Existing machinery / duplication:** Domains duplicate the security allowlist in finding 11. Network API keys use `envKeyName` and the `affiliate_networks` table, so credentials are not hardcoded.
+- **Known limitation:** Sovrn clicks retain product and site attribution locally, but without a verified per-click parameter, commission reports cannot map a Sovrn commission back to an individual click.
 
 ### 13. Email sender fallbacks can produce invalid or wrong-brand mail
 

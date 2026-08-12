@@ -27,7 +27,8 @@ describe("Dial product backfill migration", () => {
     expect(migration).toContain("watch-tools");
     expect(migration).toContain("WHERE NOT EXISTS");
     expect(migration).toContain("ON CONFLICT (site_id, slug) DO NOTHING");
-    expect(migration).toContain("direct");
+    expect(migration).toContain("'sovrn'");
+    expect(migration).not.toContain("has no Sovrn catalog entry");
     expect(migration).toContain("dial_rating_to_product_score");
   });
 
