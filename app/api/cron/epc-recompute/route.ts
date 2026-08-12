@@ -93,13 +93,16 @@ export async function POST(request: NextRequest) {
       let clicks7d = 0;
       let scannedClickRows = 0;
       let lastClickId: string | null = null;
-      let matchingClickRows: number | null = null;
+      let totalMatchingClickRows: number | null = null;
 
       while (scannedClickRows < CLICK_SCAN_MAX_ROWS) {
         let clickQuery = sb
           // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
           .from("affiliate_clicks")
-          .select("id, affiliate_url, created_at", { count: "exact" })
+          .select(
+            "id, affiliate_url, created_at",
+            lastClickId === null ? { count: "exact" } : undefined,
+          )
           // F-API-01: rollup is per (product, network); intentionally cross-tenant.
           .unsafeNoSiteFilter()
           .or(groupClickFilter(g.urls))
@@ -111,7 +114,10 @@ export async function POST(request: NextRequest) {
 
         const { data: clickRows, error: clickErr, count } = await clickQuery;
         if (clickErr) throw clickErr;
-        if (count !== null) matchingClickRows = count;
+        // Only the first request has an exact count. Once the keyset cursor
+        // is applied, PostgREST's count describes the remaining rows rather
+        // than the total, so it cannot be compared with the accumulated scan.
+        if (lastClickId === null && count !== null) totalMatchingClickRows = count;
 
         const pageRows = (clickRows ?? []) as {
           id: string;
@@ -129,13 +135,15 @@ export async function POST(request: NextRequest) {
         // Do not use page length as the end condition: PostgREST may apply a
         // lower max-rows cap than requested. Exact count metadata tells us
         // when all matching rows have been consumed.
-        if (matchingClickRows !== null && scannedClickRows >= matchingClickRows) break;
+        if (totalMatchingClickRows !== null && scannedClickRows >= totalMatchingClickRows) {
+          break;
+        }
         if (!lastClickId) break;
       }
 
       if (
         scannedClickRows >= CLICK_SCAN_MAX_ROWS &&
-        (matchingClickRows === null || scannedClickRows < matchingClickRows)
+        (totalMatchingClickRows === null || scannedClickRows < totalMatchingClickRows)
       ) {
         logger.warn("[cron/epc-recompute] click scan hit its limit; EPC may be understated", {
           product_id: g.product_id,
