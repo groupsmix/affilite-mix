@@ -74,7 +74,7 @@ export async function getOptimizationData(
       .unsafeNoSiteFilter(),
     untypedFrom(sb, "affiliate_link_health")
       .select(
-        "id, site_id, product_id, product_affiliate_link_id, url, network, last_probed_at, last_http_status, final_url, baseline_registrable_domain, latency_ms, consecutive_failures, failure_streak_started_at, classification, created_at, updated_at",
+        "id, site_id, product_id, product_affiliate_link_id, source_type, source_key, source_name, url, network, last_probed_at, last_http_status, final_url, baseline_registrable_domain, latency_ms, consecutive_failures, failure_streak_started_at, classification, created_at, updated_at",
       )
       .eq("site_id", siteId),
     untypedFrom(sb, "content_products")

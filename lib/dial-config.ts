@@ -1,4 +1,5 @@
 import { getPageBySlug } from "@/lib/dal/pages";
+import { defaultDalClientGetter, type DalClientGetter } from "@/lib/dal/dal-client";
 
 export type WatchTier = "under-200" | "under-300" | "under-500";
 
@@ -962,8 +963,11 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
   };
 }
 
-export async function getDialHomepageConfig(siteId: string): Promise<DialHomepageConfig> {
-  const page = await getPageBySlug(siteId, DIAL_HOMEPAGE_SLUG);
+export async function getDialHomepageConfig(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<DialHomepageConfig> {
+  const page = await getPageBySlug(siteId, DIAL_HOMEPAGE_SLUG, getClient);
   if (!page?.body) {
     return mergeWithDefault({});
   }
