@@ -7,7 +7,6 @@ import {
 } from "@/lib/dal/affiliate-clicks";
 
 type Row = {
-  id: string;
   site_id: string;
   product_name: string;
   referrer: string;
@@ -17,74 +16,58 @@ type Row = {
 };
 
 class FakeAnalyticsClient {
+  readonly calls: { name: string; args: Record<string, unknown> }[] = [];
+
   constructor(private readonly rows: Row[]) {}
 
-  from() {
-    const client = this;
-    const state: {
-      count: boolean;
-      siteId?: string;
-      since?: string;
-      until?: string;
-      afterId?: string;
-      pageSize?: number;
-    } = { count: false };
+  rpc(name: string, args: Record<string, unknown>) {
+    this.calls.push({ name, args });
+    const matching = this.rows.filter(
+      (row) =>
+        row.site_id === args.p_site_id &&
+        !row.is_internal &&
+        row.created_at >= String(args.p_since) &&
+        (args.p_until === null || row.created_at <= String(args.p_until)),
+    );
 
-    const builder = {
-      select(_columns: string, options?: { count?: string }) {
-        state.count = options?.count === "exact";
-        return builder;
-      },
-      eq(column: string, value: unknown) {
-        if (column === "site_id") state.siteId = String(value);
-        return builder;
-      },
-      gte(column: string, value: string) {
-        if (column === "created_at") state.since = value;
-        return builder;
-      },
-      lte(column: string, value: string) {
-        if (column === "created_at") state.until = value;
-        return builder;
-      },
-      order() {
-        return builder;
-      },
-      gt(column: string, value: string) {
-        if (column === "id") state.afterId = value;
-        return builder;
-      },
-      limit(value: number) {
-        state.pageSize = value;
-        return builder;
-      },
-      then<TResult1 = unknown, TResult2 = never>(
-        onFulfilled?:
-          | ((value: { data: Row[]; error: null; count: number | null }) => TResult1)
-          | null,
-        onRejected?: ((reason: unknown) => TResult2) | null,
-      ): Promise<TResult1 | TResult2> {
-        const matching = client.rows
-          .filter((row) => row.site_id === state.siteId)
-          .filter((row) => !row.is_internal)
-          .filter((row) => !state.since || row.created_at >= state.since)
-          .filter((row) => !state.until || row.created_at <= state.until)
-          .filter((row) => !state.afterId || row.id > state.afterId)
-          .sort((a, b) => a.id.localeCompare(b.id));
-        const data = matching.slice(0, state.pageSize);
-        return Promise.resolve({
-          data,
-          error: null,
-          count: state.count ? matching.length : null,
-        }).then(onFulfilled, onRejected);
-      },
-    };
-    return builder;
+    if (name === "get_daily_clicks") {
+      const counts = new Map<string, number>();
+      for (const row of matching) {
+        const date = row.created_at.slice(0, 10);
+        counts.set(date, (counts.get(date) ?? 0) + 1);
+      }
+      return Promise.resolve({
+        data: Array.from(counts, ([date, count]) => ({ date, count })),
+        error: null,
+      });
+    }
+
+    const key =
+      name === "get_top_products"
+        ? "product_name"
+        : name === "get_top_referrers"
+          ? "referrer"
+          : "content_slug";
+    const counts = new Map<string, number>();
+    for (const row of matching) {
+      const value =
+        key === "referrer"
+          ? row.referrer.trim() || "(direct)"
+          : row[key as "product_name" | "content_slug"];
+      if (key === "content_slug" && !value) continue;
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+    const data = Array.from(counts, ([value, count]) => ({
+      [key]: value,
+      click_count: count,
+    })).sort(
+      (a, b) => b.click_count - a.click_count || String(a[key]).localeCompare(String(b[key])),
+    );
+    return Promise.resolve({ data: data.slice(0, Number(args.p_limit)), error: null });
   }
 }
 
 const rows: Row[] = Array.from({ length: 10_051 }, (_, index) => ({
-  id: String(index + 1).padStart(6, "0"),
   site_id: "site-1",
   product_name: index < 10_001 ? "Popular" : "Other",
   referrer: index < 10_001 ? "search.example" : "",
@@ -93,10 +76,10 @@ const rows: Row[] = Array.from({ length: 10_051 }, (_, index) => ({
   is_internal: false,
 }));
 
-const getClient = () => new FakeAnalyticsClient(rows);
-
-describe("custom-range analytics pagination", () => {
-  it("aggregates every row across pages, including a partial final page", async () => {
+describe("custom-range analytics RPC aggregation", () => {
+  it("uses one database aggregation call per metric for >10k rows", async () => {
+    const client = new FakeAnalyticsClient(rows);
+    const getClient = () => client;
     const [products, referrers, slugs, daily] = await Promise.all([
       getTopProducts("site-1", "2026-01-01", 10, "2026-01-31", getClient as never),
       getTopReferrers("site-1", "2026-01-01", 10, "2026-01-31", getClient as never),
@@ -104,6 +87,8 @@ describe("custom-range analytics pagination", () => {
       getDailyClicks("site-1", { since: "2026-01-01", until: "2026-01-31" }, getClient as never),
     ]);
 
+    expect(client.calls).toHaveLength(4);
+    expect(client.calls.every(({ args }) => args.p_until !== null)).toBe(true);
     expect(products).toEqual([
       { product_name: "Popular", click_count: 10_001 },
       { product_name: "Other", click_count: 50 },
