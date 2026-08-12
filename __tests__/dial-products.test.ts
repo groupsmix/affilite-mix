@@ -1,6 +1,28 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultDialConfig } from "@/lib/dial-config";
 import { dialRatingToProductScore, resolveDialWatches } from "@/lib/dial-products";
+
+const defaultClientGetter = vi.hoisted(() => vi.fn());
+const cacheStore = vi.hoisted(() => new Map<string, Promise<unknown>>());
+
+vi.mock("@/lib/dal/dal-client", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/dal/dal-client")>("@/lib/dal/dal-client");
+  return { ...actual, defaultDalClientGetter: defaultClientGetter };
+});
+
+vi.mock("next/cache", () => ({
+  unstable_cache: (fn: (...args: unknown[]) => Promise<unknown>, keyParts: string[]) => {
+    const key = keyParts.join(":");
+    return async (...args: unknown[]) => {
+      const cached = cacheStore.get(key);
+      if (cached) return cached;
+      const result = fn(...args);
+      cacheStore.set(key, result);
+      return result;
+    };
+  },
+}));
 
 function clientFor(
   products: unknown[],
@@ -23,7 +45,31 @@ function clientFor(
     }) as never;
 }
 
+function failingClient(tableToFail: "products" | "product_affiliate_links") {
+  return async () =>
+    ({
+      from(table: "products" | "product_affiliate_links") {
+        const builder = {
+          select: () => builder,
+          eq: () => builder,
+          in: () => builder,
+          then: (resolve: (value: unknown) => unknown) =>
+            Promise.resolve({
+              data: null,
+              error: table === tableToFail ? new Error(`${table} unavailable`) : null,
+            }).then(resolve),
+        };
+        return builder;
+      },
+    }) as never;
+}
+
 describe("Dial product resolution", () => {
+  beforeEach(() => {
+    defaultClientGetter.mockReset();
+    cacheStore.clear();
+  });
+
   it("converts the five-point rating scale to the product ten-point scale", () => {
     expect(dialRatingToProductScore(4.8)).toBe(9.6);
     expect(dialRatingToProductScore(4.7)).toBe(9.4);
@@ -94,5 +140,65 @@ describe("Dial product resolution", () => {
     expect(resolved.watches[0]!.price).toBe(300);
     expect(resolved.watches[0]!.affiliateUrl).toBe(original.affiliateUrl);
     expect(resolved.watches[0]!.editorNote).toBe(original.editorNote);
+  });
+
+  it("fails open to editorial values when either operational query fails", async () => {
+    const config = {
+      ...defaultDialConfig,
+      watches: [defaultDialConfig.watches[0]!],
+    };
+
+    await expect(
+      resolveDialWatches("dial-products-error", config, failingClient("products")),
+    ).resolves.toEqual(config);
+    await expect(
+      resolveDialWatches("dial-links-error", config, failingClient("product_affiliate_links")),
+    ).resolves.toEqual(config);
+  });
+
+  it("caches reads per site without crossing tenant boundaries", async () => {
+    const watch = defaultDialConfig.watches[0]!;
+    const from = vi.fn();
+    const client = {
+      from(table: "products" | "product_affiliate_links") {
+        from(table);
+        const rows =
+          table === "products"
+            ? [
+                {
+                  id: "cached-product",
+                  slug: watch.id,
+                  price_amount: 321,
+                  price_currency: "USD",
+                  affiliate_url: "https://www.amazon.com/dp/cached?tag=ours-20",
+                  status: "active",
+                },
+              ]
+            : [];
+        const builder = {
+          select: () => builder,
+          eq: () => builder,
+          in: () => builder,
+          then: (resolve: (value: unknown) => unknown) =>
+            Promise.resolve({ data: rows, error: null }).then(resolve),
+        };
+        return builder;
+      },
+    };
+    defaultClientGetter.mockResolvedValue(client as never);
+    const config = { ...defaultDialConfig, watches: [watch] };
+
+    const first = await resolveDialWatches("cache-site-a", config);
+    const second = await resolveDialWatches("cache-site-a", config);
+    const otherSite = await resolveDialWatches("cache-site-b", config);
+
+    expect(first.watches[0]!.price).toBe(321);
+    expect(second.watches[0]!.price).toBe(321);
+    expect(otherSite.watches[0]!.price).toBe(321);
+    expect(from).toHaveBeenCalledTimes(4);
+    expect(from).toHaveBeenNthCalledWith(1, "products");
+    expect(from).toHaveBeenNthCalledWith(2, "product_affiliate_links");
+    expect(from).toHaveBeenNthCalledWith(3, "products");
+    expect(from).toHaveBeenNthCalledWith(4, "product_affiliate_links");
   });
 });
