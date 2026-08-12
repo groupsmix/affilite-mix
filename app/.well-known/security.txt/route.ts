@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSite } from "@/lib/site-context";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 
 /**
  * G-02 — dynamic /.well-known/security.txt.
@@ -72,26 +73,12 @@ export async function GET() {
       },
     });
   } catch (err) {
-    // Missing site context (unknown host reaching /.well-known) —
-    // return a generic document so scanners still see a valid file.
-    logger.warn("security.txt: falling back to generic document", {
+    // Missing site context (unknown host reaching /.well-known) — do not
+    // publish another tenant's contact or canonical URL.
+    logger.warn("security.txt: site resolution failed; returning not found", {
       error: err instanceof Error ? err.message : String(err),
     });
-    const canonical = "https://groupsmix.com/.well-known/security.txt";
-    const lines = [
-      "Contact: mailto:security@groupsmix.com",
-      `Expires: ${formatExpiresIso(Date.now())}`,
-      "Preferred-Languages: en",
-      `Canonical: ${canonical}`,
-      "Policy: https://github.com/groupsmix/affilite-mix/blob/main/SECURITY.md",
-      "",
-    ];
-    return new NextResponse(lines.join("\n"), {
-      status: 200,
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "public, max-age=3600, s-maxage=3600",
-      },
-    });
+    captureException(err, { context: "[security.txt] site resolution failed" });
+    return new NextResponse(null, { status: 404 });
   }
 }

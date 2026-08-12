@@ -22,7 +22,7 @@
  *   --limit <n>         Cap rows fetched per run (default: 100, max: 500).
  *   --since <iso>       Only consider rows with created_at >= ISO timestamp.
  *   --dry-run           Do everything except the destructive step (replay POST or DELETE).
- *   --target <url>      Origin to POST replays to (default: APP_URL or http://localhost:3000).
+ *   --target <url>      Origin to POST replays to (required for replay unless APP_URL is set).
  *   --json              Emit machine-readable output (default: human-readable).
  *
  * Required env vars:
@@ -43,7 +43,7 @@ interface CliArgs {
   since?: string;
   olderThanDays?: number;
   dryRun: boolean;
-  target: string;
+  target?: string;
   json: boolean;
 }
 
@@ -74,7 +74,7 @@ function parseArgs(argv: string[]): CliArgs {
     command: "help",
     limit: DEFAULT_LIMIT,
     dryRun: false,
-    target: process.env.APP_URL?.replace(/\/+$/, "") || "http://localhost:3000",
+    target: process.env.APP_URL?.replace(/\/+$/, ""),
     json: false,
   };
 
@@ -200,6 +200,7 @@ async function postReplayBatch(
   if (!token) {
     throw new Error("INTERNAL_API_TOKEN must be set to replay messages.");
   }
+  if (!args.target) throw new Error("Replay target is required.");
   const url = `${args.target}/api/queue/clicks`;
   const bodyText = JSON.stringify({ messages });
   const headers = await signInternalRequest(
@@ -348,6 +349,10 @@ async function main(): Promise<void> {
   if (args.command === "help") {
     printHelp();
     return;
+  }
+
+  if (args.command === "replay" && !args.target) {
+    throw new Error("--target or APP_URL is required for `replay`.");
   }
 
   const sb = getSupabaseClient();

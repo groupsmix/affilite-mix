@@ -136,6 +136,13 @@ describe("G-02 — dynamic security.txt", () => {
     expect(src).toMatch(/site\.domain/);
     expect(src).toMatch(/site\.brand\.contactEmail/);
   });
+  it("fails closed when site resolution fails", () => {
+    const src = read("app/.well-known/security.txt/route.ts");
+    expect(src).toContain("status: 404");
+    expect(src).toContain("captureException");
+    expect(src).not.toContain("groupsmix.com/.well-known/security.txt");
+    expect(src).not.toContain("security@groupsmix.com");
+  });
 });
 
 describe("G-03 / G-04 — CSP + remotePatterns pin to exact hosts when env is set", () => {
