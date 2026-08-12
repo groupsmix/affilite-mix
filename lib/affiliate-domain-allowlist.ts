@@ -180,7 +180,7 @@ function getAllowedDomains(): Set<string> {
  * Uses a simple heuristic: strip the first label if there are 3+ parts
  * and the TLD is a known multi-part suffix.
  */
-function extractRegistrableDomain(hostname: string): string {
+export function extractRegistrableDomain(hostname: string): string {
   const parts = hostname.toLowerCase().split(".");
   if (parts.length <= 2) return hostname.toLowerCase();
 

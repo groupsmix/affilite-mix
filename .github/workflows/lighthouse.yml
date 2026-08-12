@@ -74,6 +74,8 @@ env:
   # throw "MISSING REQUIRED ENVIRONMENT VARIABLES" and every Lighthouse
   # navigation hits a process-crash 500 before any page can render.
   CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
+  CRON_AFFILIATE_LINK_HEALTH_SECRET: ci-test-cron-affiliate-link-health
+  CRON_AFFILIATE_OPTIMIZATION_SECRET: ci-test-cron-affiliate-optimization
 
 jobs:
   lighthouse:

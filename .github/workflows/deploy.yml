@@ -38,6 +38,7 @@
 #   - INTERNAL_API_TOKEN      (generate: openssl rand -hex 64)
 #   - TURNSTILE_SECRET_KEY
 #   - RESEND_API_KEY          (optional)
+#   - AFFILIATE_HEALTH_ALERT_EMAIL (optional)
 #   - Stripe (optional — required for paid memberships):
 #       STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
 #       STRIPE_PRICE_ID_INSIDER, STRIPE_PRICE_ID_PRO
@@ -46,7 +47,8 @@
 #       CRON_SITEMAP_SECRET, CRON_RETENTION_SECRET, CRON_COMMISSION_SECRET,
 #       CRON_EPC_SECRET, CRON_PRICE_SECRET, CRON_DEALS_SECRET,
 #       CRON_CLICK_RECONCILE_SECRET, CRON_ACCESS_REVIEW_SECRET,
-#       CRON_HOMEPAGE_SYNTHETIC_SECRET
+#       CRON_HOMEPAGE_SYNTHETIC_SECRET, CRON_AFFILIATE_LINK_HEALTH_SECRET
+#       CRON_AFFILIATE_OPTIMIZATION_SECRET
 #     (single source of truth: `lib/cron-registry.ts -> cronJobs`)
 #   - AI keys (optional):
 #       CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY
@@ -324,6 +326,8 @@ jobs:
           _CRON_CLICK_RECONCILE_SECRET: ${{ secrets.CRON_CLICK_RECONCILE_SECRET }}
           _CRON_ACCESS_REVIEW_SECRET: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
           _CRON_HOMEPAGE_SYNTHETIC_SECRET: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
+          _CRON_AFFILIATE_LINK_HEALTH_SECRET: ${{ secrets.CRON_AFFILIATE_LINK_HEALTH_SECRET }}
+          _CRON_AFFILIATE_OPTIMIZATION_SECRET: ${{ secrets.CRON_AFFILIATE_OPTIMIZATION_SECRET }}
         run: |
           set -euo pipefail
           MISSING=""
@@ -352,6 +356,8 @@ jobs:
             _CRON_CLICK_RECONCILE_SECRET
             _CRON_ACCESS_REVIEW_SECRET
             _CRON_HOMEPAGE_SYNTHETIC_SECRET
+            _CRON_AFFILIATE_LINK_HEALTH_SECRET
+            _CRON_AFFILIATE_OPTIMIZATION_SECRET
           )
 
           # Map env var names to their user-facing secret names
@@ -378,6 +384,7 @@ jobs:
             [_CRON_CLICK_RECONCILE_SECRET]=CRON_CLICK_RECONCILE_SECRET
             [_CRON_ACCESS_REVIEW_SECRET]=CRON_ACCESS_REVIEW_SECRET
             [_CRON_HOMEPAGE_SYNTHETIC_SECRET]=CRON_HOMEPAGE_SYNTHETIC_SECRET
+            [_CRON_AFFILIATE_OPTIMIZATION_SECRET]=CRON_AFFILIATE_OPTIMIZATION_SECRET
           )
 
           for key in "${REQUIRED[@]}"; do
@@ -1261,6 +1268,8 @@ jobs:
           [ -z "$_CRON_CLICK_RECONCILE" ] && MISSING="$MISSING CRON_CLICK_RECONCILE_SECRET"
           [ -z "$_CRON_ACCESS_REVIEW" ]   && MISSING="$MISSING CRON_ACCESS_REVIEW_SECRET"
           [ -z "$_CRON_HOMEPAGE_SYNTHETIC" ] && MISSING="$MISSING CRON_HOMEPAGE_SYNTHETIC_SECRET"
+          [ -z "$_CRON_AFFILIATE_LINK_HEALTH" ] && MISSING="$MISSING CRON_AFFILIATE_LINK_HEALTH_SECRET"
+          [ -z "$_CRON_AFFILIATE_OPTIMIZATION" ] && MISSING="$MISSING CRON_AFFILIATE_OPTIMIZATION_SECRET"
 
           if [ -n "$MISSING" ]; then
             echo "::error::Required secrets are missing:$MISSING"
@@ -1316,6 +1325,8 @@ jobs:
           echo "$_CRON_CLICK_RECONCILE" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_CLICK_RECONCILE_SECRET --name affilite-mix > /dev/null 2>&1
           echo "$_CRON_ACCESS_REVIEW" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_ACCESS_REVIEW_SECRET --name affilite-mix > /dev/null 2>&1
           echo "$_CRON_HOMEPAGE_SYNTHETIC" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOMEPAGE_SYNTHETIC_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_AFFILIATE_LINK_HEALTH" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AFFILIATE_LINK_HEALTH_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_AFFILIATE_OPTIMIZATION" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AFFILIATE_OPTIMIZATION_SECRET --name affilite-mix > /dev/null 2>&1
 
           echo "Setting optional Worker secrets (skipped if not configured)..."
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix > /dev/null 2>&1       || true
@@ -1323,6 +1334,7 @@ jobs:
           [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put TURNSTILE_SECRET_KEY --name affilite-mix > /dev/null 2>&1 || true
           [ -n "$_TURNSTILE_SITE_KEY" ] && echo "$_TURNSTILE_SITE_KEY" | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_TURNSTILE_SITE_KEY --name affilite-mix > /dev/null 2>&1 || true
           [ -n "$_NL_FROM" ]          && echo "$_NL_FROM"          | npx --yes wrangler@${WRANGLER_VERSION} secret put NEWSLETTER_FROM_EMAIL --name affilite-mix > /dev/null 2>&1 || true
+          [ -n "$_HEALTH_ALERT_EMAIL" ] && echo "$_HEALTH_ALERT_EMAIL" | npx --yes wrangler@${WRANGLER_VERSION} secret put AFFILIATE_HEALTH_ALERT_EMAIL --name affilite-mix > /dev/null 2>&1 || true
 
           echo "Setting optional AI provider secrets..."
           [ -n "$_CF_AI_TOKEN" ]      && echo "$_CF_AI_TOKEN"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CLOUDFLARE_AI_API_TOKEN --name affilite-mix > /dev/null 2>&1 || true
@@ -1374,6 +1386,7 @@ jobs:
           _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           _TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
           _NL_FROM: ${{ secrets.NEWSLETTER_FROM_EMAIL }}
+          _HEALTH_ALERT_EMAIL: ${{ secrets.AFFILIATE_HEALTH_ALERT_EMAIL }}
           _CF_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_API_TOKEN }}
           _GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
           _GROQ_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -1403,6 +1416,8 @@ jobs:
           _CRON_CLICK_RECONCILE: ${{ secrets.CRON_CLICK_RECONCILE_SECRET }}
           _CRON_ACCESS_REVIEW: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
           _CRON_HOMEPAGE_SYNTHETIC: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
+          _CRON_AFFILIATE_LINK_HEALTH: ${{ secrets.CRON_AFFILIATE_LINK_HEALTH_SECRET }}
+          _CRON_AFFILIATE_OPTIMIZATION: ${{ secrets.CRON_AFFILIATE_OPTIMIZATION_SECRET }}
           _R2_ACCOUNT: ${{ vars.R2_ACCOUNT_ID }}
           _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -1505,8 +1520,8 @@ jobs:
 
       # NEW-001 / least-privilege: the heavy-crons dispatcher only fires
       # jobs flagged `heavy: true` in lib/cron-registry.ts — currently
-      # ai-generate (02:00), commission-ingest (05:00) and price-scrape
-      # (07:00). At trigger time it reads CRON_HOST plus the per-trigger
+      # ai-generate (02:00), commission-ingest (05:00), price-scrape
+      # (07:00) and affiliate-link-health (09:00). At trigger time it reads CRON_HOST plus the per-trigger
       # secret for the job that fired, so it needs only those four secrets.
       # We intentionally do NOT push the main worker's other cron secrets
       # here: heavy-crons never reads them, and keeping them off this
@@ -1519,6 +1534,7 @@ jobs:
           _CRON_AI: ${{ secrets.CRON_AI_SECRET }}
           _CRON_COMMISSION: ${{ secrets.CRON_COMMISSION_SECRET }}
           _CRON_PRICE: ${{ secrets.CRON_PRICE_SECRET }}
+          _CRON_AFFILIATE_LINK_HEALTH: ${{ secrets.CRON_AFFILIATE_LINK_HEALTH_SECRET }}
           _SENTRY_DSN: ${{ vars.SENTRY_DSN }}
         run: |
           set -euo pipefail
@@ -1529,6 +1545,7 @@ jobs:
           echo "$_CRON_AI"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AI_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
           echo "$_CRON_COMMISSION" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_COMMISSION_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
           echo "$_CRON_PRICE"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PRICE_SECRET      --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_AFFILIATE_LINK_HEALTH" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AFFILIATE_LINK_HEALTH_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
 
           # H2: SENTRY_DSN lets the heavy-crons worker's withSentry wrapper emit
           # captureException events for dispatch/misconfig failures. Optional —

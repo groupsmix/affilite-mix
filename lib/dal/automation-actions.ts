@@ -111,6 +111,43 @@ export async function getAutomationActionById(
   return rowOrNull<AutomationActionRow>(data);
 }
 
+export async function hasRecentAutomationAction(
+  siteId: string,
+  productId: string,
+  actionType: string,
+  sinceIso: string,
+  getClient: DalClientGetter = getAutomationDbClient,
+): Promise<boolean> {
+  const sb = await getClient();
+  const { data, error } = await untypedFrom(sb, TABLE)
+    .select("id")
+    .eq("site_id", siteId)
+    .eq("target_id", productId)
+    .eq("action_type", actionType)
+    .gte("created_at", sinceIso)
+    .limit(1);
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}
+
+export async function hasPendingAutomationAction(
+  siteId: string,
+  productId: string,
+  actionType: string,
+  getClient: DalClientGetter = getAutomationDbClient,
+): Promise<boolean> {
+  const sb = await getClient();
+  const { data, error } = await untypedFrom(sb, TABLE)
+    .select("id")
+    .eq("site_id", siteId)
+    .eq("target_id", productId)
+    .eq("action_type", actionType)
+    .eq("status", "manual_attention")
+    .limit(1);
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}
+
 export async function listAutomationActionsForSite(
   siteId: string,
   options: { status?: ActionState; limit?: number; offset?: number } = {},

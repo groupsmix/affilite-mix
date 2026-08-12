@@ -334,12 +334,19 @@ export async function validateExternalUrl(
 /** Maximum number of redirects to follow before aborting (P-02). */
 const MAX_REDIRECT_HOPS = 10;
 
-export async function safeFetchWithRedirectValidation(
+export interface SafeFetchRedirectResult {
+  response: Response;
+  finalUrl: string;
+  redirectHops: number;
+}
+
+async function fetchWithRedirectMetadataInternal(
   urlString: string,
   options?: RequestInit,
   allowPrivateIPs = false,
   _hopsRemaining: number = MAX_REDIRECT_HOPS,
-): Promise<Response> {
+  _redirectHops = 0,
+): Promise<SafeFetchRedirectResult> {
   if (_hopsRemaining <= 0) {
     throw new Error("SSRF guard: too many redirects");
   }
@@ -393,16 +400,34 @@ export async function safeFetchWithRedirectValidation(
         throw new Error(`SSRF guard on redirect: ${redirectResult.error}`);
       }
       // Re-fetch the redirect target with the same validation
-      return safeFetchWithRedirectValidation(
+      return fetchWithRedirectMetadataInternal(
         location,
         options,
         allowPrivateIPs,
         _hopsRemaining - 1,
+        _redirectHops + 1,
       );
     }
   }
 
-  return response;
+  return { response, finalUrl: urlString, redirectHops: _redirectHops };
+}
+
+export async function safeFetchWithRedirectValidation(
+  urlString: string,
+  options?: RequestInit,
+  allowPrivateIPs = false,
+): Promise<Response> {
+  const result = await fetchWithRedirectMetadataInternal(urlString, options, allowPrivateIPs);
+  return result.response;
+}
+
+export async function safeFetchWithRedirectMetadata(
+  urlString: string,
+  options?: RequestInit,
+  allowPrivateIPs = false,
+): Promise<SafeFetchRedirectResult> {
+  return fetchWithRedirectMetadataInternal(urlString, options, allowPrivateIPs);
 }
 
 /**

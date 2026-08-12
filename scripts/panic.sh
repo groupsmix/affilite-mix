@@ -54,6 +54,8 @@ PANIC_SECRETS=(
   "CRON_EPC_SECRET"
   "CRON_PRICE_SECRET"
   "CRON_DEALS_SECRET"
+  "CRON_AFFILIATE_LINK_HEALTH_SECRET"
+  "CRON_AFFILIATE_OPTIMIZATION_SECRET"
 )
 
 # KV key prefixes to purge. Session/revocation state lives under

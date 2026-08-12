@@ -37,6 +37,8 @@ env:
   CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
   CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
   CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
+  CRON_AFFILIATE_LINK_HEALTH_SECRET: ci-test-cron-affiliate-link-health
+  CRON_AFFILIATE_OPTIMIZATION_SECRET: ci-test-cron-affiliate-optimization
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared
@@ -635,7 +637,11 @@ jobs:
           #       the auth resolver and the super_admin kill switch (cross-site by role).
           # Each call is annotated with a `// SAFE:` comment; lib/automation/db.ts is the
           # single sanctioned importer on the SERVICE_ROLE_IMPORT_ALLOWLIST.
-          BASELINE=107
+          # then 107 -> 110 (affiliate optimization loop): lib/dal/optimization-loop.ts
+          # adds three audited reads for the global active-site registry and joined
+          # product/content tables. The latter two carry site predicates on their
+          # joined records; the active-site registry is intentionally global.
+          BASELINE=110
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
@@ -1191,6 +1197,8 @@ jobs:
           CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
           CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
           CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
+          CRON_AFFILIATE_LINK_HEALTH_SECRET: ci-test-cron-affiliate-link-health
+          CRON_AFFILIATE_OPTIMIZATION_SECRET: ci-test-cron-affiliate-optimization
           STRIPE_WEBHOOK_SECRET: whsec_ci_test_placeholder
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
           # F-18: production mode requires purpose-specific tokens; the legacy
@@ -1292,6 +1300,8 @@ jobs:
           CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
           CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
           CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
+          CRON_AFFILIATE_LINK_HEALTH_SECRET: ci-test-cron-affiliate-link-health
+          CRON_AFFILIATE_OPTIMIZATION_SECRET: ci-test-cron-affiliate-optimization
       - name: Wait for server to be ready
         # Use TCP check — verifies the port is bound without making an HTTP
         # request. HTTP checks fail because `next start` runs in production

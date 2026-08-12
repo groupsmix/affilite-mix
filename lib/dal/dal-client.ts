@@ -60,6 +60,7 @@
  */
 
 import { getTenantClient } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -78,6 +79,8 @@ type SiteId = string & { readonly __brand: unique symbol };
 
 /** Type returned by both getTenantClient() and getPrivilegedSupabaseClient(). */
 type DalClient = SupabaseClient;
+
+export const getPrivilegedDalClient = () => getPrivilegedSupabaseClient("dal-privileged");
 /** A zero-arg async function that returns a Supabase client. */
 export type DalClientGetter = () => Promise<DalClient> | DalClient;
 

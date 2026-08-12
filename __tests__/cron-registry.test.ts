@@ -401,3 +401,23 @@ describe("cron-registry — .env.example documentation", () => {
     expect(envExample).toMatch(/Do NOT use a pooler URL here/);
   });
 });
+
+describe("cron-registry — CI server boot secret coverage", () => {
+  const ciWorkflow = readRepoFile(".github/workflows/ci.yml");
+  const lighthouseWorkflow = readRepoFile(".github/workflows/lighthouse.yml");
+  const mutationWorkflow = readRepoFile(".github/workflows/mutation.yml");
+
+  it("provides affiliate cron secrets to booting CI workflows", () => {
+    for (const job of cronJobs.filter((entry) => entry.name.startsWith("affiliate-"))) {
+      expect(ciWorkflow, `${job.secretEnvVar} missing from CI workflow`).toMatch(
+        new RegExp(`^\\s*${job.secretEnvVar}:`, "m"),
+      );
+      expect(lighthouseWorkflow, `${job.secretEnvVar} missing from Lighthouse workflow`).toMatch(
+        new RegExp(`^\\s*${job.secretEnvVar}:`, "m"),
+      );
+      expect(mutationWorkflow, `${job.secretEnvVar} missing from mutation workflow`).toMatch(
+        new RegExp(`^\\s*${job.secretEnvVar}:`, "m"),
+      );
+    }
+  });
+});

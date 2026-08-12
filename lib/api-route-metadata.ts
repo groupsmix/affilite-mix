@@ -193,6 +193,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/affiliate-link-health",
+    methods: ["GET"],
+    requestSchema: null,
+    responseSchema: "AffiliateLinkHealthList",
+    sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
     auth: "super_admin",
     path: "/api/admin/seo/gsc",
     methods: ["GET"],
@@ -782,6 +790,23 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "{ generated: number }",
     sensitiveFields: [],
+  },
+  {
+    ...CRON_DEFAULTS,
+    path: "/api/cron/affiliate-link-health",
+    methods: ["POST"],
+    requestSchema: null,
+    responseSchema: "AffiliateLinkHealthProbe",
+    sensitiveFields: [],
+  },
+  {
+    ...CRON_DEFAULTS,
+    path: "/api/cron/affiliate-optimization",
+    methods: ["POST"],
+    requestSchema: null,
+    responseSchema: "{ sites: number; actions: number }",
+    sensitiveFields: [],
+    notes: "Runs EPC-based product proposals through the automation guardrail plane.",
   },
   {
     ...CRON_DEFAULTS,
