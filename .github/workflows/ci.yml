@@ -58,6 +58,17 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: OpenAPI generated artifact drift
+        run: |
+          set -euo pipefail
+          generated="$(mktemp)"
+          npm run generate:openapi -- "$generated"
+          if ! cmp -s openapi.yaml "$generated"; then
+            echo "::error::openapi.yaml is out of date. Run 'npm run generate:openapi' and commit the generated file."
+            diff -u openapi.yaml "$generated" || true
+            exit 1
+          fi
+          echo "openapi.yaml matches the generated contract."
       - name: Prettier format check (FR-0004)
         run: npm run format:check
       - name: Security audit
