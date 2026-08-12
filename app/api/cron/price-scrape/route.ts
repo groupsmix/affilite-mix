@@ -238,12 +238,18 @@ export async function POST(request: NextRequest) {
 
         // Send email notification via Resend
         const resendKey = process.env.RESEND_API_KEY;
-        const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? "noreply@example.com";
+        const fromEmail = process.env.NEWSLETTER_FROM_EMAIL;
         const siteOrigin = await getSiteOrigin(product.site_id);
 
         let emailSent = false;
 
         if (resendKey) {
+          if (!fromEmail) {
+            const error = new Error("Price alert email sender is not configured");
+            logger.error(error.message, { alertId: alert.id });
+            captureException(error, { context: "[cron/price-scrape] sender not configured" });
+            continue;
+          }
           if (!siteOrigin) {
             // Without a tenant origin we'd send a broken "View Deal" link.
             // Skip retry-and-resend on the next cron run instead of mailing
