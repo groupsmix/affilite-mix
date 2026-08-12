@@ -41,6 +41,13 @@ describe("validateAffiliateDomain", () => {
     expect(result.domain).toBe("www.amazon.com");
   });
 
+  it("accepts Sovrn shortlinks in strict mode", () => {
+    process.env.AFFILIATE_DOMAIN_ENFORCEMENT = "strict";
+    const result = validateAffiliateDomain("https://sovrn.co/1m9tdvu");
+    expect(result.allowed).toBe(true);
+    expect(result.domain).toBe("sovrn.co");
+  });
+
   it("accepts subdomains of allow-listed registrable domains", () => {
     process.env.AFFILIATE_DOMAIN_ENFORCEMENT = "strict";
     const result = validateAffiliateDomain("https://hop.clickbank.net/?affiliate=foo&product=bar");

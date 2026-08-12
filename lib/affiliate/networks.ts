@@ -27,6 +27,7 @@ export type AffiliateNetwork =
   | "clickbank"
   | "partnerstack"
   | "admitad"
+  | "sovrn"
   | "direct";
 
 export interface AffiliateNetworkConfig {
@@ -193,6 +194,18 @@ export const NETWORK_CONFIGS: Record<AffiliateNetwork, AffiliateNetworkConfig> =
     envKeyName: "ADMITAD_API_KEY",
     trackingParam: "subid",
     domains: ["admitad.com", "admitad.global"],
+  },
+  sovrn: {
+    network: "sovrn",
+    name: "Sovrn",
+    description: "Sovrn monetized shortlinks",
+    bestFor: "Pre-monetized merchant shortlinks",
+    baseUrl: "https://sovrn.co/",
+    requiresApiKey: false,
+    envKeyName: "",
+    // Sovrn shortlinks are already monetized; no verified per-click
+    // parameter is available in this catalog, so do not fabricate one.
+    domains: ["sovrn.co"],
   },
   direct: {
     network: "direct",
