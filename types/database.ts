@@ -39,8 +39,11 @@ export interface AffiliateClickRow {
 export interface AffiliateLinkHealthRow {
   id: string;
   site_id: string;
-  product_id: string;
+  product_id: string | null;
   product_affiliate_link_id: string | null;
+  source_type: "product" | "dial_watch";
+  source_key: string;
+  source_name: string | null;
   url: string;
   network: string;
   last_probed_at: string | null;

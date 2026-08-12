@@ -13,6 +13,19 @@ import { logger } from "@/lib/logger";
 const FAILURE_ALERT_THRESHOLD = 3;
 const MAX_EMAIL_ALERTS = 20;
 export const HEALTH_TARGET_BATCH_SIZE = 32;
+const PRODUCT_TARGET_PREFIX = "0:product:";
+const DIAL_TARGET_PREFIX = "1:dial:";
+
+export function normalizeHealthCursor(cursor: string | null): string | null {
+  if (!cursor) return null;
+  if (
+    new RegExp(`^${PRODUCT_TARGET_PREFIX}[0-9a-f-]+:(primary|link:[^:]+)$`, "i").test(cursor) ||
+    new RegExp(`^${DIAL_TARGET_PREFIX}[^:]+:[^:]+$`).test(cursor)
+  ) {
+    return cursor;
+  }
+  return null;
+}
 
 function trackingIdentityChanged(
   originalUrl: string,
@@ -78,7 +91,8 @@ export function nextHealthCursor(
 export async function sendAlerts(
   alerts: Array<{
     target: {
-      product: { name: string; [key: string]: unknown };
+      product?: { name: string; [key: string]: unknown } | null;
+      sourceName?: string;
       url: string;
       [key: string]: unknown;
     };
@@ -91,7 +105,7 @@ export async function sendAlerts(
     .slice(0, MAX_EMAIL_ALERTS)
     .map(
       ({ target, result, streak }) =>
-        `${target.product.name}: ${result.classification} (${target.url}; status=${result.status ?? "error"}; streak=${streak})`,
+        `${target.sourceName ?? target.product?.name ?? "Unknown destination"}: ${result.classification} (${target.url}; status=${result.status ?? "error"}; streak=${streak})`,
     )
     .join("\n");
   captureMessage(
