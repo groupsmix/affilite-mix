@@ -188,6 +188,17 @@ describe("GET /api/track/click — destinations produced by getTrackingUrl", () 
     expect(res.headers.get("location")).toBe(AMAZON_DESTINATION);
   });
 
+  it("redirects the approved Sovrn Dial destination under strict enforcement", async () => {
+    vi.stubEnv("AFFILIATE_DOMAIN_ENFORCEMENT", "strict");
+    const destination = "https://sovrn.co/1m9tdvu";
+    const href = `/api/track/click?p=casio-duro-walmart&t=guide&u=${encodeURIComponent(destination)}`;
+
+    const res = await GET(requestFor(href));
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(destination);
+  });
+
   it("preserves the UTM parameters of the destination through the round trip", async () => {
     const destination = `${AMAZON_DESTINATION}&utm_source=site&utm_medium=affiliate&utm_campaign=spring`;
     const href = getTrackingUrl("dial-watch", "sticky", destination, true, {
