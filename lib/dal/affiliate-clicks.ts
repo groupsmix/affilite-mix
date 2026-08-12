@@ -5,8 +5,6 @@ import { logger } from "@/lib/logger";
 import { shouldSkipDbCall } from "@/lib/db-available";
 
 const TABLE = "affiliate_clicks";
-const ANALYTICS_CLICK_PAGE_SIZE = 1_000;
-const ANALYTICS_CLICK_MAX_ROWS = 1_000_000;
 
 export interface RecordClickInput {
   site_id: string;
@@ -82,67 +80,6 @@ function resolveChartWindow(window: DailyClicksWindow): {
   const sinceDate = window.since ? new Date(window.since) : new Date(now.getTime() - 30 * 86400000);
   const untilDate = window.until ? new Date(window.until) : undefined;
   return { sinceDate, untilDate };
-}
-
-type AnalyticsClickRow = {
-  id: string;
-  product_name?: string | null;
-  referrer?: string | null;
-  content_slug?: string | null;
-  created_at: string;
-};
-
-async function forEachAnalyticsClickPage(
-  sb: Awaited<ReturnType<DalClientGetter>>,
-  siteId: string,
-  window: ClickDateWindow,
-  select: string,
-  onPage: (rows: AnalyticsClickRow[]) => void,
-): Promise<void> {
-  let lastClickId: string | null = null;
-  let scannedRows = 0;
-  let totalMatchingRows: number | null = null;
-
-  while (scannedRows < ANALYTICS_CLICK_MAX_ROWS) {
-    const baseQuery = sb.from(TABLE);
-    const query =
-      lastClickId === null
-        ? applyCreatedAtWindow(
-            baseQuery.select(select, { count: "exact" }).eq("site_id", siteId),
-            window,
-          )
-            .order("id", { ascending: true })
-            .limit(ANALYTICS_CLICK_PAGE_SIZE)
-        : applyCreatedAtWindow(baseQuery.select(select).eq("site_id", siteId), window)
-            .order("id", { ascending: true })
-            .gt("id", lastClickId)
-            .limit(ANALYTICS_CLICK_PAGE_SIZE);
-
-    const result: { data: unknown; error: Error | null; count: number | null } = await query;
-    const { data, error, count } = result;
-    if (error) throw error;
-    if (lastClickId === null) {
-      if (count === null) throw new Error("Analytics click count was unavailable");
-      totalMatchingRows = count;
-    }
-
-    const rows = assertRows<AnalyticsClickRow>(data ?? []);
-    if (rows.length === 0) break;
-
-    onPage(rows);
-    scannedRows += rows.length;
-    const nextClickId = rows.at(-1)?.id;
-    if (!nextClickId) throw new Error("Analytics click page is missing a stable cursor");
-    lastClickId = nextClickId;
-
-    if (totalMatchingRows !== null && scannedRows >= totalMatchingRows) return;
-  }
-
-  if (totalMatchingRows !== null && scannedRows < totalMatchingRows) {
-    throw new Error(
-      `Analytics click scan exceeded ${ANALYTICS_CLICK_MAX_ROWS} rows; total=${totalMatchingRows}`,
-    );
-  }
 }
 
 export async function recordClick(
@@ -273,35 +210,14 @@ export async function getTopProducts(
   const sb = await getClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
-  if (!untilDate) {
-    const rpcSinceDate = sinceDate ?? new Date(0).toISOString();
-    const { data, error } = await sb.rpc("get_top_products", {
-      p_site_id: siteId,
-      p_since: rpcSinceDate,
-      p_limit: limit,
-    });
-    if (error) throw error;
-    return assertRows<{ product_name: string; click_count: number }>(data ?? []);
-  }
-
-  const counts = new Map<string, number>();
-  await forEachAnalyticsClickPage(
-    sb,
-    siteId,
-    { since: sinceDate, until: untilDate },
-    "id, product_name, created_at, is_internal",
-    (rows) => {
-      for (const row of rows) {
-        const key = row.product_name ?? "";
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      }
-    },
-  );
-
-  return Array.from(counts.entries())
-    .map(([product_name, click_count]) => ({ product_name, click_count }))
-    .sort((a, b) => b.click_count - a.click_count || a.product_name.localeCompare(b.product_name))
-    .slice(0, limit);
+  const { data, error } = await sb.rpc("get_top_products", {
+    p_site_id: siteId,
+    p_since: sinceDate ?? new Date(0).toISOString(),
+    p_until: untilDate ?? null,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return assertRows<{ product_name: string; click_count: number }>(data ?? []);
 }
 
 export async function getTopReferrers(
@@ -314,35 +230,14 @@ export async function getTopReferrers(
   const sb = await getClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
-  if (!untilDate) {
-    const rpcSinceDate = sinceDate ?? new Date(0).toISOString();
-    const { data, error } = await sb.rpc("get_top_referrers", {
-      p_site_id: siteId,
-      p_since: rpcSinceDate,
-      p_limit: limit,
-    });
-    if (error) throw error;
-    return assertRows<{ referrer: string; click_count: number }>(data ?? []);
-  }
-
-  const counts = new Map<string, number>();
-  await forEachAnalyticsClickPage(
-    sb,
-    siteId,
-    { since: sinceDate, until: untilDate },
-    "id, referrer, created_at, is_internal",
-    (rows) => {
-      for (const row of rows) {
-        const key = row.referrer?.trim() ? row.referrer : "(direct)";
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      }
-    },
-  );
-
-  return Array.from(counts.entries())
-    .map(([referrer, click_count]) => ({ referrer, click_count }))
-    .sort((a, b) => b.click_count - a.click_count || a.referrer.localeCompare(b.referrer))
-    .slice(0, limit);
+  const { data, error } = await sb.rpc("get_top_referrers", {
+    p_site_id: siteId,
+    p_since: sinceDate ?? new Date(0).toISOString(),
+    p_until: untilDate ?? null,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return assertRows<{ referrer: string; click_count: number }>(data ?? []);
 }
 
 export async function getTopContentSlugs(
@@ -355,36 +250,14 @@ export async function getTopContentSlugs(
   const sb = await getClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
-  if (!untilDate) {
-    const rpcSinceDate = sinceDate ?? new Date(0).toISOString();
-    const { data, error } = await sb.rpc("get_top_content_slugs", {
-      p_site_id: siteId,
-      p_since: rpcSinceDate,
-      p_limit: limit,
-    });
-    if (error) throw error;
-    return assertRows<{ content_slug: string; click_count: number }>(data ?? []);
-  }
-
-  const counts = new Map<string, number>();
-  await forEachAnalyticsClickPage(
-    sb,
-    siteId,
-    { since: sinceDate, until: untilDate },
-    "id, content_slug, created_at, is_internal",
-    (rows) => {
-      for (const row of rows) {
-        const key = row.content_slug?.trim();
-        if (!key) continue;
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      }
-    },
-  );
-
-  return Array.from(counts.entries())
-    .map(([content_slug, click_count]) => ({ content_slug, click_count }))
-    .sort((a, b) => b.click_count - a.click_count || a.content_slug.localeCompare(b.content_slug))
-    .slice(0, limit);
+  const { data, error } = await sb.rpc("get_top_content_slugs", {
+    p_site_id: siteId,
+    p_since: sinceDate ?? new Date(0).toISOString(),
+    p_until: untilDate ?? null,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return assertRows<{ content_slug: string; click_count: number }>(data ?? []);
 }
 
 export async function getDailyClicks(
@@ -395,51 +268,22 @@ export async function getDailyClicks(
   const sb = await getClient();
   const { sinceDate, untilDate } = resolveChartWindow(daysOrWindow);
 
-  if (!untilDate) {
-    const { data, error } = await sb.rpc("get_daily_clicks", {
-      p_site_id: siteId,
-      p_since: sinceDate.toISOString(),
-    });
-    if (error) throw error;
+  const { data, error } = await sb.rpc("get_daily_clicks", {
+    p_site_id: siteId,
+    p_since: sinceDate.toISOString(),
+    p_until: untilDate?.toISOString() ?? null,
+  });
+  if (error) throw error;
 
-    const rpcData = assertRows<{ date: string; count: number }>(data ?? []);
-    const counts = new Map<string, number>();
-    for (const row of rpcData) {
-      counts.set(row.date, Number(row.count));
-    }
-
-    const result: { date: string; count: number }[] = [];
-    const cursor = new Date(sinceDate);
-    const today = new Date();
-    while (cursor <= today) {
-      const dateStr = cursor.toISOString().split("T")[0];
-      result.push({ date: dateStr!, count: counts.get(dateStr!) ?? 0 });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return result;
-  }
-
+  const rpcData = assertRows<{ date: string; count: number }>(data ?? []);
   const counts = new Map<string, number>();
-  await forEachAnalyticsClickPage(
-    sb,
-    siteId,
-    {
-      since: sinceDate.toISOString(),
-      until: untilDate.toISOString(),
-    },
-    "id, created_at, is_internal",
-    (rows) => {
-      for (const row of rows) {
-        const date = new Date(row.created_at);
-        const key = dateKeyUtc(date);
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      }
-    },
-  );
+  for (const row of rpcData) {
+    counts.set(row.date, Number(row.count));
+  }
 
   const result: { date: string; count: number }[] = [];
   const cursor = startOfUtcDay(sinceDate);
-  const end = startOfUtcDay(untilDate);
+  const end = startOfUtcDay(untilDate ?? new Date());
   while (cursor <= end) {
     const dateStr = dateKeyUtc(cursor);
     result.push({ date: dateStr, count: counts.get(dateStr) ?? 0 });
