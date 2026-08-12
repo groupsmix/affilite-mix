@@ -34,6 +34,13 @@ describe("price catalog snapshot reliability", () => {
     expect(route).not.toContain("noreply@example.com");
   });
 
+  it("skips alerts when the tenant origin cannot be resolved", () => {
+    expect(route).toContain("Promise<string | null>");
+    expect(route).toContain("Unable to resolve site origin for price alert email");
+    expect(route).toContain("if (!siteOrigin)");
+    expect(route).not.toContain("return process.env.APP_URL");
+  });
+
   it("labels snapshots as catalog-derived and deduplicates daily retries", () => {
     expect(route).toContain('CATALOG_SNAPSHOT_SOURCE = "catalog_snapshot"');
     expect(route).toContain('"Price catalog snapshot complete"');

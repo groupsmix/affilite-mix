@@ -1,5 +1,8 @@
 import type { SiteDefinition } from "@/config/site-definition";
 import type { SiteRow } from "@/types/database";
+import { DEFAULT_EST_REVENUE_PER_CLICK } from "./constants";
+
+export { DEFAULT_EST_REVENUE_PER_CLICK } from "./constants";
 
 /**
  * Default estimated revenue per affiliate click (USD).
@@ -9,8 +12,6 @@ import type { SiteRow } from "@/types/database";
  *  2. Database site row: `SiteRow.est_revenue_per_click`
  *  3. Hard fallback: `0.35`
  */
-export const DEFAULT_EST_REVENUE_PER_CLICK = 0.35;
-
 /**
  * Pure EPC resolver shared by admin analytics surfaces.
  *

@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
 import { shouldSkipDbCall } from "@/lib/db-available";
 
 const TABLE = "affiliate_clicks";
+const ANALYTICS_CLICK_PAGE_SIZE = 1_000;
+const ANALYTICS_CLICK_MAX_ROWS = 1_000_000;
 
 export interface RecordClickInput {
   site_id: string;
@@ -80,6 +82,67 @@ function resolveChartWindow(window: DailyClicksWindow): {
   const sinceDate = window.since ? new Date(window.since) : new Date(now.getTime() - 30 * 86400000);
   const untilDate = window.until ? new Date(window.until) : undefined;
   return { sinceDate, untilDate };
+}
+
+type AnalyticsClickRow = {
+  id: string;
+  product_name?: string | null;
+  referrer?: string | null;
+  content_slug?: string | null;
+  created_at: string;
+};
+
+async function forEachAnalyticsClickPage(
+  sb: Awaited<ReturnType<DalClientGetter>>,
+  siteId: string,
+  window: ClickDateWindow,
+  select: string,
+  onPage: (rows: AnalyticsClickRow[]) => void,
+): Promise<void> {
+  let lastClickId: string | null = null;
+  let scannedRows = 0;
+  let totalMatchingRows: number | null = null;
+
+  while (scannedRows < ANALYTICS_CLICK_MAX_ROWS) {
+    const baseQuery = sb.from(TABLE);
+    const query =
+      lastClickId === null
+        ? applyCreatedAtWindow(
+            baseQuery.select(select, { count: "exact" }).eq("site_id", siteId),
+            window,
+          )
+            .order("id", { ascending: true })
+            .limit(ANALYTICS_CLICK_PAGE_SIZE)
+        : applyCreatedAtWindow(baseQuery.select(select).eq("site_id", siteId), window)
+            .order("id", { ascending: true })
+            .gt("id", lastClickId)
+            .limit(ANALYTICS_CLICK_PAGE_SIZE);
+
+    const result: { data: unknown; error: Error | null; count: number | null } = await query;
+    const { data, error, count } = result;
+    if (error) throw error;
+    if (lastClickId === null) {
+      if (count === null) throw new Error("Analytics click count was unavailable");
+      totalMatchingRows = count;
+    }
+
+    const rows = assertRows<AnalyticsClickRow>(data ?? []);
+    if (rows.length === 0) break;
+
+    onPage(rows);
+    scannedRows += rows.length;
+    const nextClickId = rows.at(-1)?.id;
+    if (!nextClickId) throw new Error("Analytics click page is missing a stable cursor");
+    lastClickId = nextClickId;
+
+    if (totalMatchingRows !== null && scannedRows >= totalMatchingRows) return;
+  }
+
+  if (totalMatchingRows !== null && scannedRows < totalMatchingRows) {
+    throw new Error(
+      `Analytics click scan exceeded ${ANALYTICS_CLICK_MAX_ROWS} rows; total=${totalMatchingRows}`,
+    );
+  }
 }
 
 export async function recordClick(
@@ -221,21 +284,19 @@ export async function getTopProducts(
     return assertRows<{ product_name: string; click_count: number }>(data ?? []);
   }
 
-  let query = sb.from(TABLE).select("product_name, created_at, is_internal").eq("site_id", siteId);
-  query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  // BUG-8: add a hard cap to prevent unbounded full-table fetches in the
-  // Cloudflare Worker runtime (128 MB memory limit). Results beyond
-  // FALLBACK_ROW_CAP are truncated — the aggregation becomes approximate
-  // but the worker stays alive. The RPC path (no `until`) has no cap issue.
-  const { data, error } = await query.limit(10_000);
-  if (error) throw error;
-
-  const rows = assertRows<{ product_name: string }>(data ?? []);
   const counts = new Map<string, number>();
-  for (const row of rows) {
-    const key = row.product_name;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
+  await forEachAnalyticsClickPage(
+    sb,
+    siteId,
+    { since: sinceDate, until: untilDate },
+    "id, product_name, created_at, is_internal",
+    (rows) => {
+      for (const row of rows) {
+        const key = row.product_name ?? "";
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    },
+  );
 
   return Array.from(counts.entries())
     .map(([product_name, click_count]) => ({ product_name, click_count }))
@@ -264,17 +325,19 @@ export async function getTopReferrers(
     return assertRows<{ referrer: string; click_count: number }>(data ?? []);
   }
 
-  let query = sb.from(TABLE).select("referrer, created_at, is_internal").eq("site_id", siteId);
-  query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  const { data, error } = await query.limit(10_000);
-  if (error) throw error;
-
-  const rows = assertRows<{ referrer: string }>(data ?? []);
   const counts = new Map<string, number>();
-  for (const row of rows) {
-    const key = row.referrer && row.referrer.trim() ? row.referrer : "(direct)";
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
+  await forEachAnalyticsClickPage(
+    sb,
+    siteId,
+    { since: sinceDate, until: untilDate },
+    "id, referrer, created_at, is_internal",
+    (rows) => {
+      for (const row of rows) {
+        const key = row.referrer?.trim() ? row.referrer : "(direct)";
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    },
+  );
 
   return Array.from(counts.entries())
     .map(([referrer, click_count]) => ({ referrer, click_count }))
@@ -303,18 +366,20 @@ export async function getTopContentSlugs(
     return assertRows<{ content_slug: string; click_count: number }>(data ?? []);
   }
 
-  let query = sb.from(TABLE).select("content_slug, created_at, is_internal").eq("site_id", siteId);
-  query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  const { data, error } = await query.limit(10_000);
-  if (error) throw error;
-
-  const rows = assertRows<{ content_slug: string }>(data ?? []);
   const counts = new Map<string, number>();
-  for (const row of rows) {
-    const key = row.content_slug?.trim();
-    if (!key) continue;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
+  await forEachAnalyticsClickPage(
+    sb,
+    siteId,
+    { since: sinceDate, until: untilDate },
+    "id, content_slug, created_at, is_internal",
+    (rows) => {
+      for (const row of rows) {
+        const key = row.content_slug?.trim();
+        if (!key) continue;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    },
+  );
 
   return Array.from(counts.entries())
     .map(([content_slug, click_count]) => ({ content_slug, click_count }))
@@ -354,21 +419,23 @@ export async function getDailyClicks(
     return result;
   }
 
-  let query = sb.from(TABLE).select("created_at, is_internal").eq("site_id", siteId);
-  query = applyCreatedAtWindow(query, {
-    since: sinceDate.toISOString(),
-    until: untilDate.toISOString(),
-  });
-  const { data, error } = await query.limit(10_000);
-  if (error) throw error;
-
-  const rows = assertRows<{ created_at: string }>(data ?? []);
   const counts = new Map<string, number>();
-  for (const row of rows) {
-    const date = new Date(row.created_at);
-    const key = dateKeyUtc(date);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
+  await forEachAnalyticsClickPage(
+    sb,
+    siteId,
+    {
+      since: sinceDate.toISOString(),
+      until: untilDate.toISOString(),
+    },
+    "id, created_at, is_internal",
+    (rows) => {
+      for (const row of rows) {
+        const date = new Date(row.created_at);
+        const key = dateKeyUtc(date);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    },
+  );
 
   const result: { date: string; count: number }[] = [];
   const cursor = startOfUtcDay(sinceDate);
