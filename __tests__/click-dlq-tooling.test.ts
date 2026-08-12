@@ -33,6 +33,8 @@ describe("G-26 click DLQ replay tooling", () => {
     expect(src).toMatch(/signInternalRequest/);
     // Reads from the durable Postgres sink, not the Cloudflare Queue REST API.
     expect(src).toMatch(/from\("click_failures"\)/);
+    expect(src).toContain("--target or APP_URL is required for `replay`.");
+    expect(src).not.toContain("http://localhost:3000");
   });
 
   it("npm script `drain-dlq` is wired up", () => {

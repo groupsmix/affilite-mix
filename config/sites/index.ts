@@ -1,4 +1,5 @@
 import type { SiteDefinition, FeatureFlags } from "../site-definition";
+import { DEFAULT_EST_REVENUE_PER_CLICK } from "../../lib/analytics/constants";
 import { aiComparedSite } from "./ai-compared";
 import { arabicToolsSite } from "./arabic-tools";
 import { calmRoutineSite } from "./calm-routine";
@@ -84,7 +85,7 @@ export function toSiteRow(site: SiteDefinition): DerivedSiteRow {
     direction: site.direction,
     is_active: true,
     monetization_type: site.monetizationType,
-    est_revenue_per_click: site.estRevenuePerClick ?? 0.35,
+    est_revenue_per_click: site.estRevenuePerClick ?? DEFAULT_EST_REVENUE_PER_CLICK,
     theme: {
       primaryColor: site.theme.primaryColor,
       accentColor: site.theme.accentColor,
