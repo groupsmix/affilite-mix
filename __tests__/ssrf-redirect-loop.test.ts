@@ -95,4 +95,18 @@ describe("TC-01: SSRF redirect loop protection", () => {
     const response = await safeFetchWithRedirectValidation("https://example.com/redir");
     expect(response.status).toBe(200);
   });
+
+  it("returns the validated merchant hostname after IP-pinned fetching", async () => {
+    const { fetchWithTimeout } = await import("@/lib/fetch-timeout");
+    const mockedFetch = vi.mocked(fetchWithTimeout);
+    mockedFetch.mockReset();
+    mockedFetch.mockResolvedValue(new Response("OK", { status: 200 }));
+
+    const { safeFetchWithRedirectMetadata } = await import("@/lib/ssrf-guard");
+    const result = await safeFetchWithRedirectMetadata("https://example.com/landing");
+
+    expect(result.finalUrl).toBe("https://example.com/landing");
+    expect(result.finalUrl).not.toContain("93.184.216.34");
+    expect(mockedFetch.mock.calls[0]?.[0]).toMatch(/^https:\/\/\d{1,3}(?:\.\d{1,3}){3}\//);
+  });
 });

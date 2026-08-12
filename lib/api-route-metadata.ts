@@ -193,6 +193,14 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    path: "/api/admin/affiliate-link-health",
+    methods: ["GET"],
+    requestSchema: null,
+    responseSchema: "AffiliateLinkHealthList",
+    sensitiveFields: [],
+  },
+  {
+    ...ADMIN_DEFAULTS,
     auth: "super_admin",
     path: "/api/admin/seo/gsc",
     methods: ["GET"],
@@ -785,6 +793,23 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...CRON_DEFAULTS,
+    path: "/api/cron/affiliate-link-health",
+    methods: ["POST"],
+    requestSchema: null,
+    responseSchema: "AffiliateLinkHealthProbe",
+    sensitiveFields: [],
+  },
+  {
+    ...CRON_DEFAULTS,
+    path: "/api/cron/affiliate-optimization",
+    methods: ["POST"],
+    requestSchema: null,
+    responseSchema: "{ sites: number; actions: number }",
+    sensitiveFields: [],
+    notes: "Runs EPC-based product proposals through the automation guardrail plane.",
+  },
+  {
+    ...CRON_DEFAULTS,
     path: "/api/cron/click-reconcile",
     methods: ["POST"],
     requestSchema: null,
@@ -1358,8 +1383,7 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: "AutomationProductAffiliateUrlInput",
     responseSchema: "AutomationEnvelope",
     sensitiveFields: ["authorization", "idempotency-key"],
-    notes:
-      "Requires scope products:update_affiliate_url. Approval-gated affiliate destination change.",
+    notes: "Requires scope products:update. Approval-gated affiliate destination change.",
   },
   {
     path: "/api/automation/v1/products/[id]/archive",
@@ -1372,7 +1396,7 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "AutomationEnvelope",
     sensitiveFields: ["authorization", "idempotency-key"],
-    notes: "Requires scope products:archive. Approval-gated lifecycle archival.",
+    notes: "Requires scope products:update. Approval-gated lifecycle archival.",
   },
   {
     path: "/api/automation/v1/runs",

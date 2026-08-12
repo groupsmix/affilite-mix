@@ -17,6 +17,7 @@ import {
   linkGroupKey,
   groupAffiliateLinks,
   countGroupClicks,
+  countGroupClicksByWindow,
   computeEpc,
   type NormalizedAffiliateLink,
 } from "../app/api/cron/epc-recompute/aggregation";
@@ -118,6 +119,46 @@ describe("EPC-recompute aggregation (Requirement 9)", () => {
       }),
       { numRuns: 100 },
     );
+  });
+
+  it("counts every row across multiple fetched pages and preserves the 7-day subset", () => {
+    const urls = ["https://shop.example/products/widget"];
+    const sevenDaysAgo = "2026-08-24T00:00:00.000Z";
+    const pages = [
+      [
+        {
+          affiliate_url: `${urls[0]}?page=1`,
+          created_at: "2026-08-23T23:59:59.000Z",
+        },
+        {
+          affiliate_url: `${urls[0]}?page=2`,
+          created_at: "2026-08-24T00:00:00.000Z",
+        },
+      ],
+      [
+        {
+          affiliate_url: `${urls[0]}?page=3`,
+          created_at: "2026-08-30T12:00:00.000Z",
+        },
+        {
+          affiliate_url: `${urls[0]}?page=4`,
+          created_at: "2026-08-31T12:00:00.000Z",
+        },
+      ],
+    ];
+
+    const totals = pages.reduce(
+      (sum, page) => {
+        const pageCounts = countGroupClicksByWindow(page, urls, sevenDaysAgo);
+        return {
+          clicks30d: sum.clicks30d + pageCounts.clicks30d,
+          clicks7d: sum.clicks7d + pageCounts.clicks7d,
+        };
+      },
+      { clicks30d: 0, clicks7d: 0 },
+    );
+
+    expect(totals).toEqual({ clicks30d: 4, clicks7d: 3 });
   });
 
   // Feature: audit-fix-verification, Property 4: Exactly one upsert per link

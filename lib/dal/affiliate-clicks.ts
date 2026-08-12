@@ -210,37 +210,14 @@ export async function getTopProducts(
   const sb = await getClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
-  if (!untilDate) {
-    const rpcSinceDate = sinceDate ?? new Date(0).toISOString();
-    const { data, error } = await sb.rpc("get_top_products", {
-      p_site_id: siteId,
-      p_since: rpcSinceDate,
-      p_limit: limit,
-    });
-    if (error) throw error;
-    return assertRows<{ product_name: string; click_count: number }>(data ?? []);
-  }
-
-  let query = sb.from(TABLE).select("product_name, created_at, is_internal").eq("site_id", siteId);
-  query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  // BUG-8: add a hard cap to prevent unbounded full-table fetches in the
-  // Cloudflare Worker runtime (128 MB memory limit). Results beyond
-  // FALLBACK_ROW_CAP are truncated — the aggregation becomes approximate
-  // but the worker stays alive. The RPC path (no `until`) has no cap issue.
-  const { data, error } = await query.limit(10_000);
+  const { data, error } = await sb.rpc("get_top_products", {
+    p_site_id: siteId,
+    p_since: sinceDate ?? new Date(0).toISOString(),
+    p_until: untilDate ?? null,
+    p_limit: limit,
+  });
   if (error) throw error;
-
-  const rows = assertRows<{ product_name: string }>(data ?? []);
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    const key = row.product_name;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  return Array.from(counts.entries())
-    .map(([product_name, click_count]) => ({ product_name, click_count }))
-    .sort((a, b) => b.click_count - a.click_count || a.product_name.localeCompare(b.product_name))
-    .slice(0, limit);
+  return assertRows<{ product_name: string; click_count: number }>(data ?? []);
 }
 
 export async function getTopReferrers(
@@ -253,33 +230,14 @@ export async function getTopReferrers(
   const sb = await getClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
-  if (!untilDate) {
-    const rpcSinceDate = sinceDate ?? new Date(0).toISOString();
-    const { data, error } = await sb.rpc("get_top_referrers", {
-      p_site_id: siteId,
-      p_since: rpcSinceDate,
-      p_limit: limit,
-    });
-    if (error) throw error;
-    return assertRows<{ referrer: string; click_count: number }>(data ?? []);
-  }
-
-  let query = sb.from(TABLE).select("referrer, created_at, is_internal").eq("site_id", siteId);
-  query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  const { data, error } = await query.limit(10_000);
+  const { data, error } = await sb.rpc("get_top_referrers", {
+    p_site_id: siteId,
+    p_since: sinceDate ?? new Date(0).toISOString(),
+    p_until: untilDate ?? null,
+    p_limit: limit,
+  });
   if (error) throw error;
-
-  const rows = assertRows<{ referrer: string }>(data ?? []);
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    const key = row.referrer && row.referrer.trim() ? row.referrer : "(direct)";
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  return Array.from(counts.entries())
-    .map(([referrer, click_count]) => ({ referrer, click_count }))
-    .sort((a, b) => b.click_count - a.click_count || a.referrer.localeCompare(b.referrer))
-    .slice(0, limit);
+  return assertRows<{ referrer: string; click_count: number }>(data ?? []);
 }
 
 export async function getTopContentSlugs(
@@ -292,34 +250,14 @@ export async function getTopContentSlugs(
   const sb = await getClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
-  if (!untilDate) {
-    const rpcSinceDate = sinceDate ?? new Date(0).toISOString();
-    const { data, error } = await sb.rpc("get_top_content_slugs", {
-      p_site_id: siteId,
-      p_since: rpcSinceDate,
-      p_limit: limit,
-    });
-    if (error) throw error;
-    return assertRows<{ content_slug: string; click_count: number }>(data ?? []);
-  }
-
-  let query = sb.from(TABLE).select("content_slug, created_at, is_internal").eq("site_id", siteId);
-  query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  const { data, error } = await query.limit(10_000);
+  const { data, error } = await sb.rpc("get_top_content_slugs", {
+    p_site_id: siteId,
+    p_since: sinceDate ?? new Date(0).toISOString(),
+    p_until: untilDate ?? null,
+    p_limit: limit,
+  });
   if (error) throw error;
-
-  const rows = assertRows<{ content_slug: string }>(data ?? []);
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    const key = row.content_slug?.trim();
-    if (!key) continue;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  return Array.from(counts.entries())
-    .map(([content_slug, click_count]) => ({ content_slug, click_count }))
-    .sort((a, b) => b.click_count - a.click_count || a.content_slug.localeCompare(b.content_slug))
-    .slice(0, limit);
+  return assertRows<{ content_slug: string; click_count: number }>(data ?? []);
 }
 
 export async function getDailyClicks(
@@ -330,49 +268,22 @@ export async function getDailyClicks(
   const sb = await getClient();
   const { sinceDate, untilDate } = resolveChartWindow(daysOrWindow);
 
-  if (!untilDate) {
-    const { data, error } = await sb.rpc("get_daily_clicks", {
-      p_site_id: siteId,
-      p_since: sinceDate.toISOString(),
-    });
-    if (error) throw error;
-
-    const rpcData = assertRows<{ date: string; count: number }>(data ?? []);
-    const counts = new Map<string, number>();
-    for (const row of rpcData) {
-      counts.set(row.date, Number(row.count));
-    }
-
-    const result: { date: string; count: number }[] = [];
-    const cursor = new Date(sinceDate);
-    const today = new Date();
-    while (cursor <= today) {
-      const dateStr = cursor.toISOString().split("T")[0];
-      result.push({ date: dateStr!, count: counts.get(dateStr!) ?? 0 });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return result;
-  }
-
-  let query = sb.from(TABLE).select("created_at, is_internal").eq("site_id", siteId);
-  query = applyCreatedAtWindow(query, {
-    since: sinceDate.toISOString(),
-    until: untilDate.toISOString(),
+  const { data, error } = await sb.rpc("get_daily_clicks", {
+    p_site_id: siteId,
+    p_since: sinceDate.toISOString(),
+    p_until: untilDate?.toISOString() ?? null,
   });
-  const { data, error } = await query.limit(10_000);
   if (error) throw error;
 
-  const rows = assertRows<{ created_at: string }>(data ?? []);
+  const rpcData = assertRows<{ date: string; count: number }>(data ?? []);
   const counts = new Map<string, number>();
-  for (const row of rows) {
-    const date = new Date(row.created_at);
-    const key = dateKeyUtc(date);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+  for (const row of rpcData) {
+    counts.set(row.date, Number(row.count));
   }
 
   const result: { date: string; count: number }[] = [];
   const cursor = startOfUtcDay(sinceDate);
-  const end = startOfUtcDay(untilDate);
+  const end = startOfUtcDay(untilDate ?? new Date());
   while (cursor <= end) {
     const dateStr = dateKeyUtc(cursor);
     result.push({ date: dateStr, count: counts.get(dateStr) ?? 0 });

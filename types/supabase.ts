@@ -1802,6 +1802,94 @@ export type Database = {
           },
         ];
       };
+      affiliate_link_health: {
+        Row: {
+          id: string;
+          site_id: string;
+          product_id: string | null;
+          product_affiliate_link_id: string | null;
+          source_type: string;
+          source_key: string;
+          source_name: string | null;
+          url: string;
+          network: string;
+          last_probed_at: string | null;
+          last_http_status: number | null;
+          final_url: string | null;
+          baseline_registrable_domain: string | null;
+          latency_ms: number | null;
+          consecutive_failures: number;
+          failure_streak_started_at: string | null;
+          classification: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          product_id?: string | null;
+          product_affiliate_link_id?: string | null;
+          source_type?: string;
+          source_key?: string;
+          source_name?: string | null;
+          url: string;
+          network?: string;
+          last_probed_at?: string | null;
+          last_http_status?: number | null;
+          final_url?: string | null;
+          baseline_registrable_domain?: string | null;
+          latency_ms?: number | null;
+          consecutive_failures?: number;
+          failure_streak_started_at?: string | null;
+          classification?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          product_id?: string | null;
+          product_affiliate_link_id?: string | null;
+          source_type?: string;
+          source_key?: string;
+          source_name?: string | null;
+          url?: string;
+          network?: string;
+          last_probed_at?: string | null;
+          last_http_status?: number | null;
+          final_url?: string | null;
+          baseline_registrable_domain?: string | null;
+          latency_ms?: number | null;
+          consecutive_failures?: number;
+          failure_streak_started_at?: string | null;
+          classification?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_link_health_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "affiliate_link_health_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "affiliate_link_health_product_affiliate_link_id_fkey";
+            columns: ["product_affiliate_link_id"];
+            isOneToOne: false;
+            referencedRelation: "product_affiliate_links";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_epc_stats: {
         Row: {
           clicks_30d: number;

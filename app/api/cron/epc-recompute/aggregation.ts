@@ -122,6 +122,26 @@ export function countGroupClicks(
 }
 
 /**
+ * Count one fetched click page against both EPC windows.
+ *
+ * The cron route deliberately calls this for each keyset page instead of
+ * retaining the full click set in memory.
+ */
+export function countGroupClicksByWindow(
+  clicks: readonly { affiliate_url: string; created_at: string }[],
+  urls: readonly string[],
+  sevenDaysAgo: string,
+): { clicks30d: number; clicks7d: number } {
+  return {
+    clicks30d: countGroupClicks(clicks, urls),
+    clicks7d: countGroupClicks(
+      clicks.filter((row) => row.created_at >= sevenDaysAgo),
+      urls,
+    ),
+  };
+}
+
+/**
  * PostgREST `or=` filter selecting the click rows that *may* belong to a
  * Link_Group.
  *

@@ -35,6 +35,8 @@ env:
   CRON_DEALS_SECRET: ci-test-cron-deals
   CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
   CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
+  CRON_AFFILIATE_LINK_HEALTH_SECRET: ci-test-cron-affiliate-link-health
+  CRON_AFFILIATE_OPTIMIZATION_SECRET: ci-test-cron-affiliate-optimization
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared

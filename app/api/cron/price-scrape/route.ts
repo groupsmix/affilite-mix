@@ -137,11 +137,10 @@ function chunkProducts<T>(items: T[], size: number): T[][] {
  * "View Deal" link MUST point at the actual domain that hosts the product
  * — not at the raw site UUID. We look up the row in the `sites` table by
  * its UUID and prefix the configured domain with `https://`. If the lookup
- * fails (DB error, missing row, mis-typed UUID), fall back to APP_URL so
- * the email still has a working link, even if it points at the canonical
- * default site instead of the tenant.
+ * fails (DB error, missing row, mis-typed UUID), return null so the alert is
+ * skipped rather than linked to another tenant's origin.
  */
-async function resolveSiteOrigin(siteId: string): Promise<string> {
+async function resolveSiteOrigin(siteId: string): Promise<string | null> {
   try {
     const site = await getSiteRowById(siteId);
     if (site?.domain) {
@@ -152,8 +151,12 @@ async function resolveSiteOrigin(siteId: string): Promise<string> {
       siteId,
       error: err instanceof Error ? err.message : String(err),
     });
+    captureException(err, { context: "[cron/price-scrape] site origin lookup failed", siteId });
   }
-  return process.env.APP_URL ?? "";
+  const error = new Error(`No origin resolved for site ${siteId}`);
+  logger.error("Unable to resolve site origin for price alert email", { siteId });
+  captureException(error, { context: "[cron/price-scrape] site origin missing", siteId });
+  return null;
 }
 
 /**
@@ -175,10 +178,10 @@ export async function POST(request: NextRequest) {
 
     // Cache site-origin lookups across this cron run so we don't hit the DB
     // once per triggered alert when many alerts share a site.
-    const siteOriginCache = new Map<string, string>();
-    async function getSiteOrigin(siteId: string): Promise<string> {
+    const siteOriginCache = new Map<string, string | null>();
+    async function getSiteOrigin(siteId: string): Promise<string | null> {
       const cached = siteOriginCache.get(siteId);
-      if (cached !== undefined) return cached;
+      if (siteOriginCache.has(siteId)) return cached ?? null;
       const origin = await resolveSiteOrigin(siteId);
       siteOriginCache.set(siteId, origin);
       return origin;
@@ -238,12 +241,18 @@ export async function POST(request: NextRequest) {
 
         // Send email notification via Resend
         const resendKey = process.env.RESEND_API_KEY;
-        const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? "noreply@example.com";
+        const fromEmail = process.env.NEWSLETTER_FROM_EMAIL;
         const siteOrigin = await getSiteOrigin(product.site_id);
 
         let emailSent = false;
 
         if (resendKey) {
+          if (!fromEmail) {
+            const error = new Error("Price alert email sender is not configured");
+            logger.error(error.message, { alertId: alert.id });
+            captureException(error, { context: "[cron/price-scrape] sender not configured" });
+            continue;
+          }
           if (!siteOrigin) {
             // Without a tenant origin we'd send a broken "View Deal" link.
             // Skip retry-and-resend on the next cron run instead of mailing

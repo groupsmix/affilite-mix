@@ -15,6 +15,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
 const mockPublishClick = vi.fn().mockResolvedValue(undefined);
+const mockKV = vi.hoisted(() => ({
+  get: vi.fn(),
+  put: vi.fn(),
+}));
+const cacheValue = vi.hoisted(() => ({ value: null as unknown }));
 
 vi.mock("@/lib/click-queue", () => ({
   publishClick: (...args: unknown[]) => mockPublishClick(...args),
@@ -48,6 +53,10 @@ vi.mock("@/lib/wait-until", () => ({
   runAfterResponse: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/runtime-env", () => ({
+  getAppCacheKV: () => mockKV,
+}));
+
 vi.mock("@/lib/internal-hmac", () => ({
   computeHmac: vi.fn().mockResolvedValue("fake-hmac"),
   timingSafeEqual: vi.fn().mockReturnValue(true),
@@ -64,6 +73,8 @@ vi.mock("@/lib/get-client-ip", () => ({
 
 import { GET } from "@/app/api/track/click/route";
 import { getTrackingUrl } from "@/lib/tracking-url";
+import { getProductBySlug } from "@/lib/dal/products";
+import { computeHmac } from "@/lib/internal-hmac";
 
 function requestFor(trackingHref: string): NextRequest {
   return new NextRequest(new URL(trackingHref, "https://test.example.com"), {
@@ -80,6 +91,11 @@ const AMAZON_DESTINATION = "https://www.amazon.com/dp/B01ABCDEFG?tag=site-20";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  cacheValue.value = null;
+  mockKV.get.mockImplementation(async (key: string) =>
+    key.startsWith("product-url:") ? cacheValue.value : null,
+  );
+  mockKV.put.mockResolvedValue(undefined);
   vi.stubEnv("CLICK_CACHE_HMAC_KEY", "test-hmac-key-32-chars-xxxxxxxxxx");
 });
 
@@ -88,6 +104,78 @@ afterEach(() => {
 });
 
 describe("GET /api/track/click — destinations produced by getTrackingUrl", () => {
+  it("records product_id when the slug matches a site-scoped product", async () => {
+    vi.mocked(getProductBySlug).mockResolvedValueOnce({
+      id: "product-123",
+      name: "Dial watch",
+      affiliate_url: AMAZON_DESTINATION,
+    } as never);
+    const href = getTrackingUrl("navigator-automatic", "guide", AMAZON_DESTINATION, true, {
+      productName: "Orient Kamasu",
+    });
+
+    await GET(requestFor(href));
+
+    expect(mockPublishClick).toHaveBeenCalledWith(
+      expect.objectContaining({ product_id: "product-123" }),
+    );
+  });
+
+  it("uses product attribution from a signed cache hit without querying the DB", async () => {
+    cacheValue.value = {
+      name: "Cached Dial watch",
+      url: AMAZON_DESTINATION,
+      product_id: "cached-product-123",
+      _hmac: "fake-hmac",
+    };
+    const productLookup = vi.mocked(getProductBySlug);
+    productLookup.mockClear();
+
+    await GET(requestFor("/api/track/click?p=navigator-automatic&t=guide"));
+
+    expect(productLookup).not.toHaveBeenCalled();
+    expect(mockPublishClick).toHaveBeenCalledWith(
+      expect.objectContaining({ product_id: "cached-product-123" }),
+    );
+    expect(computeHmac).toHaveBeenCalledWith(
+      "test-hmac-key-32-chars-xxxxxxxxxx",
+      "cache",
+      "cache",
+      JSON.stringify({
+        name: "Cached Dial watch",
+        url: AMAZON_DESTINATION,
+        product_id: "cached-product-123",
+      }),
+    );
+  });
+
+  it("keeps legacy cache entries working and looks up their missing product identity", async () => {
+    cacheValue.value = {
+      name: "Legacy Dial watch",
+      url: AMAZON_DESTINATION,
+      _hmac: "fake-hmac",
+    };
+    const productLookup = vi.mocked(getProductBySlug);
+    productLookup.mockResolvedValueOnce({
+      id: "legacy-product-123",
+      name: "Legacy Dial watch",
+      affiliate_url: AMAZON_DESTINATION,
+    } as never);
+
+    await GET(requestFor("/api/track/click?p=navigator-automatic&t=guide"));
+
+    expect(productLookup).toHaveBeenCalledTimes(1);
+    expect(mockPublishClick).toHaveBeenCalledWith(
+      expect.objectContaining({ product_id: "legacy-product-123" }),
+    );
+    expect(computeHmac).toHaveBeenCalledWith(
+      "test-hmac-key-32-chars-xxxxxxxxxx",
+      "cache",
+      "cache",
+      JSON.stringify({ name: "Legacy Dial watch", url: AMAZON_DESTINATION }),
+    );
+  });
+
   it("redirects to the destination of a productName CTA", async () => {
     const href = getTrackingUrl("dial-watch", "guide", AMAZON_DESTINATION, true, {
       placement: "ranked-pick",
@@ -98,6 +186,17 @@ describe("GET /api/track/click — destinations produced by getTrackingUrl", () 
 
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe(AMAZON_DESTINATION);
+  });
+
+  it("redirects the approved Sovrn Dial destination under strict enforcement", async () => {
+    vi.stubEnv("AFFILIATE_DOMAIN_ENFORCEMENT", "strict");
+    const destination = "https://sovrn.co/1m9tdvu";
+    const href = `/api/track/click?p=casio-duro-walmart&t=guide&u=${encodeURIComponent(destination)}`;
+
+    const res = await GET(requestFor(href));
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(destination);
   });
 
   it("preserves the UTM parameters of the destination through the round trip", async () => {

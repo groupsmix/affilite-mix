@@ -739,6 +739,132 @@ paths:
           headers:
             API-Version:
               $ref: "#/components/headers/API-Version"
+  /api/admin/affiliate-link-health:
+    get:
+      summary: GET /api/admin/affiliate-link-health (site) — auth=admin
+      operationId: getApiAdminAffiliatelinkhealth
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: AffiliateLinkHealthList
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AffiliateLinkHealthList)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/seo/gsc:
+    get:
+      summary: GET /api/admin/seo/gsc (site) — auth=super_admin
+      operationId: getApiAdminSeoGsc
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: SearchConsoleAnalytics
+      x-notes: Google Search Console search-analytics per page (super_admin only).
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (SearchConsoleAnalytics)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/seo/decay:
+    get:
+      summary: GET /api/admin/seo/decay (site) — auth=super_admin
+      operationId: getApiAdminSeoDecay
+      tags:
+        - Admin
+      x-auth: super_admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: DecayCandidates
+      x-notes: Stale published content that should be refreshed (super_admin only).
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (DecayCandidates)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/api-tokens:
     get:
       summary: GET /api/admin/api-tokens (site) — auth=super_admin
@@ -870,6 +996,89 @@ paths:
           required: true
           schema:
             type: string
+  /api/admin/automation/schedule:
+    get:
+      summary: GET /api/admin/automation/schedule (site) — auth=admin
+      operationId: getApiAdminAutomationSchedule
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AutomationScheduleInput
+      x-responseSchema: AutomationSchedule
+      x-notes: "Per-site AI content schedule. The daily cron reads this policy to decide content type, category, volume, and auto-approve behavior."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AutomationSchedule)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/admin/automation/schedule (site) — auth=admin
+      operationId: postApiAdminAutomationSchedule
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AutomationScheduleInput
+      x-responseSchema: AutomationSchedule
+      x-notes: "Per-site AI content schedule. The daily cron reads this policy to decide content type, category, volume, and auto-approve behavior."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AutomationSchedule)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/admin/automation/service-accounts:
     get:
       summary: GET /api/admin/automation/service-accounts (site) — auth=super_admin
@@ -1228,6 +1437,172 @@ paths:
       responses:
         200:
           description: "Successful response (CategoryUsage[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/calm-config:
+    get:
+      summary: GET /api/admin/calm-config (site) — auth=admin
+      operationId: getApiAdminCalmconfig
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: CalmSiteConfig
+      x-responseSchema: CalmSiteConfig
+      x-notes: "Reads/writes raw JSON for the calmroutine site config (pages.slug = 'calm-site-config', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (CalmSiteConfig)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    put:
+      summary: PUT /api/admin/calm-config (site) — auth=admin
+      operationId: putApiAdminCalmconfig
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: CalmSiteConfig
+      x-responseSchema: CalmSiteConfig
+      x-notes: "Reads/writes raw JSON for the calmroutine site config (pages.slug = 'calm-site-config', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (CalmSiteConfig)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/dial-guides:
+    get:
+      summary: GET /api/admin/dial-guides (site) — auth=admin
+      operationId: getApiAdminDialguides
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: DialGuidesConfig
+      x-responseSchema: DialGuidesConfig
+      x-notes: "Reads/writes raw JSON for the dial guide pages (pages.slug = 'dial-guides', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (DialGuidesConfig)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    put:
+      summary: PUT /api/admin/dial-guides (site) — auth=admin
+      operationId: putApiAdminDialguides
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: DialGuidesConfig
+      x-responseSchema: DialGuidesConfig
+      x-notes: "Reads/writes raw JSON for the dial guide pages (pages.slug = 'dial-guides', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (DialGuidesConfig)
           headers:
             API-Version:
               $ref: "#/components/headers/API-Version"
@@ -1642,6 +2017,89 @@ paths:
       responses:
         200:
           description: Successful response (ContentShare)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/dial-homepage:
+    get:
+      summary: GET /api/admin/dial-homepage (site) — auth=admin
+      operationId: getApiAdminDialhomepage
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: DialHomepageConfig
+      x-responseSchema: DialHomepageConfig
+      x-notes: "Reads/writes raw JSON for the dial homepage config (pages.slug = 'dial-homepage', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (DialHomepageConfig)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+    put:
+      summary: PUT /api/admin/dial-homepage (site) — auth=admin
+      operationId: putApiAdminDialhomepage
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: DialHomepageConfig
+      x-responseSchema: DialHomepageConfig
+      x-notes: "Reads/writes raw JSON for the dial homepage config (pages.slug = 'dial-homepage', unpublished). Bypasses the HTML sanitizer used by /api/admin/pages."
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (DialHomepageConfig)
           headers:
             API-Version:
               $ref: "#/components/headers/API-Version"
@@ -4601,6 +5059,70 @@ paths:
           headers:
             API-Version:
               $ref: "#/components/headers/API-Version"
+  /api/cron/affiliate-link-health:
+    post:
+      summary: POST /api/cron/affiliate-link-health (tenant) — auth=cron
+      operationId: postApiCronAffiliatelinkhealth
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AffiliateLinkHealthProbe
+      x-notes: null
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AffiliateLinkHealthProbe)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/cron/affiliate-optimization:
+    post:
+      summary: POST /api/cron/affiliate-optimization (tenant) — auth=cron
+      operationId: postApiCronAffiliateoptimization
+      tags:
+        - Cron
+      x-auth: cron
+      x-adminRequired: false
+      x-tenantScope: tenant
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: "{ sites: number; actions: number }"
+      x-notes: Runs EPC-based product proposals through the automation guardrail plane.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response ({ sites: number; actions: number })"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
   /api/cron/click-reconcile:
     post:
       summary: POST /api/cron/click-reconcile (tenant) — auth=cron
@@ -5085,6 +5607,36 @@ paths:
                 type: object
         401:
           description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/contact:
+    post:
+      summary: POST /api/contact (site) — public
+      operationId: postApiContact
+      tags:
+        - Contact
+      x-auth: public
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: "{ name?: string; email: string; subject?: string; message: string }"
+      x-responseSchema: Ok
+      x-notes: "Public contact form for a site. Validates email, subject and message length; writes to contact_submissions."
+      security: []
+      responses:
+        200:
+          description: Successful response
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        429:
+          description: Rate limited
           headers:
             API-Version:
               $ref: "#/components/headers/API-Version"
@@ -5735,7 +6287,38 @@ paths:
       x-csrf: false
       x-requestSchema: null
       x-responseSchema: AutomationEnvelope
-      x-notes: "Requires scope content:read. Site-scoped content list with keyset pagination."
+      x-notes: "Requires scope content:read. Site-scoped content list with keyset pagination. `status=pending` returns AI drafts from ai_drafts instead of the published content table."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/content/generate:
+    post:
+      summary: POST /api/automation/v1/content/generate (site) — auth=automation
+      operationId: postApiAutomationV1ContentGenerate
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationGenerateInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope content:draft and an Idempotency-Key. Generates AI content from topic/keywords, creates a pending AI draft, and returns draft_id. Publishing requires a separate call to /content/drafts/:id/publish."
       security:
         - bearerAuth: []
       responses:
@@ -5754,9 +6337,9 @@ paths:
             API-Version:
               $ref: "#/components/headers/API-Version"
   /api/automation/v1/content/drafts:
-    post:
-      summary: POST /api/automation/v1/content/drafts (site) — auth=automation
-      operationId: postApiAutomationV1ContentDrafts
+    get:
+      summary: GET /api/automation/v1/content/drafts (site) — auth=automation
+      operationId: getApiAutomationV1ContentDrafts
       tags:
         - Automation
       x-auth: automation
@@ -5766,7 +6349,7 @@ paths:
       x-csrf: false
       x-requestSchema: AutomationDraftInput
       x-responseSchema: AutomationEnvelope
-      x-notes: "Requires scope content:draft. Idempotent (Idempotency-Key). Creates a pending AI draft via the durable action model; publishing stays approval-gated."
+      x-notes: "GET requires content:read and lists AI drafts for the site. POST requires scope content:draft and is idempotent (Idempotency-Key). Creates a pending AI draft; publishing stays approval-gated."
       security:
         - bearerAuth: []
       responses:
@@ -5784,6 +6367,516 @@ paths:
           headers:
             API-Version:
               $ref: "#/components/headers/API-Version"
+    post:
+      summary: POST /api/automation/v1/content/drafts (site) — auth=automation
+      operationId: postApiAutomationV1ContentDrafts
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationDraftInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "GET requires content:read and lists AI drafts for the site. POST requires scope content:draft and is idempotent (Idempotency-Key). Creates a pending AI draft; publishing stays approval-gated."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/automation/v1/content/drafts/{id}:
+    get:
+      summary: "GET /api/automation/v1/content/drafts/[id] (site) — auth=automation"
+      operationId: getApiAutomationV1ContentDraftsId
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationDraftUpdateInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "GET requires content:read; PATCH/DELETE require content:draft. Tenant-isolated read/update/delete for a single AI draft."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+    patch:
+      summary: "PATCH /api/automation/v1/content/drafts/[id] (site) — auth=automation"
+      operationId: patchApiAutomationV1ContentDraftsId
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationDraftUpdateInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "GET requires content:read; PATCH/DELETE require content:draft. Tenant-isolated read/update/delete for a single AI draft."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+    delete:
+      summary: "DELETE /api/automation/v1/content/drafts/[id] (site) — auth=automation"
+      operationId: deleteApiAutomationV1ContentDraftsId
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationDraftUpdateInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "GET requires content:read; PATCH/DELETE require content:draft. Tenant-isolated read/update/delete for a single AI draft."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/automation/v1/content/drafts/{id}/publish:
+    post:
+      summary: "POST /api/automation/v1/content/drafts/[id]/publish (site) — auth=automation"
+      operationId: postApiAutomationV1ContentDraftsIdPublish
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope content:publish. Promotes an AI draft to live content (creates or updates the content row by slug)."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/admin/automation/actions:
+    get:
+      summary: GET /api/admin/automation/actions (site) — auth=admin
+      operationId: getApiAdminAutomationActions
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: "AutomationAction[]"
+      x-notes: Lists site-scoped automation actions for owner review.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: "Successful response (AutomationAction[])"
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+  /api/admin/automation/actions/{id}/approve:
+    post:
+      summary: "POST /api/admin/automation/actions/[id]/approve (site) — auth=admin"
+      operationId: postApiAdminAutomationActionsIdApprove
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: AutomationAction
+      x-notes: Human-owner-only approval and immediate execution endpoint.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AutomationAction)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/admin/automation/actions/{id}/reject:
+    post:
+      summary: "POST /api/admin/automation/actions/[id]/reject (site) — auth=admin"
+      operationId: postApiAdminAutomationActionsIdReject
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: AutomationActionRejectInput
+      x-responseSchema: AutomationAction
+      x-notes: Human-owner-only rejection endpoint.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AutomationAction)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/admin/automation/actions/{id}/rollback:
+    post:
+      summary: "POST /api/admin/automation/actions/[id]/rollback (site) — auth=admin"
+      operationId: postApiAdminAutomationActionsIdRollback
+      tags:
+        - Admin
+      x-auth: admin
+      x-adminRequired: true
+      x-tenantScope: site
+      x-rateLimit: true
+      x-csrf: true
+      x-requestSchema: null
+      x-responseSchema: AutomationAction
+      x-notes: Human-owner-only snapshot rollback endpoint.
+      security:
+        - bearerAuth: []
+      x-internal: true
+      responses:
+        200:
+          description: Successful response (AutomationAction)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        403:
+          description: Forbidden — insufficient role or cross-tenant access
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+        429:
+          description: Rate limited
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/automation/v1/products/{id}:
+    patch:
+      summary: "PATCH /api/automation/v1/products/[id] (site) — auth=automation"
+      operationId: patchApiAutomationV1ProductsId
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationProductUpdateInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope products:update. Updates safe, site-scoped product metadata."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/automation/v1/products/{id}/activate:
+    post:
+      summary: "POST /api/automation/v1/products/[id]/activate (site) — auth=automation"
+      operationId: postApiAutomationV1ProductsIdActivate
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope products:activate. Approval-gated lifecycle activation."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/automation/v1/products/{id}/affiliate-url:
+    post:
+      summary: "POST /api/automation/v1/products/[id]/affiliate-url (site) — auth=automation"
+      operationId: postApiAutomationV1ProductsIdAffiliateurl
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: AutomationProductAffiliateUrlInput
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope products:update. Approval-gated affiliate destination change."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+  /api/automation/v1/products/{id}/archive:
+    post:
+      summary: "POST /api/automation/v1/products/[id]/archive (site) — auth=automation"
+      operationId: postApiAutomationV1ProductsIdArchive
+      tags:
+        - Automation
+      x-auth: automation
+      x-adminRequired: false
+      x-tenantScope: site
+      x-rateLimit: false
+      x-csrf: false
+      x-requestSchema: null
+      x-responseSchema: AutomationEnvelope
+      x-notes: "Requires scope products:update. Approval-gated lifecycle archival."
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Successful response (AutomationEnvelope)
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+          headers:
+            API-Version:
+              $ref: "#/components/headers/API-Version"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
   /api/automation/v1/runs:
     post:
       summary: POST /api/automation/v1/runs (site) — auth=automation

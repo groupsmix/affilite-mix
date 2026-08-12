@@ -14,13 +14,16 @@ import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import {
   groupAffiliateLinks,
   groupClickFilter,
-  countGroupClicks,
+  countGroupClicksByWindow,
   sumCommissions,
   computeEpc,
 } from "./aggregation";
 
-/** Upper bound on the click rows scanned per link group in one cron run. */
-const CLICK_SCAN_LIMIT = 10_000;
+/** Keyset page size for click rows; count metadata handles lower server caps. */
+const CLICK_SCAN_PAGE_SIZE = 1_000;
+
+/** Absolute anomaly guard for one product/network click group. */
+const CLICK_SCAN_MAX_ROWS = 1_000_000;
 
 /**
  * GET /api/cron/epc-recompute
@@ -86,32 +89,68 @@ export async function POST(request: NextRequest) {
       // carries UTM and network tracking parameters the configured link does
       // not have. Match on the destination prefix and settle each row in code
       // (see ./aggregation), instead of on string equality that never matched.
-      const { data: clickRows, error: clickErr } = await sb
-        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
-        .from("affiliate_clicks")
-        .select("affiliate_url, created_at")
-        // F-API-01: rollup is per (product, network); intentionally cross-tenant.
-        .unsafeNoSiteFilter()
-        .or(groupClickFilter(g.urls))
-        .gte("created_at", thirtyDaysAgo)
-        .limit(CLICK_SCAN_LIMIT);
+      let clicks30d = 0;
+      let clicks7d = 0;
+      let scannedClickRows = 0;
+      let lastClickId: string | null = null;
+      let totalMatchingClickRows: number | null = null;
 
-      if (clickErr) throw clickErr;
+      while (scannedClickRows < CLICK_SCAN_MAX_ROWS) {
+        let clickQuery = sb
+          // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
+          .from("affiliate_clicks")
+          .select(
+            "id, affiliate_url, created_at",
+            lastClickId === null ? { count: "exact" } : undefined,
+          )
+          // F-API-01: rollup is per (product, network); intentionally cross-tenant.
+          .unsafeNoSiteFilter()
+          .or(groupClickFilter(g.urls))
+          .gte("created_at", thirtyDaysAgo)
+          .order("id", { ascending: true })
+          .limit(CLICK_SCAN_PAGE_SIZE);
 
-      const windowClicks = (clickRows ?? []) as { affiliate_url: string; created_at: string }[];
-      if (windowClicks.length === CLICK_SCAN_LIMIT) {
+        if (lastClickId) clickQuery = clickQuery.gt("id", lastClickId);
+
+        const { data: clickRows, error: clickErr, count } = await clickQuery;
+        if (clickErr) throw clickErr;
+        // Only the first request has an exact count. Once the keyset cursor
+        // is applied, PostgREST's count describes the remaining rows rather
+        // than the total, so it cannot be compared with the accumulated scan.
+        if (lastClickId === null && count !== null) totalMatchingClickRows = count;
+
+        const pageRows = (clickRows ?? []) as {
+          id: string;
+          affiliate_url: string;
+          created_at: string;
+        }[];
+        if (pageRows.length === 0) break;
+
+        const pageCounts = countGroupClicksByWindow(pageRows, g.urls, sevenDaysAgo);
+        clicks30d += pageCounts.clicks30d;
+        clicks7d += pageCounts.clicks7d;
+        scannedClickRows += pageRows.length;
+        lastClickId = pageRows[pageRows.length - 1]?.id ?? null;
+
+        // Do not use page length as the end condition: PostgREST may apply a
+        // lower max-rows cap than requested. Exact count metadata tells us
+        // when all matching rows have been consumed.
+        if (totalMatchingClickRows !== null && scannedClickRows >= totalMatchingClickRows) {
+          break;
+        }
+        if (!lastClickId) break;
+      }
+
+      if (
+        scannedClickRows >= CLICK_SCAN_MAX_ROWS &&
+        (totalMatchingClickRows === null || scannedClickRows < totalMatchingClickRows)
+      ) {
         logger.warn("[cron/epc-recompute] click scan hit its limit; EPC may be understated", {
           product_id: g.product_id,
           network: g.network,
-          limit: CLICK_SCAN_LIMIT,
+          limit: CLICK_SCAN_MAX_ROWS,
         });
       }
-
-      const clicks30d = countGroupClicks(windowClicks, g.urls);
-      const clicks7d = countGroupClicks(
-        windowClicks.filter((row) => row.created_at >= sevenDaysAgo),
-        g.urls,
-      );
 
       // Sum commissions (30d and 7d)
       const { data: comm30d } = await untypedFrom(sb, "commissions")

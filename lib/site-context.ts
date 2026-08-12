@@ -1,5 +1,5 @@
 import { headers, cookies } from "next/headers";
-import { getSiteById, allSites } from "@/config/sites";
+import { getSiteById } from "@/config/sites";
 import type { SiteDefinition } from "@/config/site-definition";
 import { resolveDbSiteId, resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import type { SiteRow } from "@/types/database";
@@ -161,22 +161,6 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
   }
 
   if (!siteSlug) {
-    // Build-time fallback: when NEXT_PHASE is "phase-production-build",
-    // return the first registered site so `npm run build` can succeed
-    // even without NEXT_PUBLIC_DEFAULT_SITE set.
-    if (
-      process.env.NODE_ENV === "production" &&
-      process.env.NEXT_PHASE === "phase-production-build"
-    ) {
-      const firstSite = allSites[0];
-      if (firstSite) {
-        logger.warn("[site-context] Build-time fallback", {
-          site: firstSite.id,
-          hint: "Set NEXT_PUBLIC_DEFAULT_SITE in .env to configure explicitly",
-        });
-        return firstSite;
-      }
-    }
     throw new Error(
       "Cannot determine current site: no x-site-id header, cookie, or NEXT_PUBLIC_DEFAULT_SITE configured. " +
         "Set NEXT_PUBLIC_DEFAULT_SITE in your environment or ensure middleware injects x-site-id.",
