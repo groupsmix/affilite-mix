@@ -40,6 +40,7 @@ vi.mock("@/lib/affiliate-link-health-monitor", async () => {
 });
 
 import { POST } from "@/app/api/cron/affiliate-link-health/route";
+import { normalizeHealthCursor } from "@/lib/affiliate-link-health-monitor";
 
 function query(data: unknown, error: null | Error = null) {
   const builder = {
@@ -202,5 +203,73 @@ describe("affiliate link health Dial targets", () => {
         source_key: "product",
       }),
     );
+  });
+
+  it("finishes product targets before Dial targets without skipping UUID ranges", async () => {
+    const products = Array.from({ length: 40 }, (_, index) => ({
+      id: `${index < 20 ? "a" : "f"}0000000-0000-0000-0000-${String(index).padStart(12, "0")}`,
+      site_id: "site",
+      name: `Product ${index}`,
+      affiliate_url: `https://example.com/product-${index}`,
+    }));
+    setupClient({
+      products,
+      dialSites: [{ id: "dial-site", homepage_template: "dial", is_active: true }],
+    });
+    let cursor: string | null = null;
+    mocks.getCursor.mockImplementation(() => Promise.resolve(cursor));
+    mocks.setCursor.mockImplementation((nextCursor: string | null) => {
+      cursor = nextCursor;
+      return Promise.resolve();
+    });
+
+    for (;;) {
+      const response = await POST(request());
+      expect(response.status).toBe(200);
+      if (cursor === null) break;
+    }
+
+    const probedUrls = mocks.fetch.mock.calls.map(([url]) => url);
+    expect(probedUrls).toHaveLength(41);
+    expect(new Set(probedUrls).size).toBe(41);
+    expect(probedUrls.filter((url) => String(url).includes("/product-"))).toHaveLength(40);
+    expect(probedUrls).toContain("https://www.amazon.com/dp/example?tag=ours-20");
+  });
+
+  it("restarts from the beginning for a legacy cursor format", async () => {
+    setupClient({
+      products: [
+        {
+          id: "f0000000-0000-0000-0000-000000000001",
+          site_id: "site",
+          name: "Product",
+          affiliate_url: "https://example.com/product",
+        },
+      ],
+      dialSites: [{ id: "dial-site", homepage_template: "dial", is_active: true }],
+    });
+    mocks.getCursor.mockResolvedValue("dial:legacy-watch");
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    expect(mocks.fetch.mock.calls.map(([url]) => url)).toEqual(
+      expect.arrayContaining([
+        "https://example.com/product",
+        "https://www.amazon.com/dp/example?tag=ours-20",
+      ]),
+    );
+  });
+});
+
+describe("affiliate link health cursor format", () => {
+  it("rejects legacy and malformed cursors", () => {
+    expect(normalizeHealthCursor("f0000000-legacy")).toBeNull();
+    expect(normalizeHealthCursor("dial:legacy:watch")).toBeNull();
+    expect(normalizeHealthCursor("0:product:f0000000-0000-0000-0000-000000000001:primary")).toBe(
+      "0:product:f0000000-0000-0000-0000-000000000001:primary",
+    );
+    expect(normalizeHealthCursor("1:dial:site:watch")).toBe("1:dial:site:watch");
   });
 });

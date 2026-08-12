@@ -17,6 +17,7 @@ import { getDialHomepageConfig } from "@/lib/dial-config";
 import { captureException } from "@/lib/sentry";
 import {
   classifyProbe,
+  normalizeHealthCursor,
   nextHealthCursor,
   sendAlerts,
   shouldAlert,
@@ -25,6 +26,9 @@ import {
 
 const PRODUCT_PAGE_SIZE = 100;
 const PROBE_TIMEOUT_MS = 3_000;
+// Keep product targets in a lower sort namespace so a Dial cursor cannot skip products.
+const PRODUCT_TARGET_PREFIX = "0:product:";
+const DIAL_TARGET_PREFIX = "1:dial:";
 
 type Product = { id: string; site_id: string; name: string; affiliate_url: string | null };
 type DialSite = { id: string; homepage_template: string; is_active: boolean };
@@ -55,11 +59,13 @@ type ProbeResult = {
 };
 
 function targetKey(productId: string, linkId: string | null): string {
-  return linkId === null ? `${productId}:primary` : `${productId}:link:${linkId}`;
+  return linkId === null
+    ? `${PRODUCT_TARGET_PREFIX}${productId}:primary`
+    : `${PRODUCT_TARGET_PREFIX}${productId}:link:${linkId}`;
 }
 
 function dialTargetKey(siteId: string, watchId: string): string {
-  return `dial:${siteId}:${watchId}`;
+  return `${DIAL_TARGET_PREFIX}${siteId}:${watchId}`;
 }
 
 async function fetchProbe(url: string, method: "HEAD" | "GET"): Promise<SafeFetchRedirectResult> {
@@ -130,7 +136,7 @@ async function listTargets(
   cursor: string | null,
 ): Promise<{ targets: ProbeTarget[]; hasMoreProducts: boolean }> {
   const sb = getPrivilegedDalClient();
-  const continuingDialTargets = cursor?.startsWith("dial:") ?? false;
+  const continuingDialTargets = cursor?.startsWith(DIAL_TARGET_PREFIX) ?? false;
   let productQuery = sb
     // eslint-disable-next-line no-restricted-syntax -- privileged cron sweep is authenticated and site-scopes every persisted health row
     .from("products")
@@ -138,7 +144,9 @@ async function listTargets(
     .eq("status", "active")
     .order("id", { ascending: true })
     .limit(PRODUCT_PAGE_SIZE);
-  const cursorProductId = continuingDialTargets ? null : (cursor?.split(":")[0] ?? null);
+  const cursorProductId = continuingDialTargets
+    ? null
+    : (cursor?.slice(PRODUCT_TARGET_PREFIX.length).split(":")[0] ?? null);
   if (cursorProductId) productQuery = productQuery.gte("id", cursorProductId);
   const [{ data: rawProducts, error: productError }, { data: rawDialSites, error: dialSiteError }] =
     await Promise.all([
@@ -239,7 +247,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const cursor = await getAffiliateLinkHealthCursor();
+    const cursor = normalizeHealthCursor(await getAffiliateLinkHealthCursor());
     const { targets, hasMoreProducts } = await listTargets(cursor);
     const results = await mapWithConcurrency(targets, 8, probeTarget);
     const alerts: Array<{ target: ProbeTarget; result: ProbeResult; streak: number }> = [];
