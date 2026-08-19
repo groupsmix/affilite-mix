@@ -107,6 +107,8 @@ export interface DialHomepageConfig {
     heroImageAlt: string;
     trustRating: string;
     trustReviews: string;
+    /** Small disclosure line under the CTAs (e.g. "Independent recommendations · Affiliate-supported"). */
+    trustLine: string;
   };
   trustBar: {
     stats: DialTrustStat[];
@@ -349,17 +351,19 @@ export const defaultDialConfig: DialHomepageConfig = {
     },
   ],
   hero: {
-    badge: "The independent watch guide",
-    title: "The Best Watches",
-    highlight: "for Every Budget",
+    badge: "Watch buying, made simple",
+    title: "Find the right watch",
+    highlight: "for your budget",
     subtitle:
-      "We test and rank watches across every price point so you don’t have to guess. Affiliate-supported, opinion-led, no fluff.",
-    ctaPrimary: { label: "See Our Top Picks", href: "#featured-review" },
-    ctaSecondary: { label: "", href: "" },
-    heroImage: "/images/wristnerd/ref/hero.png",
-    heroImageAlt: "Rose gold chronograph watch resting on sunlit rocks",
+      "Curated buying guides, comparisons, and recommendations that help you choose your next watch faster.",
+    ctaPrimary: { label: "Find My Watch", href: "#top-picks" },
+    ctaSecondary: { label: "Browse Buying Guides", href: "/guide" },
+    heroImage: "/images/wristnerd/ref/hero-watches.png",
+    heroImageAlt:
+      "Three curated watches: a steel dive watch, a gold dress watch, and a black chronograph",
     trustRating: "",
     trustReviews: "",
+    trustLine: "Independent recommendations · Affiliate-supported",
   },
   trustBar: {
     stats: [
@@ -719,6 +723,9 @@ export function mergeWithDefault(input: unknown): DialHomepageConfig {
         trustReviews: isString(source.hero.trustReviews)
           ? source.hero.trustReviews
           : defaultDialConfig.hero.trustReviews,
+        trustLine: isString(source.hero.trustLine)
+          ? source.hero.trustLine
+          : defaultDialConfig.hero.trustLine,
       }
     : defaultDialConfig.hero;
 

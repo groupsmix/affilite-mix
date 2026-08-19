@@ -12,7 +12,7 @@ export function PriceTiers({ config }: PriceTiersProps) {
   const { priceTiers, watches } = config;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-24">
+    <section id="top-picks" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 md:px-6 md:py-24">
       <Reveal>
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
           Buying guides
