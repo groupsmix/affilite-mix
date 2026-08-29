@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { untypedFrom } from "@/lib/dal/type-guards";
-import { isReconcilableToActive } from "@/lib/stripe-reconciliation-policy";
+import { isReconcilableToActive, RECONCILABLE_TO_ACTIVE } from "@/lib/stripe-reconciliation-policy";
 
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/stripe-sync"))) {
@@ -143,7 +143,18 @@ export async function POST(request: NextRequest) {
           .update({ status: "active", updated_at: new Date().toISOString() })
           // F-API-01: stripe_subscription_id is globally unique across tenants.
           .unsafeNoSiteFilter()
-          .eq("stripe_subscription_id", stripeSub.id);
+          .eq("stripe_subscription_id", stripeSub.id)
+          // F1 (TOCTOU fix): gate the write on the current status being a
+          // reconcilable transient-billing state. isReconcilableToActive()
+          // above is a non-atomic read-check; without this WHERE clause a
+          // charge.dispute.created / charge.refunded webhook delivered
+          // concurrently (flipping the row to disputed/cancelled through the
+          // guarded RPC) would be silently overwritten back to "active" by
+          // this bare UPDATE, bypassing the 2026062202 terminal-state guard.
+          // Scoping the UPDATE to the reconcilable states makes the check and
+          // the write a single atomic operation: if the row already moved to a
+          // terminal state, zero rows match and the fraud hold is preserved.
+          .in("status", Array.from(RECONCILABLE_TO_ACTIVE));
         reconcileFixed++;
       }
     }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTenantClient } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -94,8 +94,17 @@ export async function POST(request: NextRequest) {
 
     // Persist to DB (best-effort, don't block the response)
     try {
-      const sb = await getTenantClient();
-      // eslint-disable-next-line no-restricted-syntax -- Audited: web vitals ingestion uses privileged client; site_id is validated
+      // Issue 6 (RLS regression fix): web_vitals has no `site_id` column and
+      // no authenticated INSERT policy (anon insert was dropped in earlier
+      // migrations). Using the RLS-scoped tenant client therefore had every
+      // insert silently denied and swallowed by the catch below, so the table
+      // stayed empty forever. web_vitals is a global, non-tenant observability
+      // table, so the privileged service-role client is the correct writer here
+      // (mirrors the original getServiceClient() behaviour before the
+      // regression). No tenant data is involved — the payload is a single
+      // anonymised metric with PII already stripped from URLs above.
+      const sb = getPrivilegedSupabaseClient("vitals-ingest");
+      // eslint-disable-next-line no-restricted-syntax -- Audited: web_vitals is a global non-tenant table (no site_id); privileged client is required because there is no authenticated INSERT policy.
       await sb.from("web_vitals").insert({
         name: metric.name,
         value: metric.value,

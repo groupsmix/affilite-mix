@@ -1,0 +1,22 @@
+-- ══════════════════════════════════════════════════════════════════
+-- Migration 2026062203: pin search_path on db_now() (audit P2 #7)
+--
+-- Problem: db_now() (added in 00099, A28-003) is SECURITY DEFINER but was
+-- created AFTER the 00083 lockdown sweep that pinned search_path on every
+-- other public function, so it slipped through with a mutable search_path.
+-- This surfaces the Supabase `function_search_path_mutable` advisor warning
+-- (lint 0011). It is not directly exploitable — the body is `SELECT now()`,
+-- a pg_catalog builtin that always resolves regardless of search_path — but
+-- a mutable search_path on a SECURITY DEFINER routine is a policy gap and a
+-- privilege-escalation primitive in the general case, so we close it to match
+-- the 00083 invariant that ALL public SECURITY DEFINER functions pin
+-- search_path.
+--
+-- Fix: ALTER the existing function to pin `search_path = pg_catalog, public`
+-- (same form 00083 applies). This is a metadata-only change; the function
+-- body, signature, volatility, and grants are unchanged.
+--
+-- Idempotent: ALTER ... SET search_path is safe to re-run.
+-- ══════════════════════════════════════════════════════════════════
+
+ALTER FUNCTION public.db_now() SET search_path = pg_catalog, public;
