@@ -746,7 +746,7 @@ jobs:
         # F-011: pin the Supabase CLI version so a breaking upstream
         # release cannot change migration behaviour without a deliberate
         # code change. Bump deliberately via Renovate / Dependabot.
-        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v1
+        uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v1
         with:
           version: 2.45.5
 
@@ -1057,7 +1057,7 @@ jobs:
         # release cannot change `supabase gen types` output without a
         # deliberate code change. Bump deliberately via Renovate /
         # Dependabot; do NOT switch back to `version: latest`.
-        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v1
+        uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v1
         with:
           version: 2.45.5
       - name: Check DB types drift
